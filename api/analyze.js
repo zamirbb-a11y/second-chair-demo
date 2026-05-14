@@ -7,6 +7,8 @@ export default async function handler(req, res) {
   }
 
   try {
+    const startedAt = Date.now();
+
     const { caseText, documentText } = req.body;
 
     const prompt = buildAnalyzePrompt({
@@ -14,6 +16,8 @@ export default async function handler(req, res) {
       documentText,
       legalPacks: [contractFormationDefectsPack],
     });
+
+    console.log("Starting analysis request");
 
     const response = await fetch(
       "https://api.openai.com/v1/chat/completions",
@@ -23,36 +27,35 @@ export default async function handler(req, res) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
         },
-
         body: JSON.stringify({
           model: "gpt-4.1-mini",
-
           messages: [
             {
               role: "system",
               content:
-                "אתה עורך דין ישראלי בכיר בדיני חוזים וליטיגציה מסחרית. אתה בונה cockpit ליטיגטורי: עובדות, ראיות, סיכונים, תיאוריות תיק, עילות רלוונטיות, סעדים וצעדים הבאים."
+                "אתה עורך דין ישראלי בכיר בדיני חוזים וליטיגציה מסחרית. אתה בונה cockpit ליטיגטורי: עובדות, ראיות, סיכונים, תיאוריות תיק, עילות רלוונטיות, סעדים וצעדים הבאים.",
             },
-
             {
               role: "user",
-              content: prompt
-            }
+              content: prompt,
+            },
           ],
-
-          temperature: 0.2
+          temperature: 0.2,
+          max_tokens: 2500,
         }),
       }
     );
 
     const data = await response.json();
 
+    console.log(`Analysis completed in ${Date.now() - startedAt}ms`);
+
     if (!response.ok) {
       console.error(data);
 
       return res.status(500).json({
         error: "OpenAI request failed",
-        details: data
+        details: data,
       });
     }
 
@@ -60,7 +63,7 @@ export default async function handler(req, res) {
 
     if (!content) {
       return res.status(500).json({
-        error: "No content returned"
+        error: "No content returned",
       });
     }
 
@@ -71,12 +74,11 @@ export default async function handler(req, res) {
       .trim();
 
     return res.status(200).json(JSON.parse(cleaned));
-
   } catch (error) {
     console.error(error);
 
     return res.status(500).json({
-      error: "Analysis failed"
+      error: "Analysis failed",
     });
   }
 }
