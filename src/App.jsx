@@ -1,32 +1,23 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 
-export default function SecondChairMisrepresentationDemo() {
-  const [caseText, setCaseText] = useState(
-    `הלקוח טוען כי חתם על הסכם מכר לאחר שהצד השני הציג בפניו מצג שלפיו אין בעיות מהותיות בעסקה. לאחר החתימה התברר כי קיימים פערים משמעותיים בין מה שנאמר בעל פה לבין נוסח ההסכם, ובנוסף מסמכים מרכזיים לא הועברו ללקוח בזמן אמת. הלקוח מבקש לבטל את ההסכם ולקבל השבה.`
-  );
-
-  const [documentText, setDocumentText] = useState(
-    `הסכם מכר מיום 12.3.2024 בין ראובן כהן לבין שמעון לוי. התמורה לפי ההסכם: 900,000 ש"ח. התשלום יבוצע בשלושה תשלומים. בהסכם נכתב כי הקונה בדק את מצבו המשפטי והפיזי של הנכס ומוותר על כל טענה. אין בהסכם התייחסות למצגים בעל פה שניתנו לפני החתימה.`
-  );
-
-  const [isAnalyzed, setIsAnalyzed] = useState(false);
-  const [activeTab, setActiveTab] = useState("summary");
-  const [uploadedFileName, setUploadedFileName] = useState("");
-  const [uploadStatus, setUploadStatus] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [aiAnalysis, setAiAnalysis] = useState(null);
-  const [analysisError, setAnalysisError] = useState("");
+export default function App() {
+  const [caseText, setCaseText] = useState("");
+  const [documentText, setDocumentText] = useState("");
+  const [fileName, setFileName] = useState("");
+  const [status, setStatus] = useState("");
+  const [analysis, setAnalysis] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   async function handleWordUpload(event) {
-    const file = event.target.files && event.target.files[0];
+    const file = event.target.files?.[0];
     if (!file) return;
 
-    setUploadedFileName(file.name);
-    setUploadStatus("קורא את קובץ ה־Word...");
+    setFileName(file.name);
+    setStatus("קורא את קובץ ה־Word...");
 
-    const isDocx = file.name.toLowerCase().endsWith(".docx");
-    if (!isDocx) {
-      setUploadStatus("כרגע הדמו תומך בקובצי .docx בלבד. שמור את הקובץ כ־.docx ונסה שוב.");
+    if (!file.name.toLowerCase().endsWith(".docx")) {
+      setStatus("כרגע הדמו תומך רק בקובצי .docx");
       return;
     }
 
@@ -34,28 +25,19 @@ export default function SecondChairMisrepresentationDemo() {
       const mammoth = await import("mammoth");
       const arrayBuffer = await file.arrayBuffer();
       const result = await mammoth.extractRawText({ arrayBuffer });
-      const extractedText = result.value && result.value.trim();
 
-      if (!extractedText) {
-        setUploadStatus("הקובץ נטען, אבל לא נמצא בו טקסט קריא.");
-        return;
-      }
-
-      setDocumentText(extractedText);
-      setUploadStatus("המסמך נטען והטקסט הועבר לשדה המסמך.");
-    } catch (error) {
-      console.error(error);
-      setUploadStatus("לא הצלחתי לקרוא את קובץ ה־Word. נסה קובץ .docx פשוט יותר או הדבק את הטקסט ידנית.");
+      setDocumentText(result.value || "");
+      setStatus("המסמך נטען בהצלחה.");
+    } catch (err) {
+      console.error(err);
+      setStatus("לא הצלחתי לקרוא את המסמך. אפשר להדביק את הטקסט ידנית.");
     }
   }
 
-  const fallbackAnalysis = useMemo(() => analyzeInput(caseText, documentText), [caseText, documentText]);
-  const analysis = aiAnalysis || fallbackAnalysis;
-
-  async function handleAnalyzeClick() {
-    setIsLoading(true);
-    setAnalysisError("");
-    setAiAnalysis(null);
+  async function runAnalysis() {
+    setLoading(true);
+    setError("");
+    setAnalysis(null);
 
     try {
       const response = await fetch("/api/analyze", {
@@ -69,217 +51,189 @@ export default function SecondChairMisrepresentationDemo() {
       }
 
       const data = await response.json();
+      setAnalysis(data);
 
-      setAiAnalysis({
-        parties: data.parties || "לא זוהו בעלי עניין מרכזיים.",
-        mainIssue: data.mainIssue || "לא זוהתה סוגיה משפטית מרכזית.",
-        legalTheory: data.analysis || "לא התקבל ניתוח משפטי.",
-        counterArgument: data.counterArgument || "לא התקבלה טענת נגד.",
-        missing: data.missingEvidence || "לא זוהו חוסרים ראייתיים.",
-        confidence: data.confidence || "בינונית",
-        source: data.source || "OpenAI GPT-4.1-mini",
-        extracted: data.timeline || "לא זוהה לוח זמנים מרכזי.",
-        elements: fallbackAnalysis.elements,
-        questions: fallbackAnalysis.questions,
-        cases: fallbackAnalysis.cases,
-      });
-
-      setIsAnalyzed(true);
       setTimeout(() => {
-        const results = document.getElementById("analysis-results");
-        if (results) results.scrollIntoView({ behavior: "smooth", block: "start" });
+        document.getElementById("results")?.scrollIntoView({ behavior: "smooth" });
       }, 100);
-    } catch (error) {
-      console.error(error);
-      setAnalysisError("הניתוח באמצעות AI נכשל. מוצג ניתוח מקומי בסיסי במקום.");
-      setIsAnalyzed(true);
-      setTimeout(() => {
-        const results = document.getElementById("analysis-results");
-        if (results) results.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 100);
+    } catch (err) {
+      console.error(err);
+      setError("הניתוח נכשל. בדוק את ה־API או את ה־Vercel Logs.");
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   }
 
   return (
     <div dir="rtl" className="min-h-screen bg-slate-50 text-slate-900 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        <header className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <header className="flex flex-col md:flex-row justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-3">
               <span className="text-3xl">⚖️</span>
-              <h1 className="text-3xl font-bold tracking-tight">Second Chair</h1>
-              <span className="rounded-full bg-slate-200 px-3 py-1 text-xs font-medium">דמו ראשוני v0.3.0</span>
+              <h1 className="text-3xl font-bold">Second Chair</h1>
+              <span className="text-xs bg-slate-200 rounded-full px-3 py-1">
+                Litigation Cockpit v0.4.0
+              </span>
             </div>
-            <p className="text-slate-600 max-w-3xl">
-              ניתוח ראשוני של פגם בכריתת חוזה: הטעיה לפי סעיף 15 לחוק החוזים, וביטול והשבה לפי סעיף 21.
+            <p className="text-slate-600 mt-2">
+              דמו ממוקד: הטעיה לפי סעיף 15 והשבה לפי סעיף 21 לחוק החוזים.
             </p>
           </div>
-          <button className="rounded-2xl px-5 py-3 bg-slate-900 text-white hover:bg-slate-800" onClick={handleAnalyzeClick}>
-            {isLoading ? "מנתח תיק..." : "🧠 נתח תיק"}
+
+          <button
+            onClick={runAnalysis}
+            disabled={loading}
+            className="bg-slate-900 text-white rounded-2xl px-6 py-3 disabled:opacity-60"
+          >
+            {loading ? "מנתח תיק..." : "נתח תיק"}
           </button>
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Panel>
-            <Title icon="📄">קלט עורך הדין</Title>
-
-            <FieldLabel>תיאור מקרה</FieldLabel>
+          <Card title="תיאור מקרה">
             <textarea
               value={caseText}
               onChange={(e) => setCaseText(e.target.value)}
-              className="w-full min-h-44 rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-7 outline-none focus:ring-2 focus:ring-slate-300"
+              placeholder="הדבק כאן את תיאור המקרה..."
+              className="w-full min-h-64 rounded-2xl border p-4 leading-7"
             />
+          </Card>
 
-            <FieldLabel>מסמך / טקסט מתוך מסמך</FieldLabel>
+          <Card title="מסמך / טקסט מתוך מסמך">
             <textarea
               value={documentText}
               onChange={(e) => setDocumentText(e.target.value)}
-              className="w-full min-h-44 rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-7 outline-none focus:ring-2 focus:ring-slate-300"
+              placeholder="הדבק כאן טקסט מהסכם, מכתב, התכתבות או מסמך אחר..."
+              className="w-full min-h-64 rounded-2xl border p-4 leading-7"
             />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <label className="rounded-2xl border border-slate-200 bg-white px-4 py-3 hover:bg-slate-50 text-center cursor-pointer">
-                ⬆️ העלאת Word (.docx)
-                <input
-                  type="file"
-                  accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                  onChange={handleWordUpload}
-                  className="hidden"
-                />
-              </label>
+            <label className="block mt-4 border rounded-2xl px-4 py-3 text-center cursor-pointer bg-white hover:bg-slate-50">
+              העלאת Word (.docx)
               <input
-                placeholder="שם תיק / לקוח"
-                className="rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:ring-2 focus:ring-slate-300"
+                type="file"
+                accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                onChange={handleWordUpload}
+                className="hidden"
               />
-            </div>
+            </label>
 
-            {(uploadedFileName || uploadStatus) && (
-              <div className="rounded-2xl bg-slate-50 border border-slate-200 p-3 text-sm text-slate-700 leading-6">
-                {uploadedFileName && <div><strong>קובץ:</strong> {uploadedFileName}</div>}
-                {uploadStatus && <div>{uploadStatus}</div>}
+            {(fileName || status) && (
+              <div className="mt-3 text-sm bg-slate-100 rounded-2xl p-3">
+                {fileName && <div><strong>קובץ:</strong> {fileName}</div>}
+                {status && <div>{status}</div>}
               </div>
             )}
-          </Panel>
-
-          <Panel>
-            <Title icon="👨‍⚖️">שכבת ידע בדמו</Title>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="p-4 rounded-2xl bg-white border border-slate-200">
-                <h3 className="font-semibold mb-2">חוק</h3>
-                <p className="text-sm text-slate-600">סעיף 15 — הטעיה, לרבות אי־גילוי.</p>
-                <p className="text-sm text-slate-600 mt-1">סעיף 21 — השבה לאחר ביטול.</p>
-              </div>
-              <div className="p-4 rounded-2xl bg-white border border-slate-200">
-                <h3 className="font-semibold mb-2">פסיקה</h3>
-                <p className="text-sm text-slate-600">ג.מ.ח.ל.; אבו רקיה; פסגות.</p>
-              </div>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-slate-900 text-white">
-              <h3 className="font-semibold mb-2">מה הדמו עושה?</h3>
-              <p className="text-sm text-slate-200 leading-6">
-                הדמו קורא את הטקסט שהוזן ומייצר ניתוח משתנה: צדדים, סוגיה, יסודות העילה, טענות נגד וחוסרים.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-3 gap-3 text-center">
-              <MiniCard icon="👥" label="צדדים" />
-              <MiniCard icon="🔎" label="חוסרים" />
-              <MiniCard icon="⚠️" label="טענות נגד" />
-            </div>
-          </Panel>
+          </Card>
         </div>
 
-        {isAnalyzed && (
-          <div id="analysis-results">
-            <Panel>
-              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-2">
-                <div>
-                  <h2 className="text-2xl font-bold">AI Litigation Assessment</h2>
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded-2xl p-4">
+            {error}
+          </div>
+        )}
 
-                  <p className="text-slate-600 text-sm mt-1">
-                    {aiAnalysis
-                      ? "ניתוח AI לפי הטקסט והמסמך שהוזנו."
-                      : "ניתוח מקומי בסיסי לפי הטקסט שהוזן."}
-                  </p>
+        {analysis && (
+          <div id="results" className="space-y-6">
+            <section className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+              <Metric title="מקור" value={analysis.source || "OpenAI"} />
+              <Metric title="רמת ביטחון" value={analysis.confidence || "Medium"} />
+              <Metric title="סיכון" value={analysis.caseSnapshot?.riskLevel || "לא זוהה"} />
+              <Metric title="מוקד" value={analysis.caseSnapshot?.issueFocus || "לא זוהה"} />
+            </section>
 
-                  {analysisError && (
-                    <p className="text-amber-700 text-sm mt-2">
-                      {analysisError}
+            <Card title="Case Snapshot">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Box title="בעלי עניין">
+                  <List items={analysis.caseSnapshot?.parties} />
+                </Box>
+                <Box title="מוקד המחלוקת">
+                  {analysis.caseSnapshot?.coreDispute || "לא זוהה"}
+                </Box>
+              </div>
+            </Card>
+
+            <Card title="לוח זמנים עיקרי">
+              <Timeline items={analysis.timeline} />
+            </Card>
+
+            <Card title="השאלה המשפטית העיקרית">
+              <h3 className="font-semibold mb-2">
+                {analysis.mainLegalIssue?.question || "לא זוהתה שאלה משפטית"}
+              </h3>
+              <p className="text-slate-700 leading-7">
+                {analysis.mainLegalIssue?.whyItMatters || ""}
+              </p>
+            </Card>
+
+            <Card title="Critical Issues">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {(analysis.criticalIssues || []).map((item, index) => (
+                  <div key={index} className="border rounded-2xl p-4 bg-white">
+                    <Severity value={item.severity} />
+                    <h3 className="font-semibold mt-2">{item.title}</h3>
+                    <p className="text-sm text-slate-700 leading-6 mt-2">
+                      {item.analysis}
                     </p>
-                  )}
-                </div>
-
-                <div className="text-left md:text-right">
-                  <span className="rounded-xl bg-slate-900 text-white px-3 py-2 text-sm inline-block">
-                    רמת ביטחון: {analysis.confidence}
-                  </span>
-
-                  {analysis.source && (
-                    <div className="text-xs text-slate-500 mt-2">
-                      מקור הניתוח: {analysis.source}
-                    </div>
-                  )}
-                </div>
+                  </div>
+                ))}
               </div>
+            </Card>
 
-              <div className="grid grid-cols-4 gap-2 rounded-2xl bg-slate-100 p-1">
-                <TabButton active={activeTab === "summary"} onClick={() => setActiveTab("summary")}>סיכום</TabButton>
-                <TabButton active={activeTab === "elements"} onClick={() => setActiveTab("elements")}>יסודות העילה</TabButton>
-                <TabButton active={activeTab === "cases"} onClick={() => setActiveTab("cases")}>פסיקה</TabButton>
-                <TabButton active={activeTab === "questions"} onClick={() => setActiveTab("questions")}>חוסרים</TabButton>
+            <Card title="Evidence Map">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm border-collapse">
+                  <thead>
+                    <tr className="bg-slate-100">
+                      <th className="p-3 text-right">Issue</th>
+                      <th className="p-3 text-right">ראיה קיימת</th>
+                      <th className="p-3 text-right">ראיה חסרה</th>
+                      <th className="p-3 text-right">סיכון</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(analysis.evidenceMap || []).map((row, index) => (
+                      <tr key={index} className="border-b">
+                        <td className="p-3 font-medium">{row.issue}</td>
+                        <td className="p-3">{row.existingEvidence}</td>
+                        <td className="p-3">{row.missingEvidence}</td>
+                        <td className="p-3"><Severity value={row.risk} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
+            </Card>
 
-              {activeTab === "summary" && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
-                  <InfoBlock title="זהות הצדדים" text={analysis.parties} />
-                  <InfoBlock title="הסוגיה המרכזית" text={analysis.mainIssue} />
-                  <InfoBlock title="טענה משפטית אפשרית" text={analysis.legalTheory} />
-                  <InfoBlock title="טענת נגד צפויה" text={analysis.counterArgument} warning />
-                  <InfoBlock title="חוסר מהותי" text={analysis.missing} warning />
-                  <InfoBlock title="לוח זמנים / נתונים מרכזיים" text={analysis.extracted} />
-                </div>
-              )}
+            <Card title="ניתוח משפטי">
+              <p className="leading-8 text-slate-800 whitespace-pre-line">
+                {analysis.legalAnalysis}
+              </p>
+            </Card>
 
-              {activeTab === "elements" && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
-                  {analysis.elements.map((item) => (
-                    <div key={item.label} className="p-4 rounded-2xl bg-white border border-slate-200 flex gap-3">
-                      <div className={item.status === "weak" ? "text-amber-600" : "text-emerald-600"}>{item.status === "weak" ? "⚠️" : "✅"}</div>
-                      <div>
-                        <h3 className="font-semibold">{item.label}</h3>
-                        <p className="text-sm text-slate-600 mt-1 leading-6">{item.text}</p>
-                      </div>
+            <Card title="טענות נגד צפויות">
+              <div className="space-y-3">
+                {(analysis.counterArguments || []).map((item, index) => (
+                  <div key={index} className="border rounded-2xl p-4 bg-white">
+                    <div className="flex justify-between gap-3">
+                      <h3 className="font-semibold">{item.argument}</h3>
+                      <Severity value={item.strength} />
                     </div>
-                  ))}
-                </div>
-              )}
+                    <p className="text-sm text-slate-700 leading-6 mt-2">
+                      {item.response}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </Card>
 
-              {activeTab === "cases" && (
-                <div className="space-y-3 mt-5">
-                  {analysis.cases.map((c) => (
-                    <div key={c.name} className="p-4 rounded-2xl bg-white border border-slate-200">
-                      <h3 className="font-semibold">{c.name}</h3>
-                      <p className="text-sm text-slate-600 mt-1 leading-6">{c.use}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
+            <Card title="Recommended Next Steps">
+              <List items={analysis.nextSteps} numbered />
+            </Card>
 
-              {activeTab === "questions" && (
-                <div className="space-y-3 mt-5">
-                  {analysis.questions.map((q, i) => (
-                    <div key={q} className="p-4 rounded-2xl bg-white border border-slate-200 flex gap-3 items-start">
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">{i + 1}</span>
-                      <p className="text-sm leading-6">{q}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Panel>
+            <Card title="חוסרים ראייתיים">
+              <List items={analysis.missingEvidence} />
+            </Card>
           </div>
         )}
       </div>
@@ -287,260 +241,79 @@ export default function SecondChairMisrepresentationDemo() {
   );
 }
 
-function analyzeInput(caseText, documentText) {
-  const text = `${caseText || ""} ${documentText || ""}`.trim();
-  const lower = text.toLowerCase();
-
-  const hasRepresentation = includesAny(text, ["מצג", "הציג", "הובטח", "הבטיח", "נאמר", "בעל פה", "שכנע"]);
-  const hasNonDisclosure = includesAny(text, ["לא גילה", "לא הועבר", "הוסתר", "הסתיר", "אי גילוי", "אי־גילוי", "לא נמסר", "מסמכים מרכזיים", "העלים"]);
-  const hasReliance = includesAny(text, ["הסתמך", "עקב", "בגלל", "אלמלא", "לא היה מתקשר", "לא היה חותם", "חתם לאחר", "שוכנע"]);
-  const hasCancellation = includesAny(text, ["ביטול", "לבטל", "הודעת ביטול", "מבקש לבטל", "השבה"]);
-  const hasWaiver = includesAny(lower, ["מוותר", "ויתור", "בדק", "as is", "ללא כל טענה"]);
-  const hasFiduciary = includesAny(text, ["עורך דין", "עו״ד", "עו\"ד", "שלוח", "מיופה כוח", "נאמן", "יחסי אמון", "ניגוד עניינים", "קרוב משפחה"]);
-  const hasMoney = includesAny(text, ["₪", "שח", "ש\"ח", "דולר", "תמורה", "מחיר", "סכום"]);
-  const hasAgreement = includesAny(text, ["הסכם", "חוזה", "חתם", "חתימה", "מכר"]);
-
-  const parties = extractParties(text);
-  const factSnapshot = buildFactSnapshot(text, {
-    hasRepresentation,
-    hasNonDisclosure,
-    hasReliance,
-    hasCancellation,
-    hasWaiver,
-    hasFiduciary,
-    hasMoney,
-    hasAgreement,
-  });
-
-  const legalQuestion = buildLegalQuestion({ hasRepresentation, hasNonDisclosure, hasFiduciary, hasWaiver, hasCancellation });
-  const strengths = buildStrengths({ hasRepresentation, hasNonDisclosure, hasReliance, hasFiduciary, hasCancellation, hasMoney });
-  const weaknesses = buildWeaknesses({ hasRepresentation, hasNonDisclosure, hasReliance, hasWaiver, hasCancellation });
-  const signals = strengths.length;
-  const confidence = signals >= 4 && weaknesses.length <= 2 ? "גבוהה" : signals >= 2 ? "בינונית" : "נמוכה";
-
-  const mainIssue = `${legalQuestion} ${factSnapshot}`;
-
-  const legalTheory = buildLegalTheory({
-    hasRepresentation,
-    hasNonDisclosure,
-    hasReliance,
-    hasFiduciary,
-    hasCancellation,
-    hasWaiver,
-  });
-
-  const counterArgument = buildCounterArgument({ hasWaiver, hasReliance, hasRepresentation, hasNonDisclosure });
-  const missingList = buildMissingList({ hasRepresentation, hasReliance, hasCancellation, hasNonDisclosure });
-
-  const elements = [
-    {
-      label: "טעות",
-      status: hasRepresentation || hasNonDisclosure ? "possible" : "weak",
-      text: hasRepresentation || hasNonDisclosure
-        ? "הטענה צריכה להיות שהלקוח חתם כשהוא מחזיק תמונת מצב שגויה: שהעסקה נקייה מבעיה מהותית או שהמסמכים שנמסרו לו משקפים את מלוא התמונה."
-        : "לא ברור עדיין מהי הטעות הקונקרטית. צריך להגדיר במשפט אחד: מה הלקוח חשב בזמן החתימה ומה התברר כשונה לאחר מכן.",
-    },
-    {
-      label: "הטעיה / אי גילוי",
-      status: hasNonDisclosure || hasRepresentation || hasFiduciary ? "possible" : "weak",
-      text: hasNonDisclosure
-        ? "הליבה העובדתית היא אי־מסירת מידע או מסמכים לפני החתימה. זה יכול לתמוך בהטעיה במחדל, אם יוכח שהמידע היה מהותי ושקמה חובת גילוי."
-        : hasRepresentation
-          ? "הטענה נשענת על מצגים טרום־חוזיים. צריך להפוך אותם לעובדות קונקרטיות: מי אמר, מה נאמר, ומתי."
-          : "לא זוהה עדיין מצג מטעה או מידע מסוים שהוסתר.",
-    },
-    {
-      label: "קשר סיבתי",
-      status: hasReliance ? "possible" : "weak",
-      text: hasReliance
-        ? "יש אינדיקציה לכך שהלקוח קושר בין המצג לבין ההחלטה לחתום. צריך לחזק זאת בראיות מזמן אמת."
-        : "זה כרגע הסיכון המרכזי: גם אם היה אי־גילוי, צריך להראות שהלקוח לא היה חותם או שהיה חותם בתנאים אחרים אילו ידע את האמת.",
-    },
-    {
-      label: "ביטול והשבה",
-      status: hasCancellation ? "possible" : "weak",
-      text: hasCancellation
-        ? "מאחר שמופיע רצון לבטל או לקבל השבה, צריך לבדוק את מועד הגילוי, מועד הודעת הביטול, ומה בדיוק התקבל מכוח ההסכם לצורך השבה."
-        : "לא זוהתה הודעת ביטול. בלי ביטול ברור ובזמן סביר, הדיון בסעיף 21 נשאר מוקדם מדי.",
-    },
-  ];
-
-  return {
-    parties,
-    mainIssue,
-    legalTheory,
-    counterArgument,
-    missing: missingList.join("; ") + ".",
-    confidence,
-    extracted: buildExtracted(text, hasMoney, text.includes(".") || text.includes("/")),
-    elements,
-    questions: missingList,
-    cases: [
-      {
-        name: "ע״א 2286/07 ג.מ.ח.ל.",
-        use: hasWaiver || !hasReliance
-          ? "פסיקה מסוכנת יחסית: אם יתברר שהלקוח היה אדיש, לא בדק, או לא הראה שהמידע היה תנאי אמיתי לחתימה — טענת ההטעיה עלולה להיחלש."
-          : "רלוונטי כמבחן נגד: לא די בכך שהעסקה התבררה כבעייתית; צריך להוכיח טעות וקשר סיבתי בזמן הכריתה.",
-      },
-      {
-        name: "ע״א 5328/21 אבו רקיה",
-        use: hasFiduciary || hasNonDisclosure
-          ? "פסיקה תומכת: כאשר יש הסתרת פרטים מהותיים, יחסי אמון או ניגוד עניינים, בית המשפט נכון יותר לראות באי־גילוי הטעיה במחדל."
-          : "רלוונטי בעיקר אם יתבררו יחסי אמון, שליחות, עורך דין־לקוח או הסתרה מכוונת של פרטים מהותיים.",
-      },
-      {
-        name: "ע״א 5858/19 פסגות",
-        use: "שימושי לטענת נגד של נטילת סיכון וטעות בכדאיות: האם הלקוח ידע שיש אי־ודאות ובכל זאת בחר לחתום."
-      },
-    ],
-    strengths,
-    weaknesses,
-  };
-}
-
-function buildLegalQuestion(flags) {
-  if (flags.hasFiduciary && flags.hasNonDisclosure) {
-    return "השאלה המשפטית המרכזית היא האם אי־גילוי מצד בעל חובת אמון או גורם בעל יתרון מידע עולה כדי הטעיה במחדל לפי סעיף 15.";
-  }
-  if (flags.hasRepresentation && flags.hasWaiver) {
-    return "השאלה המשפטית המרכזית היא האם מצגים שניתנו לפני החתימה גוברים, בנסיבות העניין, על סעיפי בדיקה או ויתור שנכללו בהסכם.";
-  }
-  if (flags.hasNonDisclosure) {
-    return "השאלה המשפטית המרכזית היא האם אי־מסירת המידע לפני החתימה נגעה לעובדה מהותית שהיה על הצד השני לגלות.";
-  }
-  return "השאלה המשפטית המרכזית היא האם קיימת בכלל טעות חוזית שנגרמה מהטעיה, להבדיל מאכזבה מאוחרת או טעות בכדאיות העסקה.";
-}
-
-function buildFactSnapshot(text, flags) {
-  const parts = [];
-  if (flags.hasAgreement) parts.push("החומר מתאר התקשרות חוזית או הסכם שנחתם");
-  if (flags.hasRepresentation) parts.push("נטען למצגים או הבטחות לפני החתימה");
-  if (flags.hasNonDisclosure) parts.push("נטען שמידע או מסמכים מהותיים לא הועברו בזמן אמת");
-  if (flags.hasWaiver) parts.push("מנגד, קיימת אינדיקציה לסעיף בדיקה או ויתור בהסכם");
-  if (flags.hasFiduciary) parts.push("קיימת אפשרות לחובת גילוי מוגברת בגלל יחסי אמון או שליחות");
-  if (!parts.length) return "בשלב זה העובדות שהוזנו אינן מספיקות כדי לבנות תזה משפטית חדה.";
-  return "על פי הקלט: " + parts.join("; ") + ".";
-}
-
-function buildLegalTheory(flags) {
-  let text = "התזה האפשרית של הלקוח היא ביטול חוזה מחמת הטעיה לפי סעיף 15 לחוק החוזים.";
-  if (flags.hasRepresentation) text += " מבחינה עובדתית, יש למקד את הטענה במצגים שניתנו לפני החתימה ולא נכנסו או נסתרו בנוסח ההסכם.";
-  if (flags.hasNonDisclosure) text += " בנוסף, יש בסיס ראשוני למסלול של הטעיה במחדל: מידע מהותי לא נמסר לפני שהלקוח גיבש את הסכמתו.";
-  if (flags.hasFiduciary) text += " אם יוכחו יחסי אמון, שליחות או ייעוץ, רף חובת הגילוי צפוי להיות גבוה יותר.";
-  if (flags.hasWaiver) text += " נקודת הקושי היא שסעיפי בדיקה או ויתור עלולים לשמש נגד הלקוח, ולכן צריך להראות שההטעיה קדמה להסכמה ופגעה בגמירות הדעת.";
-  if (flags.hasCancellation) text += " אם הביטול נמסר בזמן סביר לאחר הגילוי, ניתן לעבור לשאלת ההשבה לפי סעיף 21.";
-  return text;
-}
-
-function buildCounterArgument(flags) {
-  const parts = [];
-  if (flags.hasWaiver) parts.push("הצד השני צפוי להישען על סעיפי בדיקה/ויתור ולטעון שהלקוח קיבל על עצמו את הסיכון");
-  if (!flags.hasReliance) parts.push("החולשה המרכזית היא היעדר ראיה ברורה לכך שהמצג או אי־הגילוי הם שגרמו לחתימה");
-  if (!flags.hasRepresentation && !flags.hasNonDisclosure) parts.push("הטקסט אינו מצביע עדיין על מצג קונקרטי או על עובדה מסוימת שהוסתרה");
-  parts.push("טענת נגד צפויה נוספת היא שמדובר בטעות בכדאיות העסקה ולא בפגם בכריתה");
-  return parts.join("; ") + ".";
-}
-
-function buildMissingList(flags) {
-  const list = [];
-  if (!flags.hasRepresentation) list.push("חסר פירוט מדויק של המצג הנטען: מי אמר, מה נאמר ומתי");
-  if (!flags.hasReliance) list.push("חסרה ראיה לכך שהלקוח לא היה חותם אילו ידע את העובדות האמיתיות");
-  if (!flags.hasCancellation) list.push("חסר מועד גילוי ההטעיה ומועד הודעת הביטול");
-  if (!flags.hasNonDisclosure) list.push("חסר זיהוי של העובדה או המסמך הספציפיים שלא גולו");
-  list.push("רצוי לצרף תכתובות, טיוטות, WhatsApp או עדים משלב המשא ומתן");
-  return list;
-}
-
-function buildStrengths(flags) {
-  const list = [];
-  if (flags.hasRepresentation) list.push("קיימת טענה למצגים לפני החתימה");
-  if (flags.hasNonDisclosure) list.push("קיימת טענה לאי־גילוי או הסתרת מידע");
-  if (flags.hasReliance) list.push("קיימת אינדיקציה להסתמכות או לקשר סיבתי");
-  if (flags.hasFiduciary) list.push("ייתכן שקיימת חובת גילוי מוגברת");
-  if (flags.hasCancellation) list.push("קיים בסיס לבדוק ביטול והשבה");
-  if (flags.hasMoney) list.push("רכיב התמורה/המחיר עשוי לסייע בהערכת מהותיות");
-  return list;
-}
-
-function buildWeaknesses(flags) {
-  const list = [];
-  if (flags.hasWaiver) list.push("סעיף בדיקה או ויתור בהסכם עלול להחליש את הטענה");
-  if (!flags.hasReliance) list.push("חסר קשר סיבתי מפורש בין ההטעיה לבין החתימה");
-  if (!flags.hasCancellation) list.push("לא ברור אם נמסרה הודעת ביטול בזמן סביר");
-  if (!flags.hasRepresentation && !flags.hasNonDisclosure) list.push("אין עדיין מצג או אי־גילוי קונקרטיים");
-  return list;
-}
-
-function includesAny(text, words) {
-  return words.some((word) => text.includes(word));
-}
-
-function extractParties(text) {
-  const marker = " בין ";
-  const secondMarker = " לבין ";
-  const start = text.indexOf(marker);
-  const middle = text.indexOf(secondMarker);
-  if (start >= 0 && middle > start) {
-    const first = text.slice(start + marker.length, middle).slice(0, 60).trim();
-    const second = text.slice(middle + secondMarker.length).split(".")[0].slice(0, 60).trim();
-    if (first && second) return `${first} / ${second}`;
-  }
-  return "לא זוהו בוודאות. מומלץ לציין במפורש מי הלקוח ומי הצד שכנגד.";
-}
-
-function buildExtracted(text, hasMoney, hasDates) {
-  const snippets = [];
-  if (hasMoney) snippets.push("זוהה רכיב תמורה / מחיר / סכום בטקסט");
-  if (hasDates) snippets.push("ייתכן שקיימים תאריכים בטקסט ויש לבדוק את מועד החתימה, הגילוי והביטול");
-  if (!snippets.length) return "לא חולצו נתונים מספריים בולטים.";
-  return snippets.join("; ");
-}
-
-function Panel({ children }) {
-  return <div className="rounded-2xl bg-white shadow-sm border border-slate-200 p-5 space-y-4">{children}</div>;
-}
-
-function Title({ icon, children }) {
+function Card({ title, children }) {
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-xl">{icon}</span>
-      <h2 className="text-xl font-semibold">{children}</h2>
-    </div>
-  );
-}
-
-function FieldLabel({ children }) {
-  return <label className="text-sm font-medium block mt-2">{children}</label>;
-}
-
-function MiniCard({ icon, label }) {
-  return (
-    <div className="p-3 rounded-2xl bg-white border border-slate-200 flex flex-col items-center gap-1">
-      <span className="text-xl">{icon}</span>
-      <p className="text-xs text-slate-600">{label}</p>
-    </div>
-  );
-}
-
-function TabButton({ active, onClick, children }) {
-  return (
-    <button
-      onClick={onClick}
-      className={active ? "rounded-xl bg-white px-3 py-2 text-sm font-semibold shadow-sm" : "rounded-xl px-3 py-2 text-sm text-slate-600 hover:bg-white/70"}
-    >
+    <section className="bg-white border rounded-2xl shadow-sm p-5">
+      <h2 className="text-xl font-bold mb-4">{title}</h2>
       {children}
-    </button>
+    </section>
   );
 }
 
-function InfoBlock({ title, text, warning }) {
+function Box({ title, children }) {
   return (
-    <div className="p-4 rounded-2xl bg-white border border-slate-200">
-      <div className="flex items-center gap-2 mb-2">
-        <span>{warning ? "⚠️" : "✅"}</span>
-        <h3 className="font-semibold">{title}</h3>
-      </div>
-      <p className="text-sm text-slate-600 leading-6">{text}</p>
+    <div className="bg-slate-50 border rounded-2xl p-4">
+      <h3 className="font-semibold mb-2">{title}</h3>
+      <div className="text-slate-700 leading-7">{children}</div>
+    </div>
+  );
+}
+
+function Metric({ title, value }) {
+  return (
+    <div className="bg-white border rounded-2xl p-4 shadow-sm">
+      <div className="text-xs text-slate-500">{title}</div>
+      <div className="font-semibold mt-1">{value}</div>
+    </div>
+  );
+}
+
+function Severity({ value }) {
+  const label = value || "Medium";
+  const color =
+    label === "High"
+      ? "bg-red-100 text-red-700"
+      : label === "Low"
+      ? "bg-emerald-100 text-emerald-700"
+      : "bg-amber-100 text-amber-700";
+
+  return (
+    <span className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${color}`}>
+      {label}
+    </span>
+  );
+}
+
+function List({ items, numbered }) {
+  if (!items || !items.length) return <p className="text-slate-500">לא זוהה.</p>;
+
+  const Tag = numbered ? "ol" : "ul";
+
+  return (
+    <Tag className={numbered ? "list-decimal pr-5 space-y-2" : "list-disc pr-5 space-y-2"}>
+      {items.map((item, index) => (
+        <li key={index} className="leading-7">{item}</li>
+      ))}
+    </Tag>
+  );
+}
+
+function Timeline({ items }) {
+  if (!items || !items.length) {
+    return <p className="text-slate-500">לא זוהה לוח זמנים מספק.</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {items.map((item, index) => (
+        <div key={index} className="border rounded-2xl p-4 bg-slate-50">
+          <div className="font-semibold">{item.date || "מועד לא ידוע"}</div>
+          <div className="mt-1">{item.event}</div>
+          <div className="text-sm text-slate-600 mt-2">
+            {item.legalSignificance}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
