@@ -69,7 +69,7 @@ export default function SecondChairMisrepresentationDemo() {
             <div className="flex items-center gap-2 mb-2">
               <span className="text-3xl">⚖️</span>
               <h1 className="text-3xl font-bold tracking-tight">Second Chair</h1>
-              <span className="rounded-full bg-slate-200 px-3 py-1 text-xs font-medium">דמו ראשוני v0.2.0</span>
+              <span className="rounded-full bg-slate-200 px-3 py-1 text-xs font-medium">דמו ראשוני v0.3.0</span>
             </div>
             <p className="text-slate-600 max-w-3xl">
               ניתוח ראשוני של פגם בכריתת חוזה: הטעיה לפי סעיף 15 לחוק החוזים, וביטול והשבה לפי סעיף 21.
@@ -225,82 +225,80 @@ export default function SecondChairMisrepresentationDemo() {
 }
 
 function analyzeInput(caseText, documentText) {
-  const text = `${caseText || ""} ${documentText || ""}`;
+  const text = `${caseText || ""} ${documentText || ""}`.trim();
   const lower = text.toLowerCase();
 
   const hasRepresentation = includesAny(text, ["מצג", "הציג", "הובטח", "הבטיח", "נאמר", "בעל פה", "שכנע"]);
-  const hasNonDisclosure = includesAny(text, ["לא גילה", "לא הועבר", "הוסתר", "הסתיר", "אי גילוי", "אי־גילוי", "לא נמסר", "פערים", "מסמכים מרכזיים"]);
+  const hasNonDisclosure = includesAny(text, ["לא גילה", "לא הועבר", "הוסתר", "הסתיר", "אי גילוי", "אי־גילוי", "לא נמסר", "מסמכים מרכזיים", "העלים"]);
   const hasReliance = includesAny(text, ["הסתמך", "עקב", "בגלל", "אלמלא", "לא היה מתקשר", "לא היה חותם", "חתם לאחר", "שוכנע"]);
-  const hasCancellation = includesAny(text, ["ביטול", "לבטל", "הודעת ביטול", "מבקש לבטל"]);
+  const hasCancellation = includesAny(text, ["ביטול", "לבטל", "הודעת ביטול", "מבקש לבטל", "השבה"]);
   const hasWaiver = includesAny(lower, ["מוותר", "ויתור", "בדק", "as is", "ללא כל טענה"]);
   const hasFiduciary = includesAny(text, ["עורך דין", "עו״ד", "עו\"ד", "שלוח", "מיופה כוח", "נאמן", "יחסי אמון", "ניגוד עניינים", "קרוב משפחה"]);
   const hasMoney = includesAny(text, ["₪", "שח", "ש\"ח", "דולר", "תמורה", "מחיר", "סכום"]);
-  const hasDates = text.includes(".") || text.includes("/");
-
-  const signals = [hasRepresentation, hasNonDisclosure, hasReliance, hasCancellation, hasFiduciary, hasMoney].filter(Boolean).length;
-  const confidence = signals >= 5 ? "גבוהה" : signals >= 3 ? "בינונית" : "נמוכה";
+  const hasAgreement = includesAny(text, ["הסכם", "חוזה", "חתם", "חתימה", "מכר"]);
 
   const parties = extractParties(text);
-  const extracted = buildExtracted(text, hasMoney, hasDates);
+  const factSnapshot = buildFactSnapshot(text, {
+    hasRepresentation,
+    hasNonDisclosure,
+    hasReliance,
+    hasCancellation,
+    hasWaiver,
+    hasFiduciary,
+    hasMoney,
+    hasAgreement,
+  });
 
-  const detectedSignals = [
-    hasRepresentation ? "מצג או הבטחה לפני החתימה" : null,
-    hasNonDisclosure ? "אי־גילוי או הסתרת מידע" : null,
-    hasReliance ? "אינדיקציה ראשונית להסתמכות" : null,
-    hasFiduciary ? "יחסי אמון או חובת גילוי מוגברת" : null,
-    hasMoney ? "רכיב תמורה או מחיר" : null,
-    hasCancellation ? "רצון לבטל או הודעת ביטול" : null,
-  ].filter(Boolean);
+  const legalQuestion = buildLegalQuestion({ hasRepresentation, hasNonDisclosure, hasFiduciary, hasWaiver, hasCancellation });
+  const strengths = buildStrengths({ hasRepresentation, hasNonDisclosure, hasReliance, hasFiduciary, hasCancellation, hasMoney });
+  const weaknesses = buildWeaknesses({ hasRepresentation, hasNonDisclosure, hasReliance, hasWaiver, hasCancellation });
+  const signals = strengths.length;
+  const confidence = signals >= 4 && weaknesses.length <= 2 ? "גבוהה" : signals >= 2 ? "בינונית" : "נמוכה";
 
-  const mainIssue = hasRepresentation || hasNonDisclosure
-    ? "האם מצגים טרום־חוזיים או אי־גילוי של עובדות מהותיות גרמו ללקוח להתקשר בחוזה עקב טעות."
-    : "האם קיימת תשתית עובדתית מספקת לטענת הטעיה לפי סעיף 15, או שמדובר במחלוקת חוזית רגילה או בטעות בכדאיות העסקה.";
+  const mainIssue = `${legalQuestion} ${factSnapshot}`;
 
-  const legalTheory = `עילת הביטול האפשרית היא הטעיה לפי סעיף 15 לחוק החוזים. זוהו ${signals} אינדיקציות רלוונטיות: ${detectedSignals.length ? detectedSignals.join("; ") : "לא זוהו אינדיקציות חזקות"}. אם הביטול תקף, יש לבחון השבה לפי סעיף 21.`;
+  const legalTheory = buildLegalTheory({
+    hasRepresentation,
+    hasNonDisclosure,
+    hasReliance,
+    hasFiduciary,
+    hasCancellation,
+    hasWaiver,
+  });
 
-  const counterBits = [];
-  if (hasWaiver) counterBits.push("קיים סעיף בדיקה או ויתור שעשוי לשמש את הצד השני");
-  if (!hasReliance) counterBits.push("חסר קשר סיבתי ברור בין המצג לבין החתימה");
-  if (!hasRepresentation && !hasNonDisclosure) counterBits.push("לא זוהה מצג קונקרטי או מידע מהותי שהוסתר");
-  counterBits.push("הצד השני עשוי לטעון לטעות בכדאיות העסקה או לניסיון להשתחרר מהסכם בדיעבד");
-
-  const missingList = [
-    !hasRepresentation ? "תיאור מדויק של המצג הנטען: מי אמר, מתי ובאיזה הקשר" : null,
-    !hasReliance ? "ראיה לכך שהלקוח לא היה חותם אילו ידע את העובדות האמיתיות" : null,
-    !hasCancellation ? "הודעת ביטול ומועד גילוי עילת הביטול" : null,
-    "תכתובות, טיוטות, הודעות WhatsApp או עדים משלב המשא ומתן",
-  ].filter(Boolean);
+  const counterArgument = buildCounterArgument({ hasWaiver, hasReliance, hasRepresentation, hasNonDisclosure });
+  const missingList = buildMissingList({ hasRepresentation, hasReliance, hasCancellation, hasNonDisclosure });
 
   const elements = [
     {
       label: "טעות",
       status: hasRepresentation || hasNonDisclosure ? "possible" : "weak",
       text: hasRepresentation || hasNonDisclosure
-        ? "יש בסיס ראשוני לטעון שהלקוח תפס את המציאות באופן שונה ממה שהתברר לאחר החתימה."
-        : "לא זוהתה עדיין טעות קונקרטית. צריך להגדיר מה הלקוח חשב ומה הייתה המציאות בפועל.",
+        ? "הטענה צריכה להיות שהלקוח חתם כשהוא מחזיק תמונת מצב שגויה: שהעסקה נקייה מבעיה מהותית או שהמסמכים שנמסרו לו משקפים את מלוא התמונה."
+        : "לא ברור עדיין מהי הטעות הקונקרטית. צריך להגדיר במשפט אחד: מה הלקוח חשב בזמן החתימה ומה התברר כשונה לאחר מכן.",
     },
     {
       label: "הטעיה / אי גילוי",
-      status: hasNonDisclosure || hasFiduciary ? "possible" : "weak",
+      status: hasNonDisclosure || hasRepresentation || hasFiduciary ? "possible" : "weak",
       text: hasNonDisclosure
-        ? "קיימת אינדיקציה לאי־גילוי או הסתרת מסמכים או מידע."
-        : hasFiduciary
-          ? "זוהו יחסי אמון או שליחות שעשויים להקים חובת גילוי מוגברת, אך צריך לפרט מה לא גולה."
-          : "לא זוהתה חובת גילוי קונקרטית או מצג מטעה ברור.",
+        ? "הליבה העובדתית היא אי־מסירת מידע או מסמכים לפני החתימה. זה יכול לתמוך בהטעיה במחדל, אם יוכח שהמידע היה מהותי ושקמה חובת גילוי."
+        : hasRepresentation
+          ? "הטענה נשענת על מצגים טרום־חוזיים. צריך להפוך אותם לעובדות קונקרטיות: מי אמר, מה נאמר, ומתי."
+          : "לא זוהה עדיין מצג מטעה או מידע מסוים שהוסתר.",
     },
     {
-      label: "קשר סיבתי כפול",
+      label: "קשר סיבתי",
       status: hasReliance ? "possible" : "weak",
       text: hasReliance
-        ? "יש אינדיקציה ראשונית לכך שהמצג או אי־הגילוי השפיעו על ההתקשרות."
-        : "זה הרכיב החלש כרגע: צריך להראות שההטעיה גרמה לטעות, ושהטעות גרמה לחתימה.",
+        ? "יש אינדיקציה לכך שהלקוח קושר בין המצג לבין ההחלטה לחתום. צריך לחזק זאת בראיות מזמן אמת."
+        : "זה כרגע הסיכון המרכזי: גם אם היה אי־גילוי, צריך להראות שהלקוח לא היה חותם או שהיה חותם בתנאים אחרים אילו ידע את האמת.",
     },
     {
       label: "ביטול והשבה",
       status: hasCancellation ? "possible" : "weak",
       text: hasCancellation
-        ? "קיימת אינדיקציה לביטול או רצון לבטל. צריך לבדוק אם הביטול נעשה בזמן סביר."
-        : "לא זוהתה הודעת ביטול. ללא ביטול כדין, סעיף 21 עדיין לא מופעל.",
+        ? "מאחר שמופיע רצון לבטל או לקבל השבה, צריך לבדוק את מועד הגילוי, מועד הודעת הביטול, ומה בדיוק התקבל מכוח ההסכם לצורך השבה."
+        : "לא זוהתה הודעת ביטול. בלי ביטול ברור ובזמן סביר, הדיון בסעיף 21 נשאר מוקדם מדי.",
     },
   ];
 
@@ -308,31 +306,106 @@ function analyzeInput(caseText, documentText) {
     parties,
     mainIssue,
     legalTheory,
-    counterArgument: `${counterBits.join("; ")}.`,
-    missing: `${missingList.join("; ")}.`,
+    counterArgument,
+    missing: missingList.join("; ") + ".",
     confidence,
-    extracted,
+    extracted: buildExtracted(text, hasMoney, text.includes(".") || text.includes("/")),
     elements,
     questions: missingList,
     cases: [
       {
         name: "ע״א 2286/07 ג.מ.ח.ל.",
         use: hasWaiver || !hasReliance
-          ? "פסיקה מסוכנת יחסית: אדישות, היעדר בדיקה או העדר קשר סיבתי עלולים להפיל טענת הטעיה."
-          : "רלוונטי כפסיקה שמחדדת את הצורך להוכיח טעות וקשר סיבתי, ולא רק אי־נוחות מהעסקה.",
+          ? "פסיקה מסוכנת יחסית: אם יתברר שהלקוח היה אדיש, לא בדק, או לא הראה שהמידע היה תנאי אמיתי לחתימה — טענת ההטעיה עלולה להיחלש."
+          : "רלוונטי כמבחן נגד: לא די בכך שהעסקה התבררה כבעייתית; צריך להוכיח טעות וקשר סיבתי בזמן הכריתה.",
       },
       {
         name: "ע״א 5328/21 אבו רקיה",
         use: hasFiduciary || hasNonDisclosure
-          ? "פסיקה תומכת: הסתרת פרטים מהותיים, יחסי אמון או ניגוד עניינים יכולים לבסס הטעיה במחדל."
-          : "רלוונטי בעיקר אם יתבררו יחסי אמון, שליחות, עורך דין־לקוח או הסתרת פרטים מהותיים.",
+          ? "פסיקה תומכת: כאשר יש הסתרת פרטים מהותיים, יחסי אמון או ניגוד עניינים, בית המשפט נכון יותר לראות באי־גילוי הטעיה במחדל."
+          : "רלוונטי בעיקר אם יתבררו יחסי אמון, שליחות, עורך דין־לקוח או הסתרה מכוונת של פרטים מהותיים.",
       },
       {
         name: "ע״א 5858/19 פסגות",
-        use: "שימושי לבדיקת טענת נגד של נטילת סיכון, טעות בכדאיות העסקה, וסופיות הסכמות או פשרה.",
+        use: "שימושי לטענת נגד של נטילת סיכון וטעות בכדאיות: האם הלקוח ידע שיש אי־ודאות ובכל זאת בחר לחתום."
       },
     ],
+    strengths,
+    weaknesses,
   };
+}
+
+function buildLegalQuestion(flags) {
+  if (flags.hasFiduciary && flags.hasNonDisclosure) {
+    return "השאלה המשפטית המרכזית היא האם אי־גילוי מצד בעל חובת אמון או גורם בעל יתרון מידע עולה כדי הטעיה במחדל לפי סעיף 15.";
+  }
+  if (flags.hasRepresentation && flags.hasWaiver) {
+    return "השאלה המשפטית המרכזית היא האם מצגים שניתנו לפני החתימה גוברים, בנסיבות העניין, על סעיפי בדיקה או ויתור שנכללו בהסכם.";
+  }
+  if (flags.hasNonDisclosure) {
+    return "השאלה המשפטית המרכזית היא האם אי־מסירת המידע לפני החתימה נגעה לעובדה מהותית שהיה על הצד השני לגלות.";
+  }
+  return "השאלה המשפטית המרכזית היא האם קיימת בכלל טעות חוזית שנגרמה מהטעיה, להבדיל מאכזבה מאוחרת או טעות בכדאיות העסקה.";
+}
+
+function buildFactSnapshot(text, flags) {
+  const parts = [];
+  if (flags.hasAgreement) parts.push("החומר מתאר התקשרות חוזית או הסכם שנחתם");
+  if (flags.hasRepresentation) parts.push("נטען למצגים או הבטחות לפני החתימה");
+  if (flags.hasNonDisclosure) parts.push("נטען שמידע או מסמכים מהותיים לא הועברו בזמן אמת");
+  if (flags.hasWaiver) parts.push("מנגד, קיימת אינדיקציה לסעיף בדיקה או ויתור בהסכם");
+  if (flags.hasFiduciary) parts.push("קיימת אפשרות לחובת גילוי מוגברת בגלל יחסי אמון או שליחות");
+  if (!parts.length) return "בשלב זה העובדות שהוזנו אינן מספיקות כדי לבנות תזה משפטית חדה.";
+  return "על פי הקלט: " + parts.join("; ") + ".";
+}
+
+function buildLegalTheory(flags) {
+  let text = "התזה האפשרית של הלקוח היא ביטול חוזה מחמת הטעיה לפי סעיף 15 לחוק החוזים.";
+  if (flags.hasRepresentation) text += " מבחינה עובדתית, יש למקד את הטענה במצגים שניתנו לפני החתימה ולא נכנסו או נסתרו בנוסח ההסכם.";
+  if (flags.hasNonDisclosure) text += " בנוסף, יש בסיס ראשוני למסלול של הטעיה במחדל: מידע מהותי לא נמסר לפני שהלקוח גיבש את הסכמתו.";
+  if (flags.hasFiduciary) text += " אם יוכחו יחסי אמון, שליחות או ייעוץ, רף חובת הגילוי צפוי להיות גבוה יותר.";
+  if (flags.hasWaiver) text += " נקודת הקושי היא שסעיפי בדיקה או ויתור עלולים לשמש נגד הלקוח, ולכן צריך להראות שההטעיה קדמה להסכמה ופגעה בגמירות הדעת.";
+  if (flags.hasCancellation) text += " אם הביטול נמסר בזמן סביר לאחר הגילוי, ניתן לעבור לשאלת ההשבה לפי סעיף 21.";
+  return text;
+}
+
+function buildCounterArgument(flags) {
+  const parts = [];
+  if (flags.hasWaiver) parts.push("הצד השני צפוי להישען על סעיפי בדיקה/ויתור ולטעון שהלקוח קיבל על עצמו את הסיכון");
+  if (!flags.hasReliance) parts.push("החולשה המרכזית היא היעדר ראיה ברורה לכך שהמצג או אי־הגילוי הם שגרמו לחתימה");
+  if (!flags.hasRepresentation && !flags.hasNonDisclosure) parts.push("הטקסט אינו מצביע עדיין על מצג קונקרטי או על עובדה מסוימת שהוסתרה");
+  parts.push("טענת נגד צפויה נוספת היא שמדובר בטעות בכדאיות העסקה ולא בפגם בכריתה");
+  return parts.join("; ") + ".";
+}
+
+function buildMissingList(flags) {
+  const list = [];
+  if (!flags.hasRepresentation) list.push("חסר פירוט מדויק של המצג הנטען: מי אמר, מה נאמר ומתי");
+  if (!flags.hasReliance) list.push("חסרה ראיה לכך שהלקוח לא היה חותם אילו ידע את העובדות האמיתיות");
+  if (!flags.hasCancellation) list.push("חסר מועד גילוי ההטעיה ומועד הודעת הביטול");
+  if (!flags.hasNonDisclosure) list.push("חסר זיהוי של העובדה או המסמך הספציפיים שלא גולו");
+  list.push("רצוי לצרף תכתובות, טיוטות, WhatsApp או עדים משלב המשא ומתן");
+  return list;
+}
+
+function buildStrengths(flags) {
+  const list = [];
+  if (flags.hasRepresentation) list.push("קיימת טענה למצגים לפני החתימה");
+  if (flags.hasNonDisclosure) list.push("קיימת טענה לאי־גילוי או הסתרת מידע");
+  if (flags.hasReliance) list.push("קיימת אינדיקציה להסתמכות או לקשר סיבתי");
+  if (flags.hasFiduciary) list.push("ייתכן שקיימת חובת גילוי מוגברת");
+  if (flags.hasCancellation) list.push("קיים בסיס לבדוק ביטול והשבה");
+  if (flags.hasMoney) list.push("רכיב התמורה/המחיר עשוי לסייע בהערכת מהותיות");
+  return list;
+}
+
+function buildWeaknesses(flags) {
+  const list = [];
+  if (flags.hasWaiver) list.push("סעיף בדיקה או ויתור בהסכם עלול להחליש את הטענה");
+  if (!flags.hasReliance) list.push("חסר קשר סיבתי מפורש בין ההטעיה לבין החתימה");
+  if (!flags.hasCancellation) list.push("לא ברור אם נמסרה הודעת ביטול בזמן סביר");
+  if (!flags.hasRepresentation && !flags.hasNonDisclosure) list.push("אין עדיין מצג או אי־גילוי קונקרטיים");
+  return list;
 }
 
 function includesAny(text, words) {
