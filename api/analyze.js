@@ -145,7 +145,8 @@ ${documentText}
             content: prompt
           }
         ],
-        temperature: 0.2
+temperature: 0.2,
+response_format: { type: "json_object" }
       }),
     });
 
