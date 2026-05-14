@@ -14,6 +14,8 @@ export default function SecondChairMisrepresentationDemo() {
   const [uploadedFileName, setUploadedFileName] = useState("");
   const [uploadStatus, setUploadStatus] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState(null);
+  const [analysisError, setAnalysisError] = useState("");
 
   async function handleWordUpload(event) {
     const file = event.target.files && event.target.files[0];
@@ -47,18 +49,56 @@ export default function SecondChairMisrepresentationDemo() {
     }
   }
 
-  const analysis = useMemo(() => analyzeInput(caseText, documentText), [caseText, documentText]);
+  const fallbackAnalysis = useMemo(() => analyzeInput(caseText, documentText), [caseText, documentText]);
+  const analysis = aiAnalysis || fallbackAnalysis;
 
-  function handleAnalyzeClick() {
+  async function handleAnalyzeClick() {
     setIsLoading(true);
-    setTimeout(() => {
+    setAnalysisError("");
+    setAiAnalysis(null);
+
+    try {
+      const response = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ caseText, documentText }),
+      });
+
+      if (!response.ok) {
+        throw new Error("השרת החזיר שגיאה");
+      }
+
+      const data = await response.json();
+
+      setAiAnalysis({
+        parties: data.parties || "לא זוהו בעלי עניין מרכזיים.",
+        mainIssue: data.mainIssue || "לא זוהתה סוגיה משפטית מרכזית.",
+        legalTheory: data.analysis || "לא התקבל ניתוח משפטי.",
+        counterArgument: data.counterArgument || "לא התקבלה טענת נגד.",
+        missing: data.missingEvidence || "לא זוהו חוסרים ראייתיים.",
+        confidence: data.confidence || "בינונית",
+        extracted: data.timeline || "לא זוהה לוח זמנים מרכזי.",
+        elements: fallbackAnalysis.elements,
+        questions: fallbackAnalysis.questions,
+        cases: fallbackAnalysis.cases,
+      });
+
       setIsAnalyzed(true);
-      setIsLoading(false);
       setTimeout(() => {
         const results = document.getElementById("analysis-results");
         if (results) results.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 100);
-    }, 700);
+    } catch (error) {
+      console.error(error);
+      setAnalysisError("הניתוח באמצעות AI נכשל. מוצג ניתוח מקומי בסיסי במקום.");
+      setIsAnalyzed(true);
+      setTimeout(() => {
+        const results = document.getElementById("analysis-results");
+        if (results) results.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -158,7 +198,12 @@ export default function SecondChairMisrepresentationDemo() {
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-2">
                 <div>
                   <h2 className="text-2xl font-bold">AI Litigation Assessment</h2>
-                  <p className="text-slate-600 text-sm mt-1">ניתוח ראשוני דינמי לפי הטקסט שהוזן.</p>
+                  <p className="text-slate-600 text-sm mt-1">
+                    {aiAnalysis ? "ניתוח AI לפי הטקסט והמסמך שהוזנו." : "ניתוח מקומי בסיסי לפי הטקסט שהוזן."}
+                  </p>
+                  {analysisError && (
+                    <p className="text-amber-700 text-sm mt-2">{analysisError}</p>
+                  )
                 </div>
                 <span className="rounded-xl bg-slate-900 text-white px-3 py-2 text-sm">רמת ביטחון: {analysis.confidence}</span>
               </div>
@@ -177,7 +222,7 @@ export default function SecondChairMisrepresentationDemo() {
                   <InfoBlock title="טענה משפטית אפשרית" text={analysis.legalTheory} />
                   <InfoBlock title="טענת נגד צפויה" text={analysis.counterArgument} warning />
                   <InfoBlock title="חוסר מהותי" text={analysis.missing} warning />
-                  <InfoBlock title="נתונים שחולצו" text={analysis.extracted} />
+                  <InfoBlock title="לוח זמנים / נתונים מרכזיים" text={analysis.extracted} />
                 </div>
               )}
 
