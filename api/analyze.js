@@ -9,78 +9,114 @@ export default async function handler(req, res) {
     const prompt = `
 אתה עורך דין ליטיגציה מסחרית בכיר בישראל.
 
-המטרה אינה לכתוב סיכום משפטי רגיל.
-המטרה היא לבנות litigation cockpit לעורך דין: לזהות את התיק, את הסיכון, את החוסרים, ואת פעולות ההמשך.
+המטרה: לבנות Litigation Cockpit לעורך דין, לא לכתוב חוות דעת ארוכה.
 
-התחום המשפטי מוגבל:
+התחום מוגבל:
 - סעיף 15 לחוק החוזים: הטעיה, לרבות אי-גילוי.
 - סעיף 21 לחוק החוזים: השבה לאחר ביטול.
 - פסיקה:
-  1. ג.מ.ח.ל. — הטעיה נחלשת כשיש אדישות, היעדר הסתמכות או היעדר קשר סיבתי.
-  2. אבו רקיה — הטעיה מתחזקת כשיש הסתרת פרטים מהותיים, יחסי אמון, ניגוד עניינים או חובת גילוי מוגברת.
-  3. פסגות — רלוונטי לנטילת סיכון, טעות בכדאיות וסופיות הסכמות.
+  1. ג.מ.ח.ל. — סיכון כאשר חסרים הסתמכות וקשר סיבתי.
+  2. אבו רקיה — תומך כאשר יש הסתרת פרטים מהותיים, יחסי אמון, ניגוד עניינים או חובת גילוי מוגברת.
+  3. פסגות — רלוונטי לטענות של נטילת סיכון, טעות בכדאיות וסופיות הסכמות.
 
-כללי ניתוח:
-- אל תכתוב תשובה גנרית.
-- אל תלמד את החוק.
-- יישם את הדין על העובדות.
-- ציין את העובדות הספציפיות שזיהית.
-- אם יש מסמך התראה, סעיף ויתור, disclosure schedule, הודעת ביטול, רגולטור, תאריך או סכום — התייחס אליהם.
-- זהה מה מחזק ומה מחליש.
-- אל תמציא עובדות שלא נמסרו.
-- כתוב בעברית משפטית ברורה, תמציתית וחדה.
+כללי עבודה:
+- אל תכתוב טקסט גנרי.
+- אל תלמד את הדין.
+- נעץ כל מסקנה בעובדות הספציפיות.
+- השתמש ב-grounding קצר: "מבוסס על: ..." או "נשען על: ..."
+- אל תמציא ציטוטים או סעיפים שלא הופיעו בקלט.
+- צבעים/סיכון צריכים להיות מתונים: High / Medium / Low בלבד.
+- כתוב בעברית משפטית חדה, תמציתית ומעשית.
 
-החזר JSON בלבד, בלי Markdown, בדיוק במבנה הזה:
+החזר JSON בלבד, בלי Markdown, במבנה הבא:
 
 {
   "source": "OpenAI GPT-4.1-mini",
   "confidence": "High/Medium/Low",
-  "caseSnapshot": {
-    "parties": [],
-    "coreDispute": "",
-    "riskLevel": "High/Medium/Low",
-    "issueFocus": ""
+
+  "executiveView": {
+    "caseSnapshot": {
+      "parties": [],
+      "coreDispute": "",
+      "riskLevel": "High/Medium/Low",
+      "issueFocus": "",
+      "grounding": []
+    },
+    "criticalIssues": [
+      {
+        "severity": "High/Medium/Low",
+        "title": "",
+        "analysis": "",
+        "grounding": []
+      }
+    ],
+    "strategicAssessment": {
+      "forClaimant": "",
+      "forDefense": "",
+      "mostLikelyBattleground": "",
+      "grounding": []
+    },
+    "smokingGuns": [
+      {
+        "title": "",
+        "whyItMatters": "",
+        "grounding": []
+      }
+    ]
   },
-  "timeline": [
-    {
-      "date": "",
-      "event": "",
-      "legalSignificance": ""
-    }
-  ],
-  "mainLegalIssue": {
-    "question": "",
-    "whyItMatters": ""
-  },
-  "criticalIssues": [
-    {
-      "severity": "High/Medium/Low",
-      "title": "",
-      "analysis": ""
-    }
-  ],
-  "evidenceMap": [
-    {
+
+  "caseTheory": {
+    "claimantTheory": {
+      "headline": "",
+      "points": [],
+      "grounding": []
+    },
+    "defenseTheory": {
+      "headline": "",
+      "points": [],
+      "grounding": []
+    },
+    "litigationBattleground": {
       "issue": "",
-      "existingEvidence": "",
-      "missingEvidence": "",
-      "risk": "High/Medium/Low"
+      "why": "",
+      "grounding": []
     }
-  ],
-  "legalAnalysis": "",
-  "counterArguments": [
-    {
-      "argument": "",
-      "strength": "High/Medium/Low",
-      "response": ""
-    }
-  ],
-  "nextSteps": [
-    ""
-  ],
-  "missingEvidence": [
-    ""
-  ]
+  },
+
+  "evidenceAndGaps": {
+    "timeline": [
+      {
+        "date": "",
+        "event": "",
+        "legalSignificance": "",
+        "grounding": []
+      }
+    ],
+    "evidenceMap": [
+      {
+        "issue": "",
+        "existingEvidence": "",
+        "missingEvidence": "",
+        "risk": "High/Medium/Low",
+        "grounding": []
+      }
+    ],
+    "missingEvidence": [],
+    "keyDocuments": [
+      {
+        "name": "",
+        "role": "",
+        "grounding": []
+      }
+    ]
+  },
+
+  "actionCenter": {
+    "nextSteps": [],
+    "clientQuestions": [],
+    "discoveryTargets": [],
+    "draftingIdeas": []
+  }
 }
 
 תיאור המקרה:
@@ -102,7 +138,7 @@ ${documentText}
           {
             role: "system",
             content:
-              "אתה עורך דין ישראלי בכיר בדיני חוזים וליטיגציה מסחרית. אתה חושב כמו ליטיגטור: עובדות, סיכונים, ראיות, חוסרים וצעדים הבאים."
+              "אתה עורך דין ישראלי בכיר בדיני חוזים וליטיגציה מסחרית. אתה בונה cockpit אסטרטגי: עובדות, ראיות, סיכונים, תיאוריות תיק וצעדים הבאים."
           },
           {
             role: "user",
@@ -126,9 +162,7 @@ ${documentText}
     const content = data.choices?.[0]?.message?.content;
 
     if (!content) {
-      return res.status(500).json({
-        error: "No content returned"
-      });
+      return res.status(500).json({ error: "No content returned" });
     }
 
     const cleaned = content
@@ -140,8 +174,6 @@ ${documentText}
     return res.status(200).json(JSON.parse(cleaned));
   } catch (error) {
     console.error(error);
-    return res.status(500).json({
-      error: "Analysis failed"
-    });
+    return res.status(500).json({ error: "Analysis failed" });
   }
 }
