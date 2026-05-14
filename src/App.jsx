@@ -199,17 +199,29 @@ export default function SecondChairMisrepresentationDemo() {
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-2">
                 <div>
                   <h2 className="text-2xl font-bold">AI Litigation Assessment</h2>
+
                   <p className="text-slate-600 text-sm mt-1">
-                    {aiAnalysis ? "ניתוח AI לפי הטקסט והמסמך שהוזנו." : "ניתוח מקומי בסיסי לפי הטקסט שהוזן."}
+                    {aiAnalysis
+                      ? "ניתוח AI לפי הטקסט והמסמך שהוזנו."
+                      : "ניתוח מקומי בסיסי לפי הטקסט שהוזן."}
                   </p>
+
                   {analysisError && (
-                    <p className="text-amber-700 text-sm mt-2">{analysisError}</p>
-                  )
+                    <p className="text-amber-700 text-sm mt-2">
+                      {analysisError}
+                    </p>
+                  )}
                 </div>
+
                 <div className="text-left md:text-right">
-                  <span className="rounded-xl bg-slate-900 text-white px-3 py-2 text-sm inline-block">רמת ביטחון: {analysis.confidence}</span>
+                  <span className="rounded-xl bg-slate-900 text-white px-3 py-2 text-sm inline-block">
+                    רמת ביטחון: {analysis.confidence}
+                  </span>
+
                   {analysis.source && (
-<div className="text-xs text-slate-500 mt-2">מקור הניתוח: {analysis.source}</div>
+                    <div className="text-xs text-slate-500 mt-2">
+                      מקור הניתוח: {analysis.source}
+                    </div>
                   )}
                 </div>
               </div>
