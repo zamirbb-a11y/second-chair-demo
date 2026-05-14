@@ -6,7 +6,6 @@ export default function App() {
   const [fileName, setFileName] = useState("");
   const [status, setStatus] = useState("");
   const [analysis, setAnalysis] = useState(null);
-  const [activeTab, setActiveTab] = useState("executive");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -26,6 +25,7 @@ export default function App() {
       const mammoth = await import("mammoth");
       const arrayBuffer = await file.arrayBuffer();
       const result = await mammoth.extractRawText({ arrayBuffer });
+
       setDocumentText(result.value || "");
       setStatus("המסמך נטען בהצלחה.");
     } catch (err) {
@@ -46,11 +46,12 @@ export default function App() {
         body: JSON.stringify({ caseText, documentText }),
       });
 
-      if (!response.ok) throw new Error("השרת החזיר שגיאה");
+      if (!response.ok) {
+        throw new Error("השרת החזיר שגיאה");
+      }
 
       const data = await response.json();
       setAnalysis(data);
-      setActiveTab("executive");
 
       setTimeout(() => {
         document.getElementById("results")?.scrollIntoView({ behavior: "smooth" });
@@ -63,11 +64,6 @@ export default function App() {
     }
   }
 
-  const ev = analysis?.executiveView;
-  const ct = analysis?.caseTheory;
-  const eg = analysis?.evidenceAndGaps;
-  const ac = analysis?.actionCenter;
-
   return (
     <div dir="rtl" className="min-h-screen bg-slate-50 text-slate-900 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -77,7 +73,7 @@ export default function App() {
               <span className="text-3xl">⚖️</span>
               <h1 className="text-3xl font-bold">Second Chair</h1>
               <span className="text-xs bg-slate-200 rounded-full px-3 py-1">
-                Litigation Cockpit v0.5.0
+                Litigation Cockpit v0.4.1
               </span>
             </div>
             <p className="text-slate-600 mt-2">
@@ -124,7 +120,11 @@ export default function App() {
 
             {(fileName || status) && (
               <div className="mt-3 text-sm bg-slate-100 rounded-2xl p-3">
-                {fileName && <div><strong>קובץ:</strong> {fileName}</div>}
+                {fileName && (
+                  <div>
+                    <strong>קובץ:</strong> {fileName}
+                  </div>
+                )}
                 {status && <div>{status}</div>}
               </div>
             )}
@@ -139,170 +139,100 @@ export default function App() {
 
         {analysis && (
           <div id="results" className="space-y-6">
-
-            <div className="bg-white border rounded-2xl shadow-sm p-2">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                <Tab active={activeTab === "executive"} onClick={() => setActiveTab("executive")}>
-                  Executive View
-                </Tab>
-                <Tab active={activeTab === "theory"} onClick={() => setActiveTab("theory")}>
-                  Case Theory
-                </Tab>
-                <Tab active={activeTab === "evidence"} onClick={() => setActiveTab("evidence")}>
-                  Evidence & Gaps
-                </Tab>
-                <Tab active={activeTab === "actions"} onClick={() => setActiveTab("actions")}>
-                  Action Center
-                </Tab>
+            <Card title="Case Snapshot">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Box title="בעלי עניין">
+                  <List items={analysis.caseSnapshot?.parties} />
+                </Box>
+                <Box title="מוקד המחלוקת">
+                  {analysis.caseSnapshot?.coreDispute || "לא זוהה"}
+                </Box>
               </div>
-            </div>
+            </Card>
 
-            {activeTab === "executive" && (
-              <div className="space-y-6">
-                <Card title="Case Snapshot">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Box title="בעלי עניין">
-                      <List items={ev?.caseSnapshot?.parties} />
-                    </Box>
-                    <Box title="מוקד המחלוקת">
-                      <p>{ev?.caseSnapshot?.coreDispute || "לא זוהה"}</p>
-                      <Grounding items={ev?.caseSnapshot?.grounding} />
-                    </Box>
+            <Card title="לוח זמנים עיקרי">
+              <Timeline items={analysis.timeline} />
+            </Card>
+
+            <Card title="השאלה המשפטית העיקרית">
+              <h3 className="font-semibold mb-2">
+                {analysis.mainLegalIssue?.question || "לא זוהתה שאלה משפטית"}
+              </h3>
+              <p className="text-slate-700 leading-7">
+                {analysis.mainLegalIssue?.whyItMatters || ""}
+              </p>
+            </Card>
+
+            <Card title="Critical Issues">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {(analysis.criticalIssues || []).map((item, index) => (
+                  <div key={index} className="border rounded-2xl p-4 bg-white">
+                    <Severity value={item.severity} />
+                    <h3 className="font-semibold mt-2">{item.title}</h3>
+                    <p className="text-sm text-slate-700 leading-6 mt-2">
+                      {item.analysis}
+                    </p>
                   </div>
-                </Card>
+                ))}
+              </div>
+            </Card>
 
-                <Card title="Critical Issues">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {(ev?.criticalIssues || []).map((item, index) => (
-                      <IssueCard key={index} item={item} />
+            <Card title="Evidence Map">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm border-collapse">
+                  <thead>
+                    <tr className="bg-slate-100">
+                      <th className="p-3 text-right">Issue</th>
+                      <th className="p-3 text-right">ראיה קיימת</th>
+                      <th className="p-3 text-right">ראיה חסרה</th>
+                      <th className="p-3 text-right">סיכון</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(analysis.evidenceMap || []).map((row, index) => (
+                      <tr key={index} className="border-b">
+                        <td className="p-3 font-medium">{row.issue}</td>
+                        <td className="p-3">{row.existingEvidence}</td>
+                        <td className="p-3">{row.missingEvidence}</td>
+                        <td className="p-3">
+                          <Severity value={row.risk} />
+                        </td>
+                      </tr>
                     ))}
-                  </div>
-                </Card>
-
-                <Card title="Strategic Assessment">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <Box title="לתובע / מבקש הביטול">
-                      {ev?.strategicAssessment?.forClaimant || "לא זוהה"}
-                    </Box>
-                    <Box title="לנתבע / הצד שכנגד">
-                      {ev?.strategicAssessment?.forDefense || "לא זוהה"}
-                    </Box>
-                    <Box title="זירת הקרב המרכזית">
-                      {ev?.strategicAssessment?.mostLikelyBattleground || "לא זוהה"}
-                    </Box>
-                  </div>
-                  <Grounding items={ev?.strategicAssessment?.grounding} />
-                </Card>
-
-                <Card title="Possible Smoking Guns">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {(ev?.smokingGuns || []).map((item, index) => (
-                      <Box key={index} title={item.title}>
-                        <p>{item.whyItMatters}</p>
-                        <Grounding items={item.grounding} />
-                      </Box>
-                    ))}
-                  </div>
-                </Card>
+                  </tbody>
+                </table>
               </div>
-            )}
+            </Card>
 
-            {activeTab === "theory" && (
-              <div className="space-y-6">
-                <Card title="Claimant Theory">
-                  <h3 className="font-semibold mb-3">
-                    {ct?.claimantTheory?.headline || "לא זוהתה תיאוריה לתובע"}
-                  </h3>
-                  <List items={ct?.claimantTheory?.points} />
-                  <Grounding items={ct?.claimantTheory?.grounding} />
-                </Card>
+            <Card title="ניתוח משפטי">
+              <p className="leading-8 text-slate-800 whitespace-pre-line">
+                {analysis.legalAnalysis}
+              </p>
+            </Card>
 
-                <Card title="Defense Theory">
-                  <h3 className="font-semibold mb-3">
-                    {ct?.defenseTheory?.headline || "לא זוהתה תיאוריה להגנה"}
-                  </h3>
-                  <List items={ct?.defenseTheory?.points} />
-                  <Grounding items={ct?.defenseTheory?.grounding} />
-                </Card>
-
-                <Card title="Litigation Battleground">
-                  <Box title={ct?.litigationBattleground?.issue || "זירת מחלוקת"}>
-                    <p>{ct?.litigationBattleground?.why || "לא זוהה"}</p>
-                    <Grounding items={ct?.litigationBattleground?.grounding} />
-                  </Box>
-                </Card>
-              </div>
-            )}
-
-            {activeTab === "evidence" && (
-              <div className="space-y-6">
-                <Card title="לוח זמנים עיקרי">
-                  <Timeline items={eg?.timeline} />
-                </Card>
-
-                <Card title="Evidence Map">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm border-collapse">
-                      <thead>
-                        <tr className="bg-slate-100">
-                          <th className="p-3 text-right">Issue</th>
-                          <th className="p-3 text-right">ראיה קיימת</th>
-                          <th className="p-3 text-right">ראיה חסרה</th>
-                          <th className="p-3 text-right">סיכון</th>
-                          <th className="p-3 text-right">Grounding</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(eg?.evidenceMap || []).map((row, index) => (
-                          <tr key={index} className="border-b align-top">
-                            <td className="p-3 font-medium">{row.issue}</td>
-                            <td className="p-3">{row.existingEvidence}</td>
-                            <td className="p-3">{row.missingEvidence}</td>
-                            <td className="p-3"><Severity value={row.risk} /></td>
-                            <td className="p-3"><Grounding items={row.grounding} compact /></td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+            <Card title="טענות נגד צפויות">
+              <div className="space-y-3">
+                {(analysis.counterArguments || []).map((item, index) => (
+                  <div key={index} className="border rounded-2xl p-4 bg-white">
+                    <div className="flex justify-between gap-3">
+                      <h3 className="font-semibold">{item.argument}</h3>
+                      <Severity value={item.strength} />
+                    </div>
+                    <p className="text-sm text-slate-700 leading-6 mt-2">
+                      {item.response}
+                    </p>
                   </div>
-                </Card>
-
-                <Card title="Key Documents">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {(eg?.keyDocuments || []).map((doc, index) => (
-                      <Box key={index} title={doc.name}>
-                        <p>{doc.role}</p>
-                        <Grounding items={doc.grounding} />
-                      </Box>
-                    ))}
-                  </div>
-                </Card>
-
-                <Card title="חוסרים ראייתיים">
-                  <List items={eg?.missingEvidence} />
-                </Card>
+                ))}
               </div>
-            )}
+            </Card>
 
-            {activeTab === "actions" && (
-              <div className="space-y-6">
-                <Card title="Recommended Next Steps">
-                  <List items={ac?.nextSteps} numbered />
-                </Card>
+            <Card title="Recommended Next Steps">
+              <List items={analysis.nextSteps} numbered />
+            </Card>
 
-                <Card title="Questions for Client">
-                  <List items={ac?.clientQuestions} numbered />
-                </Card>
-
-                <Card title="Discovery Targets">
-                  <List items={ac?.discoveryTargets} numbered />
-                </Card>
-
-                <Card title="Drafting Ideas">
-                  <List items={ac?.draftingIdeas} numbered />
-                </Card>
-              </div>
-            )}
+            <Card title="חוסרים ראייתיים">
+              <List items={analysis.missingEvidence} />
+            </Card>
           </div>
         )}
       </div>
@@ -328,79 +258,37 @@ function Box({ title, children }) {
   );
 }
 
-function Metric({ title, value }) {
-  return (
-    <div className="bg-white border rounded-2xl p-4 shadow-sm">
-      <div className="text-xs text-slate-500">{title}</div>
-      <div className="font-semibold mt-1">{value}</div>
-    </div>
-  );
-}
-
-function Tab({ active, onClick, children }) {
-  return (
-    <button
-      onClick={onClick}
-      className={
-        active
-          ? "rounded-xl bg-slate-900 text-white px-3 py-3 text-sm font-semibold"
-          : "rounded-xl bg-slate-50 hover:bg-slate-100 px-3 py-3 text-sm text-slate-700"
-      }
-    >
-      {children}
-    </button>
-  );
-}
-
-function IssueCard({ item }) {
-  return (
-    <div className="border rounded-2xl p-4 bg-white">
-      <Severity value={item.severity} />
-      <h3 className="font-semibold mt-3">{item.title}</h3>
-      <p className="text-sm text-slate-700 leading-6 mt-2">{item.analysis}</p>
-      <Grounding items={item.grounding} />
-    </div>
-  );
-}
-
 function Severity({ value }) {
   const label = value || "Medium";
   const color =
     label === "High"
-      ? "bg-red-50 text-red-700 border-red-200"
+      ? "bg-red-100 text-red-700"
       : label === "Low"
-      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-      : "bg-amber-50 text-amber-700 border-amber-200";
+      ? "bg-emerald-100 text-emerald-700"
+      : "bg-amber-100 text-amber-700";
 
   return (
-    <span className={`inline-block rounded-full border px-3 py-1 text-xs font-semibold ${color}`}>
+    <span className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${color}`}>
       {label}
     </span>
   );
 }
 
 function List({ items, numbered }) {
-  if (!items || !items.length) return <p className="text-slate-500">לא זוהה.</p>;
+  if (!items || !items.length) {
+    return <p className="text-slate-500">לא זוהה.</p>;
+  }
 
   const Tag = numbered ? "ol" : "ul";
 
   return (
     <Tag className={numbered ? "list-decimal pr-5 space-y-2" : "list-disc pr-5 space-y-2"}>
       {items.map((item, index) => (
-        <li key={index} className="leading-7">{item}</li>
+        <li key={index} className="leading-7">
+          {item}
+        </li>
       ))}
     </Tag>
-  );
-}
-
-function Grounding({ items, compact }) {
-  if (!items || !items.length) return null;
-
-  return (
-    <div className={compact ? "text-xs text-slate-500 leading-5" : "mt-3 text-xs text-slate-500 leading-5 border-t pt-2"}>
-      <span className="font-semibold">מבוסס על: </span>
-      {items.join(" · ")}
-    </div>
   );
 }
 
@@ -418,7 +306,6 @@ function Timeline({ items }) {
           <div className="text-sm text-slate-600 mt-2">
             {item.legalSignificance}
           </div>
-          <Grounding items={item.grounding} />
         </div>
       ))}
     </div>
