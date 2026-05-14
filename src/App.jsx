@@ -69,7 +69,7 @@ export default function SecondChairMisrepresentationDemo() {
             <div className="flex items-center gap-2 mb-2">
               <span className="text-3xl">⚖️</span>
               <h1 className="text-3xl font-bold tracking-tight">Second Chair</h1>
-              <span className="rounded-full bg-slate-200 px-3 py-1 text-xs font-medium">דמו ראשוני</span>
+              <span className="rounded-full bg-slate-200 px-3 py-1 text-xs font-medium">דמו ראשוני v0.2.0</span>
             </div>
             <p className="text-slate-600 max-w-3xl">
               ניתוח ראשוני של פגם בכריתת חוזה: הטעיה לפי סעיף 15 לחוק החוזים, וביטול והשבה לפי סעיף 21.
