@@ -139,12 +139,6 @@ export default function App() {
 
         {analysis && (
           <div id="results" className="space-y-6">
-            <section className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-              <Metric title="מקור" value={analysis.source || "OpenAI"} />
-              <Metric title="רמת ביטחון" value={analysis.confidence || "Medium"} />
-              <Metric title="סיכון" value={ev?.caseSnapshot?.riskLevel || "לא זוהה"} />
-              <Metric title="מוקד" value={ev?.caseSnapshot?.issueFocus || "לא זוהה"} />
-            </section>
 
             <div className="bg-white border rounded-2xl shadow-sm p-2">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
