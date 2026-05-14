@@ -7,6 +7,7 @@ export default async function handler(req, res) {
   }
 
   try {
+    const startedAt = Date.now();
     const { caseText, documentText } = req.body;
 
     const prompt = buildAnalyzePrompt({
@@ -14,6 +15,8 @@ export default async function handler(req, res) {
       documentText,
       legalPacks: [contractFormationDefectsPack],
     });
+
+    console.log("Starting analysis request");
 
     const response = await fetch(
       "https://api.openai.com/v1/chat/completions",
@@ -31,28 +34,29 @@ export default async function handler(req, res) {
             {
               role: "system",
               content:
-                "אתה עורך דין ישראלי בכיר בדיני חוזים וליטיגציה מסחרית. אתה בונה cockpit ליטיגטורי: עובדות, ראיות, סיכונים, תיאוריות תיק, עילות רלוונטיות, סעדים וצעדים הבאים."
+                "אתה עורך דין ישראלי בכיר בדיני חוזים וליטיגציה מסחרית. אתה בונה cockpit ליטיגטורי: עובדות, ראיות, סיכונים, תיאוריות תיק, עילות רלוונטיות, סעדים וצעדים הבאים.",
             },
-
             {
               role: "user",
-              content: prompt
-            }
+              content: prompt,
+            },
           ],
 
-          temperature: 0.2
+          temperature: 0.2,
         }),
       }
     );
 
     const data = await response.json();
 
+    console.log(`Analysis completed in ${Date.now() - startedAt}ms`);
+
     if (!response.ok) {
-      console.error(data);
+      console.error("OpenAI request failed:", data);
 
       return res.status(500).json({
         error: "OpenAI request failed",
-        details: data
+        details: data,
       });
     }
 
@@ -60,7 +64,7 @@ export default async function handler(req, res) {
 
     if (!content) {
       return res.status(500).json({
-        error: "No content returned"
+        error: "No content returned",
       });
     }
 
@@ -70,13 +74,32 @@ export default async function handler(req, res) {
       .replace(/```$/i, "")
       .trim();
 
-    return res.status(200).json(JSON.parse(cleaned));
+    try {
+      const jsonStart = cleaned.indexOf("{");
+      const jsonEnd = cleaned.lastIndexOf("}");
 
+      if (jsonStart === -1 || jsonEnd === -1) {
+        throw new Error("No JSON object found in model response");
+      }
+
+      const jsonText = cleaned.slice(jsonStart, jsonEnd + 1);
+      const parsed = JSON.parse(jsonText);
+
+      return res.status(200).json(parsed);
+    } catch (parseError) {
+      console.error("Failed to parse model JSON:", parseError);
+      console.error("Raw model content:", content);
+
+      return res.status(500).json({
+        error: "Model returned invalid JSON",
+        raw: content,
+      });
+    }
   } catch (error) {
-    console.error(error);
+    console.error("Analysis failed:", error);
 
     return res.status(500).json({
-      error: "Analysis failed"
+      error: "Analysis failed",
     });
   }
 }
