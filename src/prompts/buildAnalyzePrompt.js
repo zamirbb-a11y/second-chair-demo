@@ -17,6 +17,8 @@ export default function buildAnalyzePrompt({
 - אל תלמד את הדין באופן כללי.
 - נעץ כל מסקנה בעובדות הספציפיות.
 - בצע screening שקט של העילות והסעדים הרלוונטיים, אך הצג רק מה שיש לו אחיזה עובדתית ממשית.
+- הפעל heuristics ליטיגטוריות רק כאשר יש להן בסיס בעובדות או במסמכים.
+- אם heuristic מופעלת, הסבר בקצרה מה הדפוס הראייתי ומה המשמעות הליטיגטורית.
 - השתמש ב-grounding קצר מתוך המסמכים והעובדות.
 - אל תמציא ציטוטים, סעיפים או פסקי דין שלא הופיעו בקלט או במאגר הידע.
 - צבעים/סיכון צריכים להיות מתונים: High / Medium / Low בלבד.
@@ -149,6 +151,19 @@ ${(pack.cases || [])
   מסייע כאשר: ${caseItem.helpsWhen}
   מזיק כאשר: ${caseItem.hurtsWhen}
   השלכה ראייתית: ${caseItem.evidentiaryImplication}`
+  )
+  .join("\n")}
+
+יוריסטיקות ליטיגטוריות פעילות:
+${(pack.heuristics || [])
+  .map(
+    (h) => `
+- ${h.hebrewTitle} (${h.title})
+  דפוס: ${h.pattern}
+  נימוק שיפוטי טיפוסי: ${h.judicialReasoning}
+  מה לחפש: ${(h.lookFor || []).join(", ")}
+  שימוש ליטיגטורי: ${h.litigationUse}
+  הנחיית פלט: ${h.outputHint}`
   )
   .join("\n")}
 `;
