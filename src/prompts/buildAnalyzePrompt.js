@@ -3,6 +3,25 @@ export default function buildAnalyzePrompt({
   documentText,
   legalPacks,
 }) {
+  const MAX_DOCUMENT_CHARS = 22000;
+  const MAX_CASE_CHARS = 6000;
+
+  function limitText(text, maxChars) {
+    if (!text) return "";
+
+    if (text.length <= maxChars) {
+      return text;
+    }
+
+    return (
+      text.slice(0, maxChars) +
+      "\n\n[הטקסט קוצר לצורך ניתוח הדמו. ייתכן שחלק מהמסמכים לא נכללו בניתוח.]"
+    );
+  }
+
+  const safeCaseText = limitText(caseText, MAX_CASE_CHARS);
+  const safeDocumentText = limitText(documentText, MAX_DOCUMENT_CHARS);
+
   const knowledgeText = legalPacks
     .map((pack) => formatLegalPack(pack))
     .join("\n\n");
@@ -20,7 +39,11 @@ export default function buildAnalyzePrompt({
 - נעץ כל מסקנה בעובדות ובמסמכים.
 - אל תמציא ציטוטים, סעיפים או פסקי דין שלא הופיעו בקלט או במאגר הידע.
 - רמות סיכון: High / Medium / Low בלבד.
-- הגבל פלט: עד 3 סוגיות מרכזיות, עד 6 אירועי timeline, עד 6 שורות evidence map, עד 5 פריטים בכל רשימת פעולה.
+- הגבל פלט:
+  - עד 3 סוגיות מרכזיות
+  - עד 6 אירועי timeline
+  - עד 6 שורות evidence map
+  - עד 5 פריטים בכל רשימת פעולה
 
 שכבות ידע פעילות:
 ${knowledgeText}
@@ -30,6 +53,7 @@ ${knowledgeText}
 {
   "source": "OpenAI GPT-4.1-mini",
   "confidence": "High/Medium/Low",
+
   "executiveView": {
     "caseSnapshot": {
       "parties": [],
@@ -38,6 +62,7 @@ ${knowledgeText}
       "issueFocus": "",
       "grounding": []
     },
+
     "criticalIssues": [
       {
         "severity": "High/Medium/Low",
@@ -46,31 +71,37 @@ ${knowledgeText}
         "grounding": []
       }
     ],
+
     "strategicAssessment": {
       "forClaimant": "",
       "forDefense": "",
       "mostLikelyBattleground": "",
       "grounding": []
     },
+
     "smokingGuns": []
   },
+
   "caseTheory": {
     "claimantTheory": {
       "headline": "",
       "points": [],
       "grounding": []
     },
+
     "defenseTheory": {
       "headline": "",
       "points": [],
       "grounding": []
     },
+
     "litigationBattleground": {
       "issue": "",
       "why": "",
       "grounding": []
     }
   },
+
   "evidenceAndGaps": {
     "timeline": [
       {
@@ -80,6 +111,7 @@ ${knowledgeText}
         "grounding": []
       }
     ],
+
     "evidenceMap": [
       {
         "issue": "",
@@ -89,9 +121,12 @@ ${knowledgeText}
         "grounding": []
       }
     ],
+
     "missingEvidence": [],
+
     "keyDocuments": []
   },
+
   "actionCenter": {
     "nextSteps": [],
     "clientQuestions": [],
@@ -101,10 +136,10 @@ ${knowledgeText}
 }
 
 תיאור המקרה:
-${caseText}
+${safeCaseText}
 
 מסמכים:
-${documentText}
+${safeDocumentText}
 `;
 }
 
@@ -113,11 +148,16 @@ function formatLegalPack(pack) {
 תחום: ${pack.title}
 
 כללי חשיבה:
-${(pack.reasoningRules || []).map((rule) => `- ${rule}`).join("\n")}
+${(pack.reasoningRules || [])
+  .map((rule) => `- ${rule}`)
+  .join("\n")}
 
 חקיקה:
 ${(pack.statutes || [])
-  .map((s) => `- ${s.source} ${s.section}: ${s.title} — ${s.summary}`)
+  .map(
+    (s) =>
+      `- ${s.source} ${s.section}: ${s.title} — ${s.summary}`
+  )
   .join("\n")}
 
 פסיקה:
@@ -130,7 +170,10 @@ ${(pack.cases || [])
 
 יוריסטיקות:
 ${(pack.heuristics || [])
-  .map((h) => `- ${h.hebrewTitle}: ${h.pattern} שימוש: ${h.litigationUse}`)
+  .map(
+    (h) =>
+      `- ${h.hebrewTitle}: ${h.pattern} שימוש: ${h.litigationUse}`
+  )
   .join("\n")}
 `;
 }
