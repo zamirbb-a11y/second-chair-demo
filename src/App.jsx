@@ -6,6 +6,7 @@ import CaseTheory from "./components/CaseTheory";
 import CollapsedCaseHeader from "./components/CollapsedCaseHeader";
 import EvidenceGaps from "./components/EvidenceGaps";
 import ExecutiveView from "./components/ExecutiveView";
+import StrategicWorkspace from "./components/StrategicWorkspace";
 import Tabs from "./components/Tabs";
 
 export default function App() {
@@ -103,7 +104,7 @@ export default function App() {
 
   return (
     <div dir="rtl" className="min-h-screen bg-slate-50 text-slate-900 p-5">
-      <div className="max-w-7xl mx-auto space-y-4">
+      <div className="max-w-[1500px] mx-auto space-y-4">
         <header className="flex flex-col md:flex-row justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
@@ -148,16 +149,25 @@ export default function App() {
         )}
 
         {analysis && (
-          <div id="results" className="space-y-4">
-            <Tabs activeTab={activeTab} setActiveTab={setActiveTab} />
+          <div
+            id="results"
+            className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-4 items-start"
+          >
+            <main className="space-y-4 min-w-0">
+              <Tabs activeTab={activeTab} setActiveTab={setActiveTab} />
 
-            {activeTab === "overview" && <ExecutiveView analysis={analysis} />}
+              {activeTab === "overview" && <ExecutiveView analysis={analysis} />}
 
-            {activeTab === "theory" && <CaseTheory analysis={analysis} />}
+              {activeTab === "theory" && <CaseTheory analysis={analysis} />}
 
-            {activeTab === "evidence" && <EvidenceGaps analysis={analysis} />}
+              {activeTab === "evidence" && <EvidenceGaps analysis={analysis} />}
 
-            {activeTab === "actions" && <ActionCenter analysis={analysis} />}
+              {activeTab === "actions" && <ActionCenter analysis={analysis} />}
+            </main>
+
+            <div className="xl:sticky xl:top-4">
+              <StrategicWorkspace analysis={analysis} />
+            </div>
           </div>
         )}
       </div>
