@@ -1,6 +1,5 @@
-import buildAnalyzePrompt from "../src/prompts/buildAnalyzePrompt.js";
-import contractFormationDefectsPack from "../src/legal-packs/contractFormationDefects.js";
-import missingEvidenceHeuristics from "../src/legal-knowledge/missingEvidenceHeuristics.js";
+import buildAnalyzePrompt from "../src/prompts/buildAnalyzePrompt";
+import contractFormationDefectsPack from "../src/legal-packs/contractFormationDefects";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -15,7 +14,6 @@ export default async function handler(req, res) {
       caseText,
       documentText,
       legalPacks: [contractFormationDefectsPack],
-      missingEvidenceHeuristics,
     });
 
     console.log("Starting analysis request");
@@ -31,10 +29,6 @@ export default async function handler(req, res) {
 
         body: JSON.stringify({
           model: "gpt-4.1-mini",
-
-          response_format: {
-            type: "json_object",
-          },
 
           messages: [
             {
@@ -60,104 +54,52 @@ export default async function handler(req, res) {
     if (!response.ok) {
       console.error("OpenAI request failed:", data);
 
-      return res
-        .status(200)
-        .json(fallbackAnalysis("OpenAI request failed"));
+      return res.status(500).json({
+        error: "OpenAI request failed",
+        details: data,
+      });
     }
 
     const content = data.choices?.[0]?.message?.content;
 
     if (!content) {
-      return res
-        .status(200)
-        .json(fallbackAnalysis("No content returned"));
+      return res.status(500).json({
+        error: "No content returned",
+      });
     }
 
+    const cleaned = content
+      .replace(/^```json/i, "")
+      .replace(/^```/i, "")
+      .replace(/```$/i, "")
+      .trim();
+
     try {
-      const parsed = JSON.parse(content);
+      const jsonStart = cleaned.indexOf("{");
+      const jsonEnd = cleaned.lastIndexOf("}");
+
+      if (jsonStart === -1 || jsonEnd === -1) {
+        throw new Error("No JSON object found in model response");
+      }
+
+      const jsonText = cleaned.slice(jsonStart, jsonEnd + 1);
+      const parsed = JSON.parse(jsonText);
 
       return res.status(200).json(parsed);
     } catch (parseError) {
       console.error("Failed to parse model JSON:", parseError);
+      console.error("Raw model content:", content);
 
-      console.error(
-        "Raw model content:",
-        content?.slice(0, 4000)
-      );
-
-      return res
-        .status(200)
-        .json(
-          fallbackAnalysis("Model returned invalid JSON")
-        );
+      return res.status(500).json({
+        error: "Model returned invalid JSON",
+        raw: content,
+      });
     }
   } catch (error) {
     console.error("Analysis failed:", error);
 
-    return res
-      .status(200)
-      .json(fallbackAnalysis("Analysis failed"));
+    return res.status(500).json({
+      error: "Analysis failed",
+    });
   }
-}
-
-function fallbackAnalysis(errorMessage = "Analysis failed") {
-  return {
-    source: "Fallback",
-    confidence: "Low",
-
-    executiveView: {
-      caseSnapshot: {
-        parties: [],
-        coreDispute: "הניתוח נכשל טכנית. יש לבדוק את הלוג.",
-        riskLevel: "Low",
-        issueFocus: errorMessage,
-        grounding: [],
-      },
-
-      criticalIssues: [],
-
-      strategicAssessment: {
-        forClaimant: "",
-        forDefense: "",
-        mostLikelyBattleground: "",
-        grounding: [],
-      },
-
-      smokingGuns: [],
-    },
-
-    caseTheory: {
-      claimantTheory: {
-        headline: "",
-        points: [],
-        grounding: [],
-      },
-
-      defenseTheory: {
-        headline: "",
-        points: [],
-        grounding: [],
-      },
-
-      litigationBattleground: {
-        issue: "",
-        why: "",
-        grounding: [],
-      },
-    },
-
-    evidenceAndGaps: {
-      timeline: [],
-      evidenceMap: [],
-      missingEvidence: [],
-      keyDocuments: [],
-    },
-
-    actionCenter: {
-      nextSteps: [],
-      clientQuestions: [],
-      discoveryTargets: [],
-      draftingIdeas: [],
-    },
-  };
 }
