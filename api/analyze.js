@@ -1,5 +1,6 @@
 import buildAnalyzePrompt from "../src/prompts/buildAnalyzePrompt";
 import contractFormationDefectsPack from "../src/legal-packs/contractFormationDefects";
+import missingEvidenceHeuristics from "../src/legal-knowledge/missingEvidenceHeuristics";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -14,6 +15,7 @@ export default async function handler(req, res) {
       caseText,
       documentText,
       legalPacks: [contractFormationDefectsPack],
+      missingEvidenceHeuristics,
     });
 
     console.log("Starting analysis request");
