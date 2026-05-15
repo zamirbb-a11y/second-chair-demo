@@ -160,15 +160,7 @@ ${missingEvidenceText}
       }
     ],
 
-    "missingEvidence": [
-      {
-        "document": "",
-        "whyExpected": "",
-        "litigationImportance": "",
-        "risk": "High/Medium/Low",
-        "grounding": []
-      }
-    ],
+    "missingEvidence": [],
 
     "keyDocuments": []
   },
