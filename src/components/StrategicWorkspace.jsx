@@ -1,14 +1,32 @@
 import { useState } from "react";
 
-export default function StrategicWorkspace({ analysis }) {
+export default function StrategicWorkspace({
+  analysis,
+  workspaceUpdates,
+  onAddWorkspaceUpdate,
+}) {
   const questions = analysis?.actionCenter?.clientQuestions || [];
   const missingEvidence = analysis?.evidenceAndGaps?.missingEvidence || [];
+
   const [freeInput, setFreeInput] = useState("");
+
+  function handleFreeInputSubmit() {
+    if (!freeInput.trim()) return;
+
+    onAddWorkspaceUpdate({
+      type: "free-input",
+      topic: "קלט חופשי",
+      text: freeInput,
+    });
+
+    setFreeInput("");
+  }
 
   return (
     <aside className="bg-white border rounded-2xl shadow-sm p-4 space-y-4">
       <div>
         <h2 className="text-lg font-bold">מרחב עבודה</h2>
+
         <p className="text-xs text-slate-500 mt-1">
           שאלות, חוסרים וקלט נוסף שיכולים לשנות את הערכת התיק.
         </p>
@@ -19,6 +37,7 @@ export default function StrategicWorkspace({ analysis }) {
           items={questions}
           type="question"
           empty="לא זוהו שאלות מהותיות."
+          onAddWorkspaceUpdate={onAddWorkspaceUpdate}
         />
       </WorkspaceSection>
 
@@ -27,6 +46,7 @@ export default function StrategicWorkspace({ analysis }) {
           items={missingEvidence}
           type="missing"
           empty="לא זוהו חוסרים מרכזיים."
+          onAddWorkspaceUpdate={onAddWorkspaceUpdate}
         />
       </WorkspaceSection>
 
@@ -39,7 +59,10 @@ export default function StrategicWorkspace({ analysis }) {
         />
 
         <div className="flex gap-2 mt-2">
-          <button className="rounded-lg bg-slate-900 text-white px-3 py-1.5 text-xs font-semibold">
+          <button
+            onClick={handleFreeInputSubmit}
+            className="rounded-lg bg-slate-900 text-white px-3 py-1.5 text-xs font-semibold"
+          >
             הוסף לתיק
           </button>
 
@@ -50,10 +73,42 @@ export default function StrategicWorkspace({ analysis }) {
       </WorkspaceSection>
 
       <WorkspaceSection title="מה השתנה">
-        <p className="text-sm text-slate-500 leading-6">
-          לאחר הוספת מידע חדש, כאן יוצגו שינויים בהערכת הסיכון, בתיאוריות התיק
-          ובפערים הראייתיים.
-        </p>
+        {!workspaceUpdates?.length ? (
+          <p className="text-sm text-slate-500 leading-6">
+            עדיין לא נוספו עדכונים מתוך מרחב העבודה.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {workspaceUpdates.slice(0, 5).map((update, index) => (
+              <div
+                key={index}
+                className="rounded-xl border bg-white p-2.5"
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="rounded-full bg-blue-50 border border-blue-100 text-blue-700 px-2 py-0.5 text-[11px]">
+                    {formatType(update.type)}
+                  </span>
+
+                  <span className="text-xs text-slate-400">
+                    נוסף לתיק
+                  </span>
+                </div>
+
+                <div className="text-sm font-semibold text-slate-800 leading-6">
+                  {update.topic}
+                </div>
+
+                <div className="text-sm text-slate-600 leading-6 mt-1">
+                  {update.text}
+                </div>
+              </div>
+            ))}
+
+            <div className="text-xs text-slate-400 pt-1">
+              לחץ על "נתח מחדש" כדי לעדכן את הניתוח.
+            </div>
+          </div>
+        )}
       </WorkspaceSection>
     </aside>
   );
@@ -68,14 +123,45 @@ function WorkspaceSection({ title, children }) {
   );
 }
 
-function InteractiveItems({ items, type, empty }) {
+function InteractiveItems({
+  items,
+  type,
+  empty,
+  onAddWorkspaceUpdate,
+}) {
   const shown = (items || []).slice(0, 4);
+
   const [openIndex, setOpenIndex] = useState(null);
   const [answers, setAnswers] = useState({});
   const [statuses, setStatuses] = useState({});
 
   if (!shown.length) {
     return <p className="text-sm text-slate-500">{empty}</p>;
+  }
+
+  function handleAdd(item, index) {
+    const answer = answers[index];
+
+    if (!answer?.trim()) return;
+
+    onAddWorkspaceUpdate({
+      type:
+        type === "question"
+          ? "question-answer"
+          : "missing-evidence",
+      topic: item,
+      text: answer,
+    });
+
+    setStatuses((prev) => ({
+      ...prev,
+      [index]: "answered",
+    }));
+
+    setAnswers((prev) => ({
+      ...prev,
+      [index]: "",
+    }));
   }
 
   return (
@@ -88,15 +174,22 @@ function InteractiveItems({ items, type, empty }) {
           <div
             key={index}
             className={`rounded-xl border bg-white overflow-hidden ${
-              status === "answered" ? "border-emerald-200" : ""
+              status === "answered"
+                ? "border-emerald-200"
+                : ""
             }`}
           >
             <button
-              onClick={() => setOpenIndex(isOpen ? null : index)}
+              onClick={() =>
+                setOpenIndex(isOpen ? null : index)
+              }
               className="w-full text-right p-2.5 hover:bg-slate-50"
             >
               <div className="flex items-start gap-2">
-                <StatusBadge status={status} type={type} />
+                <StatusBadge
+                  status={status}
+                  type={type}
+                />
 
                 <div className="min-w-0 flex-1">
                   <div className="text-sm leading-6 font-semibold text-slate-900">
@@ -136,12 +229,7 @@ function InteractiveItems({ items, type, empty }) {
 
                 <div className="flex flex-wrap gap-1.5">
                   <button
-                    onClick={() =>
-                      setStatuses((prev) => ({
-                        ...prev,
-                        [index]: "answered",
-                      }))
-                    }
+                    onClick={() => handleAdd(item, index)}
                     className="rounded-lg bg-slate-900 text-white px-3 py-1.5 text-xs font-semibold"
                   >
                     הוסף
@@ -194,4 +282,20 @@ function StatusBadge({ status, type }) {
       {type === "question" ? "שאלה" : "חסר"}
     </span>
   );
+}
+
+function formatType(type) {
+  switch (type) {
+    case "question-answer":
+      return "תשובה";
+
+    case "missing-evidence":
+      return "ראיה";
+
+    case "free-input":
+      return "קלט";
+
+    default:
+      return "עדכון";
+  }
 }
