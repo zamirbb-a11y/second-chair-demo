@@ -2,7 +2,6 @@ export default function buildAnalyzePrompt({
   caseText,
   documentText,
   legalPacks,
-  missingEvidenceHeuristics = [],
 }) {
   const MAX_DOCUMENT_CHARS = 22000;
   const MAX_CASE_CHARS = 6000;
@@ -26,10 +25,6 @@ export default function buildAnalyzePrompt({
   const knowledgeText = legalPacks
     .map((pack) => formatLegalPack(pack))
     .join("\n\n");
-
-  const missingEvidenceText = formatMissingEvidenceHeuristics(
-    missingEvidenceHeuristics
-  );
 
   return `
 אתה עורך דין ליטיגציה מסחרית בכיר בישראל.
@@ -61,18 +56,6 @@ export default function buildAnalyzePrompt({
 - אל תמציא ציטוטים, סעיפים או פסקי דין שלא הופיעו בקלט או במאגר הידע.
 - רמות סיכון: High / Medium / Low בלבד.
 
-מגבלות פלט:
-- עד 3 סוגיות מרכזיות
-- עד 6 אירועי timeline
-- עד 6 שורות evidence map
-- עד 5 פריטים בכל רשימת פעולה
-
-שכבות ידע פעילות:
-${knowledgeText}
-
-יוריסטיקות למסמכים חסרים:
-${missingEvidenceText}
-
 הוראות מיוחדות למסמכים חסרים:
 - אל תכתוב רק קטגוריות כלליות כמו "מסמכי DD", "התכתבויות" או "מסמכים פנימיים".
 - כאשר אתה מזהה מסמך חסר, נסה לנקוב במסמך הספציפי ככל האפשר.
@@ -83,8 +66,17 @@ ${missingEvidenceText}
   3. שרשור תקשורת שנראה חלקי או קטוע.
   4. מסמך שמתעד החלטה, אישור, בדיקה או ישיבה.
 - קשר כל מסמך חסר לשאלה ליטיגטורית: מה הוא יכול להוכיח, להחליש או להפריך.
-- אם אפשר, כתוב את החוסר כך:
-  "חסר [מסמך ספציפי], משום ש[אינדיקציה מתוך החומר]. חשיבות: [משמעות ליטיגטורית]."
+- אם אפשר, כתוב:
+  "חסר [מסמך ספציפי], משום ש[אינדיקציה מתוך החומר]."
+
+מגבלות פלט:
+- עד 3 סוגיות מרכזיות
+- עד 6 אירועי timeline
+- עד 6 שורות evidence map
+- עד 5 פריטים בכל רשימת פעולה
+
+שכבות ידע פעילות:
+${knowledgeText}
 
 החזר JSON בלבד, בלי Markdown, בדיוק במבנה הבא:
 
@@ -214,21 +206,4 @@ ${(pack.heuristics || [])
   )
   .join("\n")}
 `;
-}
-
-function formatMissingEvidenceHeuristics(heuristics) {
-  if (!heuristics || heuristics.length === 0) {
-    return "לא הוגדרו יוריסטיקות ייעודיות למסמכים חסרים.";
-  }
-
-  return heuristics
-    .map(
-      (h) => `
-- ${h.hebrewTitle}: ${h.pattern}
-  חפש: ${(h.lookFor || []).join(", ")}
-  מסמכים צפויים: ${(h.expectedDocuments || []).join(", ")}
-  הנחיית פלט: ${h.outputHint}
-`
-    )
-    .join("\n");
 }
