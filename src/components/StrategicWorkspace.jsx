@@ -33,6 +33,13 @@ export default function StrategicWorkspace({
         </p>
       </div>
 
+      <ChangeFeedSection>
+        <WhatChanged
+          analysisDiff={analysisDiff}
+          workspaceUpdates={workspaceUpdates}
+        />
+      </ChangeFeedSection>
+
       <WorkspaceSection title="שאלות שעשויות לשנות את הניתוח">
         <InteractiveItems
           items={questions}
@@ -72,14 +79,25 @@ export default function StrategicWorkspace({
           </button>
         </div>
       </WorkspaceSection>
-
-      <WorkspaceSection title="מה השתנה">
-        <WhatChanged
-          analysisDiff={analysisDiff}
-          workspaceUpdates={workspaceUpdates}
-        />
-      </WorkspaceSection>
     </aside>
+  );
+}
+
+function ChangeFeedSection({ children }) {
+  return (
+    <section className="rounded-2xl border border-blue-100 bg-blue-50/60 p-3 shadow-sm">
+      <div className="mb-2">
+        <h3 className="font-bold text-sm text-slate-900">
+          מה השתנה מאז ההרצה האחרונה
+        </h3>
+
+        <p className="text-xs text-slate-500 mt-1">
+          העדכונים המרכזיים שהמערכת זיהתה בעקבות הניתוח המחודש.
+        </p>
+      </div>
+
+      {children}
+    </section>
   );
 }
 
@@ -115,7 +133,7 @@ function WhatChanged({ analysisDiff, workspaceUpdates }) {
           {analysisDiff.slice(0, 5).map((change, index) => (
             <div
               key={index}
-              className="rounded-xl border bg-white p-2.5"
+              className="rounded-xl border border-white/70 bg-white p-2.5 shadow-sm"
             >
               <div className="flex items-center gap-2 mb-1">
                 <ChangeBadge type={change.type} />
@@ -146,7 +164,7 @@ function WhatChanged({ analysisDiff, workspaceUpdates }) {
           {workspaceUpdates.slice(0, 5).map((update, index) => (
             <div
               key={index}
-              className="rounded-xl border bg-white p-2.5"
+              className="rounded-xl border border-white/70 bg-white p-2.5 shadow-sm"
             >
               <div className="flex items-center gap-2 mb-1">
                 <span className="rounded-full bg-blue-50 border border-blue-100 text-blue-700 px-2 py-0.5 text-[11px]">
