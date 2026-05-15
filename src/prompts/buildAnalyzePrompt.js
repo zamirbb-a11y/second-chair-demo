@@ -10,29 +10,26 @@ export default function buildAnalyzePrompt({
   return `
 אתה עורך דין ליטיגציה מסחרית בכיר בישראל.
 
-המטרה: לבנות Litigation Cockpit לעורך דין, לא לכתוב חוות דעת ארוכה.
+המטרה: לבנות Litigation Cockpit תמציתי ומעשי לעורך דין, לא חוות דעת.
 
 כללי עבודה:
-- אל תכתוב טקסט גנרי.
-- אל תלמד את הדין באופן כללי.
-- נעץ כל מסקנה בעובדות הספציפיות.
-- בצע screening שקט של העילות והסעדים הרלוונטיים, אך הצג רק מה שיש לו אחיזה עובדתית ממשית.
-- הפעל heuristics ליטיגטוריות רק כאשר יש להן בסיס בעובדות או במסמכים.
-- אם heuristic מופעלת, הסבר בקצרה מה הדפוס הראייתי ומה המשמעות הליטיגטורית.
-- השתמש ב-grounding קצר מתוך המסמכים והעובדות.
+- כתוב בעברית משפטית חדה וקצרה.
+- אל תכתוב טקסט גנרי ואל תלמד את הדין.
+- בצע screening שקט של עילות וסעדים; הצג רק מה שיש לו אחיזה עובדתית.
+- הפעל heuristics רק כשיש בסיס בעובדות או במסמכים.
+- נעץ כל מסקנה בעובדות ובמסמכים.
 - אל תמציא ציטוטים, סעיפים או פסקי דין שלא הופיעו בקלט או במאגר הידע.
-- צבעים/סיכון צריכים להיות מתונים: High / Medium / Low בלבד.
-- כתוב בעברית משפטית חדה, תמציתית ומעשית.
+- רמות סיכון: High / Medium / Low בלבד.
+- הגבל פלט: עד 3 סוגיות מרכזיות, עד 6 אירועי timeline, עד 6 שורות evidence map, עד 5 פריטים בכל רשימת פעולה.
 
 שכבות ידע פעילות:
 ${knowledgeText}
 
-החזר JSON בלבד, בלי Markdown, במבנה הבא:
+החזר JSON בלבד, בלי Markdown, בדיוק במבנה הבא:
 
 {
   "source": "OpenAI GPT-4.1-mini",
   "confidence": "High/Medium/Low",
-
   "executiveView": {
     "caseSnapshot": {
       "parties": [],
@@ -55,15 +52,8 @@ ${knowledgeText}
       "mostLikelyBattleground": "",
       "grounding": []
     },
-    "smokingGuns": [
-      {
-        "title": "",
-        "whyItMatters": "",
-        "grounding": []
-      }
-    ]
+    "smokingGuns": []
   },
-
   "caseTheory": {
     "claimantTheory": {
       "headline": "",
@@ -81,7 +71,6 @@ ${knowledgeText}
       "grounding": []
     }
   },
-
   "evidenceAndGaps": {
     "timeline": [
       {
@@ -101,15 +90,8 @@ ${knowledgeText}
       }
     ],
     "missingEvidence": [],
-    "keyDocuments": [
-      {
-        "name": "",
-        "role": "",
-        "grounding": []
-      }
-    ]
+    "keyDocuments": []
   },
-
   "actionCenter": {
     "nextSteps": [],
     "clientQuestions": [],
@@ -133,38 +115,22 @@ function formatLegalPack(pack) {
 כללי חשיבה:
 ${(pack.reasoningRules || []).map((rule) => `- ${rule}`).join("\n")}
 
-חקיקה רלוונטית:
+חקיקה:
 ${(pack.statutes || [])
-  .map(
-    (statute) =>
-      `- ${statute.source}, סעיף ${statute.section} — ${statute.title}: ${statute.summary}`
-  )
+  .map((s) => `- ${s.source} ${s.section}: ${s.title} — ${s.summary}`)
   .join("\n")}
 
-פסיקה רלוונטית:
+פסיקה:
 ${(pack.cases || [])
   .map(
-    (caseItem) => `
-- ${caseItem.name}
-  עיקרון: ${caseItem.doctrine}
-  תקציר: ${caseItem.summary}
-  מסייע כאשר: ${caseItem.helpsWhen}
-  מזיק כאשר: ${caseItem.hurtsWhen}
-  השלכה ראייתית: ${caseItem.evidentiaryImplication}`
+    (c) =>
+      `- ${c.name}: ${c.doctrine}. מסייע: ${c.helpsWhen} מזיק: ${c.hurtsWhen}`
   )
   .join("\n")}
 
-יוריסטיקות ליטיגטוריות פעילות:
+יוריסטיקות:
 ${(pack.heuristics || [])
-  .map(
-    (h) => `
-- ${h.hebrewTitle} (${h.title})
-  דפוס: ${h.pattern}
-  נימוק שיפוטי טיפוסי: ${h.judicialReasoning}
-  מה לחפש: ${(h.lookFor || []).join(", ")}
-  שימוש ליטיגטורי: ${h.litigationUse}
-  הנחיית פלט: ${h.outputHint}`
-  )
+  .map((h) => `- ${h.hebrewTitle}: ${h.pattern} שימוש: ${h.litigationUse}`)
   .join("\n")}
 `;
 }
