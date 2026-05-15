@@ -85,14 +85,14 @@ export default function StrategicWorkspace({
 
 function ChangeFeedSection({ children }) {
   return (
-    <section className="rounded-2xl border border-blue-100 bg-blue-50/60 p-3 shadow-sm">
-      <div className="mb-2">
-        <h3 className="font-bold text-sm text-slate-900">
-          מה השתנה מאז ההרצה האחרונה
+    <section className="rounded-2xl border border-blue-200 bg-blue-100/70 p-3 shadow-sm">
+      <div className="mb-3">
+        <h3 className="font-bold text-sm text-slate-950">
+          המערכת זיהתה שינוי מהותי בתיק
         </h3>
 
-        <p className="text-xs text-slate-500 mt-1">
-          העדכונים המרכזיים שהמערכת זיהתה בעקבות הניתוח המחודש.
+        <p className="text-xs text-slate-600 mt-1">
+          עודכן בעקבות המידע החדש וההרצה המחודשת.
         </p>
       </div>
 
@@ -116,21 +116,44 @@ function WhatChanged({ analysisDiff, workspaceUpdates }) {
 
   if (!hasDiff && !hasUpdates) {
     return (
-      <p className="text-sm text-slate-500 leading-6">
+      <p className="text-sm text-slate-600 leading-6">
         עדיין לא נוספו עדכונים מתוך מרחב העבודה.
       </p>
     );
   }
 
+  const primaryChange = hasDiff ? analysisDiff[0] : null;
+  const secondaryChanges = hasDiff ? analysisDiff.slice(1, 4) : [];
+
   return (
     <div className="space-y-3">
-      {hasDiff && (
-        <div className="space-y-2">
-          <div className="text-xs font-semibold text-slate-500">
-            שינויים בניתוח לאחר הרצה מחדש
+      {primaryChange && (
+        <div className="rounded-2xl border border-blue-300 bg-white p-3 shadow-sm border-r-4 border-r-blue-500">
+          <div className="flex items-center gap-2 mb-2">
+            <ChangeBadge type={primaryChange.type} />
+
+            <span className="text-xs font-semibold text-blue-700">
+              שינוי מרכזי בניתוח
+            </span>
           </div>
 
-          {analysisDiff.slice(0, 5).map((change, index) => (
+          <div className="text-sm font-bold text-slate-900 leading-6">
+            {primaryChange.title}
+          </div>
+
+          <div className="text-sm text-slate-700 leading-6 mt-1">
+            {primaryChange.description}
+          </div>
+        </div>
+      )}
+
+      {secondaryChanges.length > 0 && (
+        <div className="space-y-2">
+          <div className="text-xs font-semibold text-slate-600">
+            שינויים נוספים
+          </div>
+
+          {secondaryChanges.map((change, index) => (
             <div
               key={index}
               className="rounded-xl border border-white/70 bg-white p-2.5 shadow-sm"
@@ -157,11 +180,11 @@ function WhatChanged({ analysisDiff, workspaceUpdates }) {
 
       {hasUpdates && (
         <div className="space-y-2">
-          <div className="text-xs font-semibold text-slate-500">
+          <div className="text-xs font-semibold text-slate-600">
             עדכונים שהוזנו לתיק
           </div>
 
-          {workspaceUpdates.slice(0, 5).map((update, index) => (
+          {workspaceUpdates.slice(0, 4).map((update, index) => (
             <div
               key={index}
               className="rounded-xl border border-white/70 bg-white p-2.5 shadow-sm"
@@ -186,7 +209,7 @@ function WhatChanged({ analysisDiff, workspaceUpdates }) {
             </div>
           ))}
 
-          <div className="text-xs text-slate-400 pt-1">
+          <div className="text-xs text-slate-500 pt-1">
             לחץ על "נתח מחדש" כדי לעדכן את הניתוח.
           </div>
         </div>
@@ -270,22 +293,15 @@ function InteractiveItems({
           <div
             key={index}
             className={`rounded-xl border bg-white overflow-hidden ${
-              status === "answered"
-                ? "border-emerald-200"
-                : ""
+              status === "answered" ? "border-emerald-200" : ""
             }`}
           >
             <button
-              onClick={() =>
-                setOpenIndex(isOpen ? null : index)
-              }
+              onClick={() => setOpenIndex(isOpen ? null : index)}
               className="w-full text-right p-2.5 hover:bg-slate-50"
             >
               <div className="flex items-start gap-2">
-                <StatusBadge
-                  status={status}
-                  type={type}
-                />
+                <StatusBadge status={status} type={type} />
 
                 <div className="min-w-0 flex-1">
                   <div className="text-sm leading-6 font-semibold text-slate-900">
