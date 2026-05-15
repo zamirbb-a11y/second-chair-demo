@@ -10,12 +10,18 @@ import ExecutiveView from "./components/ExecutiveView";
 import StrategicWorkspace from "./components/StrategicWorkspace";
 import Tabs from "./components/Tabs";
 
+import generateAnalysisDiff from "./utils/generateAnalysisDiff";
+
 export default function App() {
   const [caseText, setCaseText] = useState("");
   const [documentText, setDocumentText] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [status, setStatus] = useState("");
+
   const [analysis, setAnalysis] = useState(null);
+  const [previousAnalysis, setPreviousAnalysis] = useState(null);
+  const [analysisDiff, setAnalysisDiff] = useState([]);
+
   const [activeTab, setActiveTab] = useState("overview");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -47,7 +53,9 @@ export default function App() {
       for (const file of acceptedFiles) {
         const arrayBuffer = await file.arrayBuffer();
 
-        const result = await mammoth.extractRawText({ arrayBuffer });
+        const result = await mammoth.extractRawText({
+          arrayBuffer,
+        });
 
         newFiles.push({
           name: file.name,
@@ -55,19 +63,26 @@ export default function App() {
           status: "נטען",
         });
 
-        extractedTexts.push(`--- ${file.name} ---\n${result.value || ""}`);
+        extractedTexts.push(
+          `--- ${file.name} ---\n${result.value || ""}`
+        );
       }
 
       setUploadedFiles((prev) => [...prev, ...newFiles]);
 
       setDocumentText((prev) =>
-        [prev, ...extractedTexts].filter(Boolean).join("\n\n")
+        [prev, ...extractedTexts]
+          .filter(Boolean)
+          .join("\n\n")
       );
 
       setStatus("הקבצים נטענו בהצלחה.");
     } catch (err) {
       console.error(err);
-      setStatus("לא הצלחתי לקרוא את הקבצים. אפשר לנסות שוב.");
+
+      setStatus(
+        "לא הצלחתי לקרוא את הקבצים. אפשר לנסות שוב."
+      );
     }
   }
 
@@ -77,7 +92,10 @@ export default function App() {
       createdAt: new Date().toISOString(),
     };
 
-    setWorkspaceUpdates((prev) => [enrichedUpdate, ...prev]);
+    setWorkspaceUpdates((prev) => [
+      enrichedUpdate,
+      ...prev,
+    ]);
 
     const formattedUpdate = `
 [עדכון ממרחב העבודה]
@@ -89,7 +107,9 @@ ${update.text}
 
     setCaseText((prev) => `${prev}\n\n${formattedUpdate}`);
 
-    setStatus("נוסף מידע חדש לתיק. ניתן להריץ ניתוח מחדש.");
+    setStatus(
+      "נוסף מידע חדש לתיק. ניתן להריץ ניתוח מחדש."
+    );
   }
 
   async function runAnalysis() {
@@ -97,9 +117,16 @@ ${update.text}
     setError("");
 
     try {
+      if (analysis) {
+        setPreviousAnalysis(analysis);
+      }
+
       const response = await fetch("/api/analyze", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+
+        headers: {
+          "Content-Type": "application/json",
+        },
 
         body: JSON.stringify({
           caseText,
@@ -113,19 +140,33 @@ ${update.text}
 
       const data = await response.json();
 
+      if (analysis) {
+        const diff = generateAnalysisDiff(
+          analysis,
+          data
+        );
+
+        setAnalysisDiff(diff);
+      }
+
       setAnalysis(data);
+
       setActiveTab("overview");
       setIntakeExpanded(false);
 
       setTimeout(() => {
-        document.getElementById("results")?.scrollIntoView({
-          behavior: "smooth",
-        });
+        document
+          .getElementById("results")
+          ?.scrollIntoView({
+            behavior: "smooth",
+          });
       }, 100);
     } catch (err) {
       console.error(err);
 
-      setError("הניתוח נכשל. בדוק את ה־API או את ה־Vercel Logs.");
+      setError(
+        "הניתוח נכשל. בדוק את ה־API או את ה־Vercel Logs."
+      );
     } finally {
       setLoading(false);
     }
@@ -140,7 +181,10 @@ ${update.text}
   }
 
   return (
-    <div dir="rtl" className="min-h-screen bg-slate-50 text-slate-900 p-5">
+    <div
+      dir="rtl"
+      className="min-h-screen bg-slate-50 text-slate-900 p-5"
+    >
       {loading && <AnalysisLoadingOverlay />}
 
       <div className="max-w-[1500px] mx-auto space-y-4">
@@ -149,7 +193,9 @@ ${update.text}
             <div className="flex items-center gap-3">
               <span className="text-3xl">⚖️</span>
 
-              <h1 className="text-3xl font-bold">Second Chair</h1>
+              <h1 className="text-3xl font-bold">
+                Second Chair
+              </h1>
 
               <span className="text-xs bg-slate-200 rounded-full px-3 py-1">
                 Cockpit
@@ -195,7 +241,10 @@ ${update.text}
             className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-4 items-start"
           >
             <main className="space-y-4 min-w-0">
-              <Tabs activeTab={activeTab} setActiveTab={setActiveTab} />
+              <Tabs
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+              />
 
               {activeTab === "overview" && (
                 <ExecutiveView analysis={analysis} />
@@ -218,7 +267,10 @@ ${update.text}
               <StrategicWorkspace
                 analysis={analysis}
                 workspaceUpdates={workspaceUpdates}
-                onAddWorkspaceUpdate={handleWorkspaceUpdate}
+                analysisDiff={analysisDiff}
+                onAddWorkspaceUpdate={
+                  handleWorkspaceUpdate
+                }
               />
             </div>
           </div>
