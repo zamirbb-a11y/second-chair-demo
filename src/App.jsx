@@ -21,6 +21,8 @@ export default function App() {
   const [error, setError] = useState("");
   const [intakeExpanded, setIntakeExpanded] = useState(true);
 
+  const [workspaceUpdates, setWorkspaceUpdates] = useState([]);
+
   async function handleWordUpload(event) {
     const files = Array.from(event.target.files || []);
     if (!files.length) return;
@@ -38,11 +40,13 @@ export default function App() {
 
     try {
       const mammoth = await import("mammoth");
+
       const newFiles = [];
       const extractedTexts = [];
 
       for (const file of acceptedFiles) {
         const arrayBuffer = await file.arrayBuffer();
+
         const result = await mammoth.extractRawText({ arrayBuffer });
 
         newFiles.push({
@@ -67,6 +71,27 @@ export default function App() {
     }
   }
 
+  function handleWorkspaceUpdate(update) {
+    const enrichedUpdate = {
+      ...update,
+      createdAt: new Date().toISOString(),
+    };
+
+    setWorkspaceUpdates((prev) => [enrichedUpdate, ...prev]);
+
+    const formattedUpdate = `
+[עדכון ממרחב העבודה]
+סוג: ${update.type}
+נושא: ${update.topic}
+
+${update.text}
+`;
+
+    setCaseText((prev) => `${prev}\n\n${formattedUpdate}`);
+
+    setStatus("נוסף מידע חדש לתיק. ניתן להריץ ניתוח מחדש.");
+  }
+
   async function runAnalysis() {
     setLoading(true);
     setError("");
@@ -75,7 +100,11 @@ export default function App() {
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ caseText, documentText }),
+
+        body: JSON.stringify({
+          caseText,
+          documentText,
+        }),
       });
 
       if (!response.ok) {
@@ -95,6 +124,7 @@ export default function App() {
       }, 100);
     } catch (err) {
       console.error(err);
+
       setError("הניתוח נכשל. בדוק את ה־API או את ה־Vercel Logs.");
     } finally {
       setLoading(false);
@@ -185,7 +215,11 @@ export default function App() {
             </main>
 
             <div className="xl:sticky xl:top-4">
-              <StrategicWorkspace analysis={analysis} />
+              <StrategicWorkspace
+                analysis={analysis}
+                workspaceUpdates={workspaceUpdates}
+                onAddWorkspaceUpdate={handleWorkspaceUpdate}
+              />
             </div>
           </div>
         )}
