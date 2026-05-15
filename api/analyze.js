@@ -32,6 +32,10 @@ export default async function handler(req, res) {
         body: JSON.stringify({
           model: "gpt-4.1-mini",
 
+          response_format: {
+            type: "json_object",
+          },
+
           messages: [
             {
               role: "system",
@@ -70,31 +74,20 @@ export default async function handler(req, res) {
       });
     }
 
-    const cleaned = content
-      .replace(/^```json/i, "")
-      .replace(/^```/i, "")
-      .replace(/```$/i, "")
-      .trim();
-
     try {
-      const jsonStart = cleaned.indexOf("{");
-      const jsonEnd = cleaned.lastIndexOf("}");
-
-      if (jsonStart === -1 || jsonEnd === -1) {
-        throw new Error("No JSON object found in model response");
-      }
-
-      const jsonText = cleaned.slice(jsonStart, jsonEnd + 1);
-      const parsed = JSON.parse(jsonText);
+      const parsed = JSON.parse(content);
 
       return res.status(200).json(parsed);
     } catch (parseError) {
       console.error("Failed to parse model JSON:", parseError);
-      console.error("Raw model content:", content);
+      console.error(
+        "Raw model content:",
+        content?.slice(0, 4000)
+      );
 
       return res.status(500).json({
         error: "Model returned invalid JSON",
-        raw: content,
+        raw: content?.slice(0, 4000),
       });
     }
   } catch (error) {
