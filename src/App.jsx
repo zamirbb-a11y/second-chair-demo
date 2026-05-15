@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 
 import ActionCenter from "./components/ActionCenter";
+import AnalysisLoadingOverlay from "./components/AnalysisLoadingOverlay";
 import CaseIntake from "./components/CaseIntake";
 import CaseTheory from "./components/CaseTheory";
 import CollapsedCaseHeader from "./components/CollapsedCaseHeader";
@@ -54,6 +55,7 @@ export default function App() {
       }
 
       setUploadedFiles((prev) => [...prev, ...newFiles]);
+
       setDocumentText((prev) =>
         [prev, ...extractedTexts].filter(Boolean).join("\n\n")
       );
@@ -76,7 +78,9 @@ export default function App() {
         body: JSON.stringify({ caseText, documentText }),
       });
 
-      if (!response.ok) throw new Error("השרת החזיר שגיאה");
+      if (!response.ok) {
+        throw new Error("השרת החזיר שגיאה");
+      }
 
       const data = await response.json();
 
@@ -99,17 +103,24 @@ export default function App() {
 
   function handleAddInfo() {
     setIntakeExpanded(true);
-    setStatus("אפשר להוסיף קבצים או לעדכן את תיאור המקרה ואז להריץ ניתוח מחדש.");
+
+    setStatus(
+      "אפשר להוסיף קבצים או לעדכן את תיאור המקרה ואז להריץ ניתוח מחדש."
+    );
   }
 
   return (
     <div dir="rtl" className="min-h-screen bg-slate-50 text-slate-900 p-5">
+      {loading && <AnalysisLoadingOverlay />}
+
       <div className="max-w-[1500px] mx-auto space-y-4">
         <header className="flex flex-col md:flex-row justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
               <span className="text-3xl">⚖️</span>
+
               <h1 className="text-3xl font-bold">Second Chair</h1>
+
               <span className="text-xs bg-slate-200 rounded-full px-3 py-1">
                 Cockpit
               </span>
@@ -156,13 +167,21 @@ export default function App() {
             <main className="space-y-4 min-w-0">
               <Tabs activeTab={activeTab} setActiveTab={setActiveTab} />
 
-              {activeTab === "overview" && <ExecutiveView analysis={analysis} />}
+              {activeTab === "overview" && (
+                <ExecutiveView analysis={analysis} />
+              )}
 
-              {activeTab === "theory" && <CaseTheory analysis={analysis} />}
+              {activeTab === "theory" && (
+                <CaseTheory analysis={analysis} />
+              )}
 
-              {activeTab === "evidence" && <EvidenceGaps analysis={analysis} />}
+              {activeTab === "evidence" && (
+                <EvidenceGaps analysis={analysis} />
+              )}
 
-              {activeTab === "actions" && <ActionCenter analysis={analysis} />}
+              {activeTab === "actions" && (
+                <ActionCenter analysis={analysis} />
+              )}
             </main>
 
             <div className="xl:sticky xl:top-4">
