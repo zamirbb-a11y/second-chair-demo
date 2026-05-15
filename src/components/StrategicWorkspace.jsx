@@ -3,6 +3,7 @@ import { useState } from "react";
 export default function StrategicWorkspace({
   analysis,
   workspaceUpdates,
+  analysisDiff,
   onAddWorkspaceUpdate,
 }) {
   const questions = analysis?.actionCenter?.clientQuestions || [];
@@ -73,42 +74,10 @@ export default function StrategicWorkspace({
       </WorkspaceSection>
 
       <WorkspaceSection title="מה השתנה">
-        {!workspaceUpdates?.length ? (
-          <p className="text-sm text-slate-500 leading-6">
-            עדיין לא נוספו עדכונים מתוך מרחב העבודה.
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {workspaceUpdates.slice(0, 5).map((update, index) => (
-              <div
-                key={index}
-                className="rounded-xl border bg-white p-2.5"
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="rounded-full bg-blue-50 border border-blue-100 text-blue-700 px-2 py-0.5 text-[11px]">
-                    {formatType(update.type)}
-                  </span>
-
-                  <span className="text-xs text-slate-400">
-                    נוסף לתיק
-                  </span>
-                </div>
-
-                <div className="text-sm font-semibold text-slate-800 leading-6">
-                  {update.topic}
-                </div>
-
-                <div className="text-sm text-slate-600 leading-6 mt-1">
-                  {update.text}
-                </div>
-              </div>
-            ))}
-
-            <div className="text-xs text-slate-400 pt-1">
-              לחץ על "נתח מחדש" כדי לעדכן את הניתוח.
-            </div>
-          </div>
-        )}
+        <WhatChanged
+          analysisDiff={analysisDiff}
+          workspaceUpdates={workspaceUpdates}
+        />
       </WorkspaceSection>
     </aside>
   );
@@ -120,6 +89,115 @@ function WorkspaceSection({ title, children }) {
       <h3 className="font-semibold text-sm mb-2">{title}</h3>
       {children}
     </section>
+  );
+}
+
+function WhatChanged({ analysisDiff, workspaceUpdates }) {
+  const hasDiff = analysisDiff && analysisDiff.length > 0;
+  const hasUpdates = workspaceUpdates && workspaceUpdates.length > 0;
+
+  if (!hasDiff && !hasUpdates) {
+    return (
+      <p className="text-sm text-slate-500 leading-6">
+        עדיין לא נוספו עדכונים מתוך מרחב העבודה.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {hasDiff && (
+        <div className="space-y-2">
+          <div className="text-xs font-semibold text-slate-500">
+            שינויים בניתוח לאחר הרצה מחדש
+          </div>
+
+          {analysisDiff.slice(0, 5).map((change, index) => (
+            <div
+              key={index}
+              className="rounded-xl border bg-white p-2.5"
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <ChangeBadge type={change.type} />
+
+                <span className="text-xs text-slate-400">
+                  עודכן בניתוח
+                </span>
+              </div>
+
+              <div className="text-sm font-semibold text-slate-800 leading-6">
+                {change.title}
+              </div>
+
+              <div className="text-sm text-slate-600 leading-6 mt-1">
+                {change.description}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {hasUpdates && (
+        <div className="space-y-2">
+          <div className="text-xs font-semibold text-slate-500">
+            עדכונים שהוזנו לתיק
+          </div>
+
+          {workspaceUpdates.slice(0, 5).map((update, index) => (
+            <div
+              key={index}
+              className="rounded-xl border bg-white p-2.5"
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <span className="rounded-full bg-blue-50 border border-blue-100 text-blue-700 px-2 py-0.5 text-[11px]">
+                  {formatType(update.type)}
+                </span>
+
+                <span className="text-xs text-slate-400">
+                  נוסף לתיק
+                </span>
+              </div>
+
+              <div className="text-sm font-semibold text-slate-800 leading-6">
+                {update.topic}
+              </div>
+
+              <div className="text-sm text-slate-600 leading-6 mt-1">
+                {update.text}
+              </div>
+            </div>
+          ))}
+
+          <div className="text-xs text-slate-400 pt-1">
+            לחץ על "נתח מחדש" כדי לעדכן את הניתוח.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ChangeBadge({ type }) {
+  if (type === "battlefield-shift") {
+    return (
+      <span className="rounded-full bg-purple-50 border border-purple-100 text-purple-700 px-2 py-0.5 text-[11px]">
+        מוקד השתנה
+      </span>
+    );
+  }
+
+  if (type === "issue-shift") {
+    return (
+      <span className="rounded-full bg-amber-50 border border-amber-100 text-amber-700 px-2 py-0.5 text-[11px]">
+        סוגיה השתנתה
+      </span>
+    );
+  }
+
+  return (
+    <span className="rounded-full bg-slate-100 border text-slate-600 px-2 py-0.5 text-[11px]">
+      שינוי
+    </span>
   );
 }
 
