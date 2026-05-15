@@ -33,12 +33,14 @@ export default function StrategicWorkspace({
         </p>
       </div>
 
-      <ChangeFeedSection>
-        <WhatChanged
-          analysisDiff={analysisDiff}
-          workspaceUpdates={workspaceUpdates}
-        />
-      </ChangeFeedSection>
+      {analysisDiff?.length > 0 && (
+        <ChangeFeedSection>
+          <WhatChanged
+            analysisDiff={analysisDiff}
+            workspaceUpdates={workspaceUpdates}
+          />
+        </ChangeFeedSection>
+      )}
 
       <WorkspaceSection title="שאלות שעשויות לשנות את הניתוח">
         <InteractiveItems
@@ -88,7 +90,7 @@ function ChangeFeedSection({ children }) {
     <section className="rounded-2xl border border-blue-200 bg-blue-100/70 p-3 shadow-sm">
       <div className="mb-3">
         <h3 className="font-bold text-sm text-slate-950">
-          המערכת זיהתה שינוי מהותי בתיק
+          מה השתנה מאז ההרצה האחרונה
         </h3>
 
         <p className="text-xs text-slate-600 mt-1">
