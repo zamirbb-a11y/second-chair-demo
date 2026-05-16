@@ -4,7 +4,6 @@ import AnalysisLoadingOverlay from "./components/AnalysisLoadingOverlay";
 import AnalysisWorkspace from "./components/AnalysisWorkspace";
 import CaseIntake from "./components/CaseIntake";
 import CollapsedCaseHeader from "./components/CollapsedCaseHeader";
-import StrategicWorkspace from "./components/StrategicWorkspace";
 
 import generateAnalysisDiff from "./utils/generateAnalysisDiff";
 
@@ -108,11 +107,9 @@ ${update.text}
 
       const response = await fetch("/api/analyze", {
         method: "POST",
-
         headers: {
           "Content-Type": "application/json",
         },
-
         body: JSON.stringify({
           caseText,
           documentText,
@@ -209,27 +206,14 @@ ${update.text}
         )}
 
         {analysis && (
-          <div
-            id="results"
-            className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-4 items-start"
-          >
-            <main className="space-y-4 min-w-0">
-              <AnalysisWorkspace
-                analysis={analysis}
-                workspaceUpdates={workspaceUpdates}
-                analysisDiff={analysisDiff}
-              />
-            </main>
-
-            <div className="xl:sticky xl:top-4">
-              <StrategicWorkspace
-                analysis={analysis}
-                workspaceUpdates={workspaceUpdates}
-                analysisDiff={analysisDiff}
-                onAddWorkspaceUpdate={handleWorkspaceUpdate}
-              />
-            </div>
-          </div>
+          <main id="results" className="space-y-4 min-w-0">
+            <AnalysisWorkspace
+              analysis={analysis}
+              workspaceUpdates={workspaceUpdates}
+              analysisDiff={analysisDiff}
+              onAddWorkspaceUpdate={handleWorkspaceUpdate}
+            />
+          </main>
         )}
       </div>
     </div>
