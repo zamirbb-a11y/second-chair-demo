@@ -1,10 +1,13 @@
 export default function buildAnalyzePrompt({
   caseText,
   documentText,
+  files = [],
   legalPacks,
 }) {
   const MAX_DOCUMENT_CHARS = 22000;
   const MAX_CASE_CHARS = 6000;
+  const MAX_FILE_CHARS = 7000;
+  const MAX_TOTAL_FILES_CHARS = 26000;
 
   function limitText(text, maxChars) {
     if (!text) return "";
@@ -15,12 +18,45 @@ export default function buildAnalyzePrompt({
 
     return (
       text.slice(0, maxChars) +
-      "\n\n[הטקסט קוצר לצורך ניתוח הדמו. ייתכן שחלק מהמסמכים לא נכללו בניתוח.]"
+      "\n\n[הטקסט קוצר לצורך ניתוח הדמו. ייתכן שחלק מהמסמך לא נכלל בניתוח.]"
     );
   }
 
+  function formatFileForPrompt(file, index) {
+    const name = file?.name || `מסמך ${index + 1}`;
+    const type = file?.type || "unknown";
+    const status = file?.status || "unknown";
+    const text = limitText(file?.text || "", MAX_FILE_CHARS);
+
+    return `
+[מסמך ${index + 1}]
+שם: ${name}
+סוג: ${type}
+סטטוס עיבוד: ${status}
+
+תוכן:
+${text || "[לא חולץ טקסט מהמסמך]"}
+`;
+  }
+
+  function buildFilesText() {
+    const processedFiles = (files || []).filter((file) =>
+      file?.text?.trim()
+    );
+
+    if (!processedFiles.length) {
+      return limitText(documentText, MAX_DOCUMENT_CHARS);
+    }
+
+    const formatted = processedFiles
+      .map((file, index) => formatFileForPrompt(file, index))
+      .join("\n\n---\n\n");
+
+    return limitText(formatted, MAX_TOTAL_FILES_CHARS);
+  }
+
   const safeCaseText = limitText(caseText, MAX_CASE_CHARS);
-  const safeDocumentText = limitText(documentText, MAX_DOCUMENT_CHARS);
+  const safeDocumentsText = buildFilesText();
 
   const knowledgeText = legalPacks
     .map((pack) => formatLegalPack(pack))
@@ -55,6 +91,15 @@ export default function buildAnalyzePrompt({
 - תן משקל נמוך יותר לטענות מאוחרות, מכתבי דרישה ונרטיבים שנוצרו לאחר הסכסוך.
 - אל תמציא ציטוטים, סעיפים או פסקי דין שלא הופיעו בקלט או במאגר הידע.
 - רמות סיכון: High / Medium / Low בלבד.
+
+הוראות מיוחדות לעבודה עם מסמכים:
+- התייחס לכל מסמך כיחידת ראיה נפרדת.
+- כאשר אתה מסתמך על מסמך, ציין ב-grounding את שם המסמך או מספר המסמך.
+- אם יש סתירה בין מסמכים, הצג אותה במפורש.
+- אם מסמך מסוים חזק במיוחד או חלש במיוחד, כתוב זאת.
+- אם חסר המשך לשרשור, נספח, גרסה קודמת, טיוטה, אישור, פרוטוקול או תכתובת — ציין זאת.
+- אל תכתוב grounding כללי כמו "מסמכים"; כתוב למשל: "SPA.pdf", "Email chain 12.3.23.eml", או "מסמך 2".
+- אם מסמך מופיע ברשימה אך לא חולץ ממנו טקסט, אל תסתמך עליו עובדתית.
 
 הוראות מיוחדות למסמכים חסרים:
 - אל תכתוב רק קטגוריות כלליות כמו "מסמכי DD", "התכתבויות" או "מסמכים פנימיים".
@@ -168,8 +213,8 @@ ${knowledgeText}
 תיאור המקרה:
 ${safeCaseText}
 
-מסמכים:
-${safeDocumentText}
+מסמכי התיק:
+${safeDocumentsText}
 `;
 }
 
