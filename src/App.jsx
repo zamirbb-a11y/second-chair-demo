@@ -28,72 +28,44 @@ export default function App() {
 
     if (!files.length) return;
 
-    setStatus("קורא את הקבצים...");
+    setStatus("מעלה ומעבד את הקבצים...");
     setError("");
 
     try {
-      const mammoth = await import("mammoth");
+      const formData = new FormData();
 
-      const newFiles = [];
-      const extractedTexts = [];
+      files.forEach((file) => {
+        formData.append("files", file);
+      });
 
-      for (const file of files) {
-        const lowerName = file.name.toLowerCase();
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
 
-        const isDocx =
-          lowerName.endsWith(".docx");
-
-        if (!isDocx) {
-          newFiles.push({
-            name: file.name,
-            size: file.size,
-            status: "הפורמט טרם נתמך",
-            type: lowerName
-              .split(".")
-              .pop(),
-          });
-
-          continue;
-        }
-
-        try {
-          const arrayBuffer =
-            await file.arrayBuffer();
-
-          const result =
-            await mammoth.extractRawText({
-              arrayBuffer,
-            });
-
-          newFiles.push({
-            name: file.name,
-            size: file.size,
-            status: "נטען",
-            type: "docx",
-          });
-
-          extractedTexts.push(
-            `--- ${file.name} ---\n${
-              result.value || ""
-            }`
-          );
-        } catch (fileError) {
-          console.error(fileError);
-
-          newFiles.push({
-            name: file.name,
-            size: file.size,
-            status:
-              "שגיאה בקריאת הקובץ",
-            type: "docx",
-          });
-        }
+      if (!response.ok) {
+        throw new Error("Upload failed");
       }
+
+      const data = await response.json();
+      const processedFiles = data.files || [];
 
       setUploadedFiles((prev) => [
         ...prev,
-        ...newFiles,
+        ...processedFiles.map((file) => ({
+          name: file.name,
+          size: file.size,
+          status: file.status,
+          type: file.type,
+        })),
       ]);
+
+      const extractedTexts = processedFiles
+        .filter((file) => file.text?.trim())
+        .map(
+          (file) =>
+            `--- ${file.name} ---\n${file.text}`
+        );
 
       if (extractedTexts.length) {
         setDocumentText((prev) =>
@@ -103,77 +75,61 @@ export default function App() {
         );
       }
 
-      const loadedCount =
-        newFiles.filter(
-          (f) => f.status === "נטען"
-        ).length;
+      const loadedCount = processedFiles.filter(
+        (file) => file.status === "נטען"
+      ).length;
 
-      const unsupportedCount =
-        newFiles.filter(
-          (f) =>
-            f.status ===
-            "הפורמט טרם נתמך"
-        ).length;
+      const unsupportedCount = processedFiles.filter(
+        (file) => file.status === "הפורמט טרם נתמך"
+      ).length;
 
-      if (
-        loadedCount > 0 &&
-        unsupportedCount > 0
-      ) {
+      const failedCount = processedFiles.filter(
+        (file) => file.status === "שגיאה בקריאת הקובץ"
+      ).length;
+
+      if (loadedCount > 0 && (unsupportedCount > 0 || failedCount > 0)) {
         setStatus(
-          `נטענו ${loadedCount} קבצים. ${unsupportedCount} קבצים נוספים ייתמכו בהמשך.`
+          `נטענו ${loadedCount} קבצים. ${unsupportedCount} קבצים בפורמט שעדיין לא נתמך. ${failedCount} קבצים נכשלו בקריאה.`
         );
       } else if (loadedCount > 0) {
-        setStatus(
-          `נטענו ${loadedCount} קבצים בהצלחה.`
-        );
+        setStatus(`נטענו ${loadedCount} קבצים בהצלחה.`);
       } else {
-        setStatus(
-          "הקבצים נוספו, אך הפורמט עדיין לא נתמך."
-        );
+        setStatus("הקבצים נוספו, אך לא חולץ מהם טקסט לניתוח.");
       }
     } catch (err) {
       console.error(err);
 
-      setStatus(
-        "לא הצלחתי לקרוא את הקבצים. אפשר לנסות שוב."
-      );
+      setStatus("לא הצלחתי להעלות או לקרוא את הקבצים. בדוק את ה־Vercel Logs.");
+    } finally {
+      event.target.value = "";
     }
   }
 
-  function handleWorkspaceUpdate(
-    update
-  ) {
+  function handleWorkspaceUpdate(update) {
     const enrichedUpdate = {
       ...update,
-      createdAt:
-        new Date().toISOString(),
+      createdAt: new Date().toISOString(),
     };
 
-    setWorkspaceUpdates((prev) => [
-      enrichedUpdate,
-      ...prev,
-    ]);
+    setWorkspaceUpdates((prev) => [enrichedUpdate, ...prev]);
 
     setError("");
 
-    setStatus(
-      "נוסף מידע חדש לתיק. ניתן להריץ ניתוח מחדש."
-    );
+    setStatus("נוסף מידע חדש לתיק. ניתן להריץ ניתוח מחדש.");
   }
 
   function buildCaseTextForAnalysis() {
-    const updatesText =
-      workspaceUpdates
-        .map((update, index) => {
-          return `
+    const updatesText = workspaceUpdates
+      .map((update, index) => {
+        return `
 עדכון ${index + 1}
 סוג: ${update.type || "עדכון"}
 נושא: ${update.topic || "ללא נושא"}
 תוכן:
 ${update.text || ""}
 `;
-        })
-        .join("\n---\n");
+      })
+      .join("\n---\n");
 
     if (!updatesText.trim()) {
       return caseText;
@@ -196,65 +152,45 @@ ${updatesText}
 
     try {
       if (analysis) {
-        setPreviousAnalysis(
-          analysis
-        );
+        setPreviousAnalysis(analysis);
       }
 
-      const response = await fetch(
-        "/api/analyze",
-        {
-          method: "POST",
+      const response = await fetch("/api/analyze", {
+        method: "POST",
 
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
+        headers: {
+          "Content-Type": "application/json",
+        },
 
-          body: JSON.stringify({
-            caseText:
-              buildCaseTextForAnalysis(),
-            documentText,
-          }),
-        }
-      );
+        body: JSON.stringify({
+          caseText: buildCaseTextForAnalysis(),
+          documentText,
+        }),
+      });
 
       if (!response.ok) {
-        throw new Error(
-          "השרת החזיר שגיאה"
-        );
+        throw new Error("השרת החזיר שגיאה");
       }
 
-      const data =
-        await response.json();
+      const data = await response.json();
 
       if (analysis) {
-        const diff =
-          generateAnalysisDiff(
-            analysis,
-            data
-          );
-
+        const diff = generateAnalysisDiff(analysis, data);
         setAnalysisDiff(diff);
       }
 
       setAnalysis(data);
-
       setIntakeExpanded(false);
 
       setTimeout(() => {
-        document
-          .getElementById("results")
-          ?.scrollIntoView({
-            behavior: "smooth",
-          });
+        document.getElementById("results")?.scrollIntoView({
+          behavior: "smooth",
+        });
       }, 100);
     } catch (err) {
       console.error(err);
 
-      setError(
-        "הניתוח נכשל. בדוק את ה־API או את ה־Vercel Logs."
-      );
+      setError("הניתוח נכשל. בדוק את ה־API או את ה־Vercel Logs.");
     } finally {
       setLoading(false);
     }
@@ -262,7 +198,6 @@ ${updatesText}
 
   function handleAddInfo() {
     setIntakeExpanded(true);
-
     setError("");
 
     setStatus(
@@ -275,21 +210,15 @@ ${updatesText}
       dir="rtl"
       className="min-h-screen bg-slate-50 text-slate-900 p-5"
     >
-      {loading && (
-        <AnalysisLoadingOverlay />
-      )}
+      {loading && <AnalysisLoadingOverlay />}
 
       <div className="max-w-[1500px] mx-auto space-y-4">
         <header className="flex flex-col md:flex-row justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
-              <span className="text-3xl">
-                ⚖️
-              </span>
+              <span className="text-3xl">⚖️</span>
 
-              <h1 className="text-3xl font-bold">
-                Second Chair
-              </h1>
+              <h1 className="text-3xl font-bold">Second Chair</h1>
 
               <span className="text-xs bg-slate-200 rounded-full px-3 py-1">
                 Cockpit
@@ -297,49 +226,28 @@ ${updatesText}
             </div>
 
             <p className="text-slate-600 mt-2">
-              סביבת עבודה לניתוח
-              תיקי ליטיגציה
-              מסחרית.
+              סביבת עבודה לניתוח תיקי ליטיגציה מסחרית.
             </p>
           </div>
         </header>
 
-        {intakeExpanded ||
-        !analysis ? (
+        {intakeExpanded || !analysis ? (
           <CaseIntake
             caseText={caseText}
-            setCaseText={
-              setCaseText
-            }
-            handleWordUpload={
-              handleWordUpload
-            }
-            uploadedFiles={
-              uploadedFiles
-            }
+            setCaseText={setCaseText}
+            handleWordUpload={handleWordUpload}
+            uploadedFiles={uploadedFiles}
             status={status}
-            runAnalysis={
-              runAnalysis
-            }
+            runAnalysis={runAnalysis}
             loading={loading}
           />
         ) : (
           <CollapsedCaseHeader
             caseText={caseText}
-            uploadedFiles={
-              uploadedFiles
-            }
-            onEdit={() =>
-              setIntakeExpanded(
-                true
-              )
-            }
-            onAddInfo={
-              handleAddInfo
-            }
-            onReanalyze={
-              runAnalysis
-            }
+            uploadedFiles={uploadedFiles}
+            onEdit={() => setIntakeExpanded(true)}
+            onAddInfo={handleAddInfo}
+            onReanalyze={runAnalysis}
             loading={loading}
           />
         )}
@@ -351,21 +259,12 @@ ${updatesText}
         )}
 
         {analysis && (
-          <main
-            id="results"
-            className="space-y-4 min-w-0"
-          >
+          <main id="results" className="space-y-4 min-w-0">
             <AnalysisWorkspace
               analysis={analysis}
-              workspaceUpdates={
-                workspaceUpdates
-              }
-              analysisDiff={
-                analysisDiff
-              }
-              onAddWorkspaceUpdate={
-                handleWorkspaceUpdate
-              }
+              workspaceUpdates={workspaceUpdates}
+              analysisDiff={analysisDiff}
+              onAddWorkspaceUpdate={handleWorkspaceUpdate}
             />
           </main>
         )}
