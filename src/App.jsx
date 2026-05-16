@@ -1,14 +1,10 @@
 import React, { useState } from "react";
 
-import ActionCenter from "./components/ActionCenter";
 import AnalysisLoadingOverlay from "./components/AnalysisLoadingOverlay";
+import AnalysisWorkspace from "./components/AnalysisWorkspace";
 import CaseIntake from "./components/CaseIntake";
-import CaseTheory from "./components/CaseTheory";
 import CollapsedCaseHeader from "./components/CollapsedCaseHeader";
-import EvidenceGaps from "./components/EvidenceGaps";
-import ExecutiveView from "./components/ExecutiveView";
 import StrategicWorkspace from "./components/StrategicWorkspace";
-import Tabs from "./components/Tabs";
 
 import generateAnalysisDiff from "./utils/generateAnalysisDiff";
 
@@ -22,7 +18,6 @@ export default function App() {
   const [previousAnalysis, setPreviousAnalysis] = useState(null);
   const [analysisDiff, setAnalysisDiff] = useState([]);
 
-  const [activeTab, setActiveTab] = useState("overview");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [intakeExpanded, setIntakeExpanded] = useState(true);
@@ -71,18 +66,13 @@ export default function App() {
       setUploadedFiles((prev) => [...prev, ...newFiles]);
 
       setDocumentText((prev) =>
-        [prev, ...extractedTexts]
-          .filter(Boolean)
-          .join("\n\n")
+        [prev, ...extractedTexts].filter(Boolean).join("\n\n")
       );
 
       setStatus("הקבצים נטענו בהצלחה.");
     } catch (err) {
       console.error(err);
-
-      setStatus(
-        "לא הצלחתי לקרוא את הקבצים. אפשר לנסות שוב."
-      );
+      setStatus("לא הצלחתי לקרוא את הקבצים. אפשר לנסות שוב.");
     }
   }
 
@@ -92,10 +82,7 @@ export default function App() {
       createdAt: new Date().toISOString(),
     };
 
-    setWorkspaceUpdates((prev) => [
-      enrichedUpdate,
-      ...prev,
-    ]);
+    setWorkspaceUpdates((prev) => [enrichedUpdate, ...prev]);
 
     const formattedUpdate = `
 [עדכון ממרחב העבודה]
@@ -107,9 +94,7 @@ ${update.text}
 
     setCaseText((prev) => `${prev}\n\n${formattedUpdate}`);
 
-    setStatus(
-      "נוסף מידע חדש לתיק. ניתן להריץ ניתוח מחדש."
-    );
+    setStatus("נוסף מידע חדש לתיק. ניתן להריץ ניתוח מחדש.");
   }
 
   async function runAnalysis() {
@@ -141,32 +126,22 @@ ${update.text}
       const data = await response.json();
 
       if (analysis) {
-        const diff = generateAnalysisDiff(
-          analysis,
-          data
-        );
-
+        const diff = generateAnalysisDiff(analysis, data);
         setAnalysisDiff(diff);
       }
 
       setAnalysis(data);
-
-      setActiveTab("overview");
       setIntakeExpanded(false);
 
       setTimeout(() => {
-        document
-          .getElementById("results")
-          ?.scrollIntoView({
-            behavior: "smooth",
-          });
+        document.getElementById("results")?.scrollIntoView({
+          behavior: "smooth",
+        });
       }, 100);
     } catch (err) {
       console.error(err);
 
-      setError(
-        "הניתוח נכשל. בדוק את ה־API או את ה־Vercel Logs."
-      );
+      setError("הניתוח נכשל. בדוק את ה־API או את ה־Vercel Logs.");
     } finally {
       setLoading(false);
     }
@@ -193,9 +168,7 @@ ${update.text}
             <div className="flex items-center gap-3">
               <span className="text-3xl">⚖️</span>
 
-              <h1 className="text-3xl font-bold">
-                Second Chair
-              </h1>
+              <h1 className="text-3xl font-bold">Second Chair</h1>
 
               <span className="text-xs bg-slate-200 rounded-full px-3 py-1">
                 Cockpit
@@ -241,26 +214,11 @@ ${update.text}
             className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-4 items-start"
           >
             <main className="space-y-4 min-w-0">
-              <Tabs
-                activeTab={activeTab}
-                setActiveTab={setActiveTab}
+              <AnalysisWorkspace
+                analysis={analysis}
+                workspaceUpdates={workspaceUpdates}
+                analysisDiff={analysisDiff}
               />
-
-              {activeTab === "overview" && (
-                <ExecutiveView analysis={analysis} />
-              )}
-
-              {activeTab === "theory" && (
-                <CaseTheory analysis={analysis} />
-              )}
-
-              {activeTab === "evidence" && (
-                <EvidenceGaps analysis={analysis} />
-              )}
-
-              {activeTab === "actions" && (
-                <ActionCenter analysis={analysis} />
-              )}
             </main>
 
             <div className="xl:sticky xl:top-4">
@@ -268,9 +226,7 @@ ${update.text}
                 analysis={analysis}
                 workspaceUpdates={workspaceUpdates}
                 analysisDiff={analysisDiff}
-                onAddWorkspaceUpdate={
-                  handleWorkspaceUpdate
-                }
+                onAddWorkspaceUpdate={handleWorkspaceUpdate}
               />
             </div>
           </div>
