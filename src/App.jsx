@@ -83,17 +83,35 @@ export default function App() {
 
     setWorkspaceUpdates((prev) => [enrichedUpdate, ...prev]);
 
-    const formattedUpdate = `
-[עדכון ממרחב העבודה]
-סוג: ${update.type}
-נושא: ${update.topic}
-
-${update.text}
-`;
-
-    setCaseText((prev) => `${prev}\n\n${formattedUpdate}`);
-
     setStatus("נוסף מידע חדש לתיק. ניתן להריץ ניתוח מחדש.");
+  }
+
+  function buildCaseTextForAnalysis() {
+    const updatesText = workspaceUpdates
+      .map((update, index) => {
+        return `
+עדכון ${index + 1}
+סוג: ${update.type || "עדכון"}
+נושא: ${update.topic || "ללא נושא"}
+תוכן:
+${update.text || ""}
+`;
+      })
+      .join("\n---\n");
+
+    if (!updatesText.trim()) {
+      return caseText;
+    }
+
+    return `
+${caseText}
+
+====================
+עדכונים שנוספו במהלך העבודה על התיק
+====================
+
+${updatesText}
+`;
   }
 
   async function runAnalysis() {
@@ -111,7 +129,7 @@ ${update.text}
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          caseText,
+          caseText: buildCaseTextForAnalysis(),
           documentText,
         }),
       });
