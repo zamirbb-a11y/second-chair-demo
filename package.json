@@ -9,7 +9,10 @@
     "vite": "latest",
     "react": "latest",
     "react-dom": "latest",
-    "mammoth": "latest"
+    "mammoth": "^1.8.0",
+    "formidable": "^3.5.1",
+    "pdf-parse": "^1.1.1",
+    "mailparser": "^3.7.2"
   },
   "devDependencies": {}
 }
