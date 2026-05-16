@@ -8,6 +8,8 @@ export default function buildAnalyzePrompt({
   const MAX_CASE_CHARS = 6000;
   const MAX_FILE_CHARS = 7000;
   const MAX_TOTAL_FILES_CHARS = 26000;
+  const MAX_CHUNKS_PER_FILE = 3;
+  const MAX_CHUNK_CHARS = 1600;
 
   function limitText(text, maxChars) {
     if (!text) return "";
@@ -23,44 +25,169 @@ export default function buildAnalyzePrompt({
   }
 
   function formatFileForPrompt(file, index) {
-    const name = file?.name || `מסמך ${index + 1}`;
-    const type = file?.type || "unknown";
-    const status = file?.status || "unknown";
-    const text = limitText(file?.text || "", MAX_FILE_CHARS);
+    const name =
+      file?.name || `מסמך ${index + 1}`;
+
+    const type =
+      file?.type || "unknown";
+
+    const status =
+      file?.status || "unknown";
+
+    const profile =
+      file?.documentProfile || {};
+
+    const chunks = (
+      file?.chunks || []
+    )
+      .slice(0, MAX_CHUNKS_PER_FILE)
+      .map((chunk) => {
+        return `
+[Chunk ${chunk.index}]
+Chunk ID: ${chunk.id}
+טווח תווים: ${chunk.start}-${chunk.end}
+
+${limitText(
+  chunk.text,
+  MAX_CHUNK_CHARS
+)}
+`;
+      })
+      .join("\n\n");
 
     return `
-[מסמך ${index + 1}]
-שם: ${name}
-סוג: ${type}
-סטטוס עיבוד: ${status}
+====================
+מסמך ${index + 1}
+====================
 
-תוכן:
-${text || "[לא חולץ טקסט מהמסמך]"}
+File ID:
+${file?.id || "unknown"}
+
+שם מסמך:
+${name}
+
+סוג:
+${type}
+
+סטטוס:
+${status}
+
+תפקיד ראייתי:
+${
+  profile.documentRole ||
+  "לא זוהה"
+}
+
+משקל ראייתי:
+${
+  profile.evidenceWeight ||
+  "Unknown"
+}
+
+תקציר:
+${
+  limitText(
+    profile.summary || "",
+    900
+  ) || "לא זוהה"
+}
+
+תאריכים מרכזיים:
+${
+  profile?.keyDates
+    ?.join(", ") || "לא זוהו"
+}
+
+אנשים / גורמים:
+${
+  profile?.keyPeople?.join(
+    ", "
+  ) || "לא זוהו"
+}
+
+סימני סיכון:
+${
+  profile?.riskSignals?.length
+    ? profile.riskSignals
+        .map((s) => `- ${s}`)
+        .join("\n")
+    : "לא זוהו"
+}
+
+אינדיקציות למסמכים חסרים:
+${
+  profile
+    ?.missingAttachmentSignals
+    ?.length
+    ? profile.missingAttachmentSignals
+        .map((s) => `- ${s}`)
+        .join("\n")
+    : "לא זוהו"
+}
+
+Preview:
+${limitText(
+  file?.preview || "",
+  900
+)}
+
+Chunks:
+${chunks || "[אין chunks זמינים]"}
+
+טקסט מלא:
+${limitText(
+  file?.text || "",
+  MAX_FILE_CHARS
+)}
 `;
   }
 
   function buildFilesText() {
-    const processedFiles = (files || []).filter((file) =>
+    const processedFiles = (
+      files || []
+    ).filter((file) =>
       file?.text?.trim()
     );
 
     if (!processedFiles.length) {
-      return limitText(documentText, MAX_DOCUMENT_CHARS);
+      return limitText(
+        documentText,
+        MAX_DOCUMENT_CHARS
+      );
     }
 
-    const formatted = processedFiles
-      .map((file, index) => formatFileForPrompt(file, index))
-      .join("\n\n---\n\n");
+    const formatted =
+      processedFiles
+        .map((file, index) =>
+          formatFileForPrompt(
+            file,
+            index
+          )
+        )
+        .join(
+          "\n\n-----------------------------------\n\n"
+        );
 
-    return limitText(formatted, MAX_TOTAL_FILES_CHARS);
+    return limitText(
+      formatted,
+      MAX_TOTAL_FILES_CHARS
+    );
   }
 
-  const safeCaseText = limitText(caseText, MAX_CASE_CHARS);
-  const safeDocumentsText = buildFilesText();
+  const safeCaseText = limitText(
+    caseText,
+    MAX_CASE_CHARS
+  );
 
-  const knowledgeText = legalPacks
-    .map((pack) => formatLegalPack(pack))
-    .join("\n\n");
+  const safeDocumentsText =
+    buildFilesText();
+
+  const knowledgeText =
+    legalPacks
+      .map((pack) =>
+        formatLegalPack(pack)
+      )
+      .join("\n\n");
 
   return `
 אתה עורך דין ליטיגציה מסחרית בכיר בישראל.
@@ -71,48 +198,52 @@ ${text || "[לא חולץ טקסט מהמסמך]"}
 לא סיכום מסמכים.
 המיקוד הוא pressure points, חולשות ראייתיות, זירות מחלוקת וסיכוני ליטיגציה.
 
+עקרון יסוד:
+המסמכים אינם "טקסט".
+כל מסמך הוא יחידת ראיה בעלת:
+- תפקיד ראייתי
+- משקל ראייתי
+- הקשר כרונולוגי
+- פוטנציאל סתירה
+- משמעות ליטיגטורית
+
 כללי עבודה:
 - כתוב בעברית משפטית חדה וקצרה.
 - אל תכתוב טקסט גנרי.
 - אל תלמד את הדין באופן כללי.
 - בצע screening שקט של עילות וסעדים; הצג רק מה שיש לו אחיזה עובדתית.
-- הפעל heuristics רק כאשר יש להן בסיס בעובדות או במסמכים.
-- התמקד במשמעות הליטיגטורית של העובדות, לא רק בתיאור שלהן.
-- כאשר מסמך מחליש טענה מרכזית — כתוב זאת באופן פוזיטיבי וברור.
-- כאשר קיים פער בין הנרטיב לבין ההתנהגות בזמן אמת — הדגש זאת כחולשה ראייתית.
-- כאשר חסר תיעוד שהיה צפוי להתקיים — הסבר מדוע החוסר משמעותי.
-- אל תסתפק ב"יש לבדוק" אם ניתן להסיק inference סביר מתוך החומר.
-- העדף reasoning ליטיגטורי על פני שלמות דוקטרינרית.
+- התמקד במשמעות הליטיגטורית של העובדות.
 - אל תנסה להיות "מאוזן" באופן מלאכותי.
-- הבחין בין inference סביר לבין עובדה מוכחת.
-- כאשר המסקנה נסמכת על inference, נסח זאת בזהירות יחסית:
-  "תומך בטענה", "מחזק", "מלמד", "עשוי להעיד".
-- תן משקל גבוה במיוחד למסמכים ולהתנהגות בזמן אמת.
-- תן משקל נמוך יותר לטענות מאוחרות, מכתבי דרישה ונרטיבים שנוצרו לאחר הסכסוך.
-- אל תמציא ציטוטים, סעיפים או פסקי דין שלא הופיעו בקלט או במאגר הידע.
-- רמות סיכון: High / Medium / Low בלבד.
+- תן משקל גבוה למסמכים בזמן אמת.
+- תן משקל נמוך לנרטיבים מאוחרים.
+- כאשר קיימת סתירה בין מסמכים — כתוב אותה באופן ישיר וברור.
+- כאשר מסמך מסוים פוגע מהותית בנרטיב — הדגש זאת.
+- כאשר קיימת אינדיקציה להסתרה, אי-גילוי או ידיעה מוקדמת — כתוב זאת.
+- כאשר חסר מסמך צפוי — כתוב למה היה צפוי שיתקיים.
+- השתמש ב-grounding ספציפי:
+  שם מסמך, File ID או Chunk ID.
+- אל תכתוב grounding כללי כמו "המסמכים".
+- כאשר אתה מסתמך על inference — נסח בזהירות יחסית:
+  "עשוי להעיד", "מחזק", "תומך", "מלמד".
 
-הוראות מיוחדות לעבודה עם מסמכים:
-- התייחס לכל מסמך כיחידת ראיה נפרדת.
-- כאשר אתה מסתמך על מסמך, ציין ב-grounding את שם המסמך או מספר המסמך.
-- אם יש סתירה בין מסמכים, הצג אותה במפורש.
-- אם מסמך מסוים חזק במיוחד או חלש במיוחד, כתוב זאת.
-- אם חסר המשך לשרשור, נספח, גרסה קודמת, טיוטה, אישור, פרוטוקול או תכתובת — ציין זאת.
-- אל תכתוב grounding כללי כמו "מסמכים"; כתוב למשל: "SPA.pdf", "Email chain 12.3.23.eml", או "מסמך 2".
-- אם מסמך מופיע ברשימה אך לא חולץ ממנו טקסט, אל תסתמך עליו עובדתית.
-
-הוראות מיוחדות למסמכים חסרים:
-- אל תכתוב רק קטגוריות כלליות כמו "מסמכי DD", "התכתבויות" או "מסמכים פנימיים".
-- כאשר אתה מזהה מסמך חסר, נסה לנקוב במסמך הספציפי ככל האפשר.
-- הסבר למה סביר שהמסמך קיים או אמור היה להיווצר.
-- הבחין בין:
-  1. מסמך שמוזכר במפורש אך לא צורף.
-  2. מסמך שמתבקש מפעולה עסקית שתוארה.
-  3. שרשור תקשורת שנראה חלקי או קטוע.
-  4. מסמך שמתעד החלטה, אישור, בדיקה או ישיבה.
-- קשר כל מסמך חסר לשאלה ליטיגטורית: מה הוא יכול להוכיח, להחליש או להפריך.
-- אם אפשר, כתוב:
-  "חסר [מסמך ספציפי], משום ש[אינדיקציה מתוך החומר]."
+הוראות מיוחדות לניתוח מסמכים:
+- הבחן בין:
+  1. חוזים חתומים
+  2. אימיילים בזמן אמת
+  3. הודעות פנימיות
+  4. טיוטות
+  5. כתבי טענות מאוחרים
+- אם קיימים:
+  no-reliance clauses,
+  disclaimers,
+  internal admissions,
+  concealment indicators,
+  missing attachments,
+  partial email chains,
+  references to meetings or decks —
+  הדגש אותם במפורש.
+- כאשר email או WhatsApp סותרים מסמך חוזי — נתח את המשמעות הליטיגטורית.
+- כאשר מסמך נראה "בדיעבד" או defensive — כתוב זאת.
 
 מגבלות פלט:
 - עד 3 סוגיות מרכזיות
