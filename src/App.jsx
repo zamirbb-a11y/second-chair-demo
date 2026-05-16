@@ -10,6 +10,7 @@ import generateAnalysisDiff from "./utils/generateAnalysisDiff";
 export default function App() {
   const [caseText, setCaseText] = useState("");
   const [documentText, setDocumentText] = useState("");
+  const [caseFiles, setCaseFiles] = useState([]);
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [status, setStatus] = useState("");
 
@@ -50,6 +51,8 @@ export default function App() {
       const data = await response.json();
       const processedFiles = data.files || [];
 
+      setCaseFiles((prev) => [...prev, ...processedFiles]);
+
       setUploadedFiles((prev) => [
         ...prev,
         ...processedFiles.map((file) => ({
@@ -62,16 +65,11 @@ export default function App() {
 
       const extractedTexts = processedFiles
         .filter((file) => file.text?.trim())
-        .map(
-          (file) =>
-            `--- ${file.name} ---\n${file.text}`
-        );
+        .map((file) => `--- ${file.name} ---\n${file.text}`);
 
       if (extractedTexts.length) {
         setDocumentText((prev) =>
-          [prev, ...extractedTexts]
-            .filter(Boolean)
-            .join("\n\n")
+          [prev, ...extractedTexts].filter(Boolean).join("\n\n")
         );
       }
 
@@ -112,9 +110,7 @@ export default function App() {
     };
 
     setWorkspaceUpdates((prev) => [enrichedUpdate, ...prev]);
-
     setError("");
-
     setStatus("נוסף מידע חדש לתיק. ניתן להריץ ניתוח מחדש.");
   }
 
@@ -165,6 +161,7 @@ ${updatesText}
         body: JSON.stringify({
           caseText: buildCaseTextForAnalysis(),
           documentText,
+          files: caseFiles,
         }),
       });
 
