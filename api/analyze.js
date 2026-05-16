@@ -8,11 +8,12 @@ export default async function handler(req, res) {
 
   try {
     const startedAt = Date.now();
-    const { caseText, documentText } = req.body;
+    const { caseText, documentText, files = [] } = req.body;
 
     const prompt = buildAnalyzePrompt({
       caseText,
       documentText,
+      files,
       legalPacks: [contractFormationDefectsPack],
     });
 
