@@ -25,19 +25,11 @@ export default function App() {
 
   async function handleWordUpload(event) {
     const files = Array.from(event.target.files || []);
+
     if (!files.length) return;
 
     setStatus("קורא את הקבצים...");
     setError("");
-
-    const acceptedFiles = files.filter((file) =>
-      file.name.toLowerCase().endsWith(".docx")
-    );
-
-    if (!acceptedFiles.length) {
-      setStatus("כרגע הדמו תומך רק בקובצי .docx");
-      return;
-    }
 
     try {
       const mammoth = await import("mammoth");
@@ -45,63 +37,143 @@ export default function App() {
       const newFiles = [];
       const extractedTexts = [];
 
-      for (const file of acceptedFiles) {
-        const arrayBuffer = await file.arrayBuffer();
+      for (const file of files) {
+        const lowerName = file.name.toLowerCase();
 
-        const result = await mammoth.extractRawText({
-          arrayBuffer,
-        });
+        const isDocx =
+          lowerName.endsWith(".docx");
 
-        newFiles.push({
-          name: file.name,
-          size: file.size,
-          status: "נטען",
-        });
+        if (!isDocx) {
+          newFiles.push({
+            name: file.name,
+            size: file.size,
+            status: "הפורמט טרם נתמך",
+            type: lowerName
+              .split(".")
+              .pop(),
+          });
 
-        extractedTexts.push(
-          `--- ${file.name} ---\n${result.value || ""}`
+          continue;
+        }
+
+        try {
+          const arrayBuffer =
+            await file.arrayBuffer();
+
+          const result =
+            await mammoth.extractRawText({
+              arrayBuffer,
+            });
+
+          newFiles.push({
+            name: file.name,
+            size: file.size,
+            status: "נטען",
+            type: "docx",
+          });
+
+          extractedTexts.push(
+            `--- ${file.name} ---\n${
+              result.value || ""
+            }`
+          );
+        } catch (fileError) {
+          console.error(fileError);
+
+          newFiles.push({
+            name: file.name,
+            size: file.size,
+            status:
+              "שגיאה בקריאת הקובץ",
+            type: "docx",
+          });
+        }
+      }
+
+      setUploadedFiles((prev) => [
+        ...prev,
+        ...newFiles,
+      ]);
+
+      if (extractedTexts.length) {
+        setDocumentText((prev) =>
+          [prev, ...extractedTexts]
+            .filter(Boolean)
+            .join("\n\n")
         );
       }
 
-      setUploadedFiles((prev) => [...prev, ...newFiles]);
+      const loadedCount =
+        newFiles.filter(
+          (f) => f.status === "נטען"
+        ).length;
 
-      setDocumentText((prev) =>
-        [prev, ...extractedTexts].filter(Boolean).join("\n\n")
-      );
+      const unsupportedCount =
+        newFiles.filter(
+          (f) =>
+            f.status ===
+            "הפורמט טרם נתמך"
+        ).length;
 
-      setStatus("הקבצים נטענו בהצלחה.");
+      if (
+        loadedCount > 0 &&
+        unsupportedCount > 0
+      ) {
+        setStatus(
+          `נטענו ${loadedCount} קבצים. ${unsupportedCount} קבצים נוספים ייתמכו בהמשך.`
+        );
+      } else if (loadedCount > 0) {
+        setStatus(
+          `נטענו ${loadedCount} קבצים בהצלחה.`
+        );
+      } else {
+        setStatus(
+          "הקבצים נוספו, אך הפורמט עדיין לא נתמך."
+        );
+      }
     } catch (err) {
       console.error(err);
 
-      setStatus("לא הצלחתי לקרוא את הקבצים. אפשר לנסות שוב.");
+      setStatus(
+        "לא הצלחתי לקרוא את הקבצים. אפשר לנסות שוב."
+      );
     }
   }
 
-  function handleWorkspaceUpdate(update) {
+  function handleWorkspaceUpdate(
+    update
+  ) {
     const enrichedUpdate = {
       ...update,
-      createdAt: new Date().toISOString(),
+      createdAt:
+        new Date().toISOString(),
     };
 
-    setWorkspaceUpdates((prev) => [enrichedUpdate, ...prev]);
+    setWorkspaceUpdates((prev) => [
+      enrichedUpdate,
+      ...prev,
+    ]);
 
     setError("");
 
-    setStatus("נוסף מידע חדש לתיק. ניתן להריץ ניתוח מחדש.");
+    setStatus(
+      "נוסף מידע חדש לתיק. ניתן להריץ ניתוח מחדש."
+    );
   }
 
   function buildCaseTextForAnalysis() {
-    const updatesText = workspaceUpdates
-      .map((update, index) => {
-        return `
+    const updatesText =
+      workspaceUpdates
+        .map((update, index) => {
+          return `
 עדכון ${index + 1}
 סוג: ${update.type || "עדכון"}
 נושא: ${update.topic || "ללא נושא"}
 תוכן:
 ${update.text || ""}
 `;
-      })
-      .join("\n---\n");
+        })
+        .join("\n---\n");
 
     if (!updatesText.trim()) {
       return caseText;
@@ -124,30 +196,44 @@ ${updatesText}
 
     try {
       if (analysis) {
-        setPreviousAnalysis(analysis);
+        setPreviousAnalysis(
+          analysis
+        );
       }
 
-      const response = await fetch("/api/analyze", {
-        method: "POST",
+      const response = await fetch(
+        "/api/analyze",
+        {
+          method: "POST",
 
-        headers: {
-          "Content-Type": "application/json",
-        },
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
 
-        body: JSON.stringify({
-          caseText: buildCaseTextForAnalysis(),
-          documentText,
-        }),
-      });
+          body: JSON.stringify({
+            caseText:
+              buildCaseTextForAnalysis(),
+            documentText,
+          }),
+        }
+      );
 
       if (!response.ok) {
-        throw new Error("השרת החזיר שגיאה");
+        throw new Error(
+          "השרת החזיר שגיאה"
+        );
       }
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
       if (analysis) {
-        const diff = generateAnalysisDiff(analysis, data);
+        const diff =
+          generateAnalysisDiff(
+            analysis,
+            data
+          );
 
         setAnalysisDiff(diff);
       }
@@ -189,13 +275,17 @@ ${updatesText}
       dir="rtl"
       className="min-h-screen bg-slate-50 text-slate-900 p-5"
     >
-      {loading && <AnalysisLoadingOverlay />}
+      {loading && (
+        <AnalysisLoadingOverlay />
+      )}
 
       <div className="max-w-[1500px] mx-auto space-y-4">
         <header className="flex flex-col md:flex-row justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
-              <span className="text-3xl">⚖️</span>
+              <span className="text-3xl">
+                ⚖️
+              </span>
 
               <h1 className="text-3xl font-bold">
                 Second Chair
@@ -207,28 +297,49 @@ ${updatesText}
             </div>
 
             <p className="text-slate-600 mt-2">
-              סביבת עבודה לניתוח תיקי ליטיגציה מסחרית.
+              סביבת עבודה לניתוח
+              תיקי ליטיגציה
+              מסחרית.
             </p>
           </div>
         </header>
 
-        {intakeExpanded || !analysis ? (
+        {intakeExpanded ||
+        !analysis ? (
           <CaseIntake
             caseText={caseText}
-            setCaseText={setCaseText}
-            handleWordUpload={handleWordUpload}
-            uploadedFiles={uploadedFiles}
+            setCaseText={
+              setCaseText
+            }
+            handleWordUpload={
+              handleWordUpload
+            }
+            uploadedFiles={
+              uploadedFiles
+            }
             status={status}
-            runAnalysis={runAnalysis}
+            runAnalysis={
+              runAnalysis
+            }
             loading={loading}
           />
         ) : (
           <CollapsedCaseHeader
             caseText={caseText}
-            uploadedFiles={uploadedFiles}
-            onEdit={() => setIntakeExpanded(true)}
-            onAddInfo={handleAddInfo}
-            onReanalyze={runAnalysis}
+            uploadedFiles={
+              uploadedFiles
+            }
+            onEdit={() =>
+              setIntakeExpanded(
+                true
+              )
+            }
+            onAddInfo={
+              handleAddInfo
+            }
+            onReanalyze={
+              runAnalysis
+            }
             loading={loading}
           />
         )}
@@ -246,8 +357,12 @@ ${updatesText}
           >
             <AnalysisWorkspace
               analysis={analysis}
-              workspaceUpdates={workspaceUpdates}
-              analysisDiff={analysisDiff}
+              workspaceUpdates={
+                workspaceUpdates
+              }
+              analysisDiff={
+                analysisDiff
+              }
               onAddWorkspaceUpdate={
                 handleWorkspaceUpdate
               }
