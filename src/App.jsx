@@ -28,6 +28,7 @@ export default function App() {
     if (!files.length) return;
 
     setStatus("קורא את הקבצים...");
+    setError("");
 
     const acceptedFiles = files.filter((file) =>
       file.name.toLowerCase().endsWith(".docx")
@@ -71,6 +72,7 @@ export default function App() {
       setStatus("הקבצים נטענו בהצלחה.");
     } catch (err) {
       console.error(err);
+
       setStatus("לא הצלחתי לקרוא את הקבצים. אפשר לנסות שוב.");
     }
   }
@@ -82,6 +84,8 @@ export default function App() {
     };
 
     setWorkspaceUpdates((prev) => [enrichedUpdate, ...prev]);
+
+    setError("");
 
     setStatus("נוסף מידע חדש לתיק. ניתן להריץ ניתוח מחדש.");
   }
@@ -125,9 +129,11 @@ ${updatesText}
 
       const response = await fetch("/api/analyze", {
         method: "POST",
+
         headers: {
           "Content-Type": "application/json",
         },
+
         body: JSON.stringify({
           caseText: buildCaseTextForAnalysis(),
           documentText,
@@ -142,21 +148,27 @@ ${updatesText}
 
       if (analysis) {
         const diff = generateAnalysisDiff(analysis, data);
+
         setAnalysisDiff(diff);
       }
 
       setAnalysis(data);
+
       setIntakeExpanded(false);
 
       setTimeout(() => {
-        document.getElementById("results")?.scrollIntoView({
-          behavior: "smooth",
-        });
+        document
+          .getElementById("results")
+          ?.scrollIntoView({
+            behavior: "smooth",
+          });
       }, 100);
     } catch (err) {
       console.error(err);
 
-      setError("הניתוח נכשל. בדוק את ה־API או את ה־Vercel Logs.");
+      setError(
+        "הניתוח נכשל. בדוק את ה־API או את ה־Vercel Logs."
+      );
     } finally {
       setLoading(false);
     }
@@ -164,6 +176,8 @@ ${updatesText}
 
   function handleAddInfo() {
     setIntakeExpanded(true);
+
+    setError("");
 
     setStatus(
       "אפשר להוסיף קבצים או לעדכן את תיאור המקרה ואז להריץ ניתוח מחדש."
@@ -183,7 +197,9 @@ ${updatesText}
             <div className="flex items-center gap-3">
               <span className="text-3xl">⚖️</span>
 
-              <h1 className="text-3xl font-bold">Second Chair</h1>
+              <h1 className="text-3xl font-bold">
+                Second Chair
+              </h1>
 
               <span className="text-xs bg-slate-200 rounded-full px-3 py-1">
                 Cockpit
@@ -224,12 +240,17 @@ ${updatesText}
         )}
 
         {analysis && (
-          <main id="results" className="space-y-4 min-w-0">
+          <main
+            id="results"
+            className="space-y-4 min-w-0"
+          >
             <AnalysisWorkspace
               analysis={analysis}
               workspaceUpdates={workspaceUpdates}
               analysisDiff={analysisDiff}
-              onAddWorkspaceUpdate={handleWorkspaceUpdate}
+              onAddWorkspaceUpdate={
+                handleWorkspaceUpdate
+              }
             />
           </main>
         )}
