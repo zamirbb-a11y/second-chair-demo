@@ -6,8 +6,8 @@ export default function buildAnalyzePrompt({
 }) {
   const MAX_DOCUMENT_CHARS = 22000;
   const MAX_CASE_CHARS = 6000;
-  const MAX_FILE_CHARS = 7000;
   const MAX_TOTAL_FILES_CHARS = 26000;
+
   const MAX_CHUNKS_PER_FILE = 3;
   const MAX_CHUNK_CHARS = 1600;
 
@@ -20,20 +20,11 @@ export default function buildAnalyzePrompt({
 
     return (
       text.slice(0, maxChars) +
-      "\n\n[הטקסט קוצר לצורך ניתוח הדמו. ייתכן שחלק מהמסמך לא נכלל בניתוח.]"
+      "\n\n[הטקסט קוצר לצורך ניתוח הדמו.]"
     );
   }
 
   function formatFileForPrompt(file, index) {
-    const name =
-      file?.name || `מסמך ${index + 1}`;
-
-    const type =
-      file?.type || "unknown";
-
-    const status =
-      file?.status || "unknown";
-
     const profile =
       file?.documentProfile || {};
 
@@ -45,7 +36,6 @@ export default function buildAnalyzePrompt({
         return `
 [Chunk ${chunk.index}]
 Chunk ID: ${chunk.id}
-טווח תווים: ${chunk.start}-${chunk.end}
 
 ${limitText(
   chunk.text,
@@ -64,13 +54,13 @@ File ID:
 ${file?.id || "unknown"}
 
 שם מסמך:
-${name}
+${file?.name || "unknown"}
 
 סוג:
-${type}
+${file?.type || "unknown"}
 
 סטטוס:
-${status}
+${file?.status || "unknown"}
 
 תפקיד ראייתי:
 ${
@@ -133,12 +123,6 @@ ${limitText(
 
 Chunks:
 ${chunks || "[אין chunks זמינים]"}
-
-טקסט מלא:
-${limitText(
-  file?.text || "",
-  MAX_FILE_CHARS
-)}
 `;
   }
 
@@ -196,54 +180,54 @@ ${limitText(
 לבנות Litigation Cockpit חד, פרקטי וליטיגטורי.
 לא חוות דעת אקדמית.
 לא סיכום מסמכים.
-המיקוד הוא pressure points, חולשות ראייתיות, זירות מחלוקת וסיכוני ליטיגציה.
+המיקוד הוא:
+pressure points,
+חולשות ראייתיות,
+סתירות,
+משמעות ליטיגטורית,
+וסיכוני ליטיגציה.
 
 עקרון יסוד:
-המסמכים אינם "טקסט".
-כל מסמך הוא יחידת ראיה בעלת:
-- תפקיד ראייתי
-- משקל ראייתי
-- הקשר כרונולוגי
-- פוטנציאל סתירה
-- משמעות ליטיגטורית
+כל מסמך הוא יחידת ראיה.
 
 כללי עבודה:
 - כתוב בעברית משפטית חדה וקצרה.
 - אל תכתוב טקסט גנרי.
+- התמקד במשמעות ליטיגטורית.
 - אל תלמד את הדין באופן כללי.
-- בצע screening שקט של עילות וסעדים; הצג רק מה שיש לו אחיזה עובדתית.
-- התמקד במשמעות הליטיגטורית של העובדות.
-- אל תנסה להיות "מאוזן" באופן מלאכותי.
 - תן משקל גבוה למסמכים בזמן אמת.
 - תן משקל נמוך לנרטיבים מאוחרים.
-- כאשר קיימת סתירה בין מסמכים — כתוב אותה באופן ישיר וברור.
-- כאשר מסמך מסוים פוגע מהותית בנרטיב — הדגש זאת.
-- כאשר קיימת אינדיקציה להסתרה, אי-גילוי או ידיעה מוקדמת — כתוב זאת.
-- כאשר חסר מסמך צפוי — כתוב למה היה צפוי שיתקיים.
+- כאשר קיימת סתירה בין מסמכים — כתוב אותה במפורש.
+- כאשר מסמך מחליש טענה — כתוב זאת באופן ברור.
+- כאשר חסר מסמך צפוי — הסבר למה היה צפוי שיתקיים.
 - השתמש ב-grounding ספציפי:
-  שם מסמך, File ID או Chunk ID.
+  File ID / Chunk ID / שם מסמך.
 - אל תכתוב grounding כללי כמו "המסמכים".
-- כאשר אתה מסתמך על inference — נסח בזהירות יחסית:
-  "עשוי להעיד", "מחזק", "תומך", "מלמד".
+- כאשר inference אינו ודאי:
+  כתוב "עשוי להעיד",
+  "מחזק",
+  "תומך",
+  "מלמד".
 
-הוראות מיוחדות לניתוח מסמכים:
+הוראות מיוחדות:
 - הבחן בין:
   1. חוזים חתומים
   2. אימיילים בזמן אמת
   3. הודעות פנימיות
   4. טיוטות
   5. כתבי טענות מאוחרים
-- אם קיימים:
-  no-reliance clauses,
-  disclaimers,
-  internal admissions,
-  concealment indicators,
-  missing attachments,
-  partial email chains,
-  references to meetings or decks —
-  הדגש אותם במפורש.
-- כאשר email או WhatsApp סותרים מסמך חוזי — נתח את המשמעות הליטיגטורית.
-- כאשר מסמך נראה "בדיעבד" או defensive — כתוב זאת.
+- אם email או WhatsApp סותרים מסמך חוזי —
+  נתח את המשמעות הליטיגטורית.
+- אם קיים no-reliance clause —
+  נתח את משקלו מול הראיות האחרות.
+- אם קיימת אינדיקציה להסתרה,
+  אי-גילוי,
+  ידיעה מוקדמת,
+  partial chain,
+  missing attachment,
+  deck חסר,
+  או טיוטה —
+  הדגש זאת.
 
 מגבלות פלט:
 - עד 3 סוגיות מרכזיות
