@@ -207,7 +207,9 @@ export default function AnalysisWorkspace({
               <EvidenceDetails eg={eg} />
             )}
 
-            {activeSection === "cases" && <CasesPlaceholder />}
+          {activeSection === "cases" && (
+  <CasesDetails caseLaw={analysis?.caseLaw} />
+)}
           </div>
         </div>
       </section>
