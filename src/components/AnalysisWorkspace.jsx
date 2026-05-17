@@ -175,9 +175,15 @@ export default function AnalysisWorkspace({
                     : "text-right px-4 py-3 hover:bg-white/70 border-t-4 border-transparent transition"
                 }
               >
-                <div className="font-semibold text-sm">
-                  {section.title}
-                </div>
+<div className="space-y-1">
+  <div className="text-xs text-slate-500">
+    {p.title || "ללא מספר הליך"}
+  </div>
+
+  <div className="font-semibold text-sm">
+    {p.shortName || p.name || "פסק דין"}
+  </div>
+</div>
 
                 <div className="text-[11px] text-slate-500 mt-1 line-clamp-1">
                   {getSectionSummary(section.id, {
