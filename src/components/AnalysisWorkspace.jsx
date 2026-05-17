@@ -498,7 +498,9 @@ function CasesDetails({ caseLaw, retrievedPrecedents }) {
             </div>
 
             <div>
-              {p.relevance || p.miniRatio || "לא פורטה רלוונטיות."}
+           {p.relevance ||
+  (p.miniRatio ? `${p.miniRatio.slice(0, 280)}...` : "") ||
+  "לא פורטה רלוונטיות."}
             </div>
           </div>
 
@@ -508,8 +510,8 @@ function CasesDetails({ caseLaw, retrievedPrecedents }) {
             </div>
 
             <div>
-      {p.useInLitigation ||
-  (p.retrievalReasons || []).join(" · ") ||
+ {p.useInLitigation ||
+  (p.retrievalReasons || []).slice(0, 2).join(" · ") ||
   "לא פורט שימוש ליטיגטורי."}
             </div>
           </div>
