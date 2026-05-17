@@ -208,7 +208,10 @@ export default function AnalysisWorkspace({
             )}
 
           {activeSection === "cases" && (
-  <CasesDetails caseLaw={analysis?.caseLaw} />
+<CasesDetails
+  caseLaw={analysis?.caseLaw}
+  retrievedPrecedents={analysis?.retrievedPrecedents}
+/>
 )}
           </div>
         </div>
