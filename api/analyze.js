@@ -1,3 +1,4 @@
+import precedents from "../src/legal-knowledge/precedents.json";
 import buildAnalyzePrompt from "../src/prompts/buildAnalyzePrompt";
 import contractFormationDefectsPack from "../src/legal-packs/contractFormationDefects";
 
