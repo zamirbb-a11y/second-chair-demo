@@ -18,15 +18,16 @@ export default async function handler(req, res) {
       files = [],
     } = req.body;
 
-    const prompt =
-      buildAnalyzePrompt({
-        caseText,
-        documentText,
-        files,
-        legalPacks: [
-          contractFormationDefectsPack,
-        ],
-      });
+const prompt =
+  buildAnalyzePrompt({
+    caseText,
+    documentText,
+    files,
+    legalPacks: [
+      contractFormationDefectsPack,
+    ],
+    precedents,
+  });
 
     console.log(
       "Starting analysis request"
