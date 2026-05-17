@@ -488,13 +488,19 @@ function CasesDetails({ caseLaw, retrievedPrecedents }) {
           key={index}
           className="bg-white border border-amber-100 rounded-2xl p-4"
         >
-          <div className="flex items-center justify-between gap-3">
-            <div className="font-semibold text-sm">
-             {p.name || p.shortName || p.title || "פסק דין ללא שם"}
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-1">
+              <div className="text-xs text-slate-500">
+                {String(p.title || "ללא מספר הליך")}
+              </div>
+
+              <div className="font-semibold text-sm">
+                {String(p.shortName || p.name || "פסק דין")}
+              </div>
             </div>
 
-            <div className="text-[11px] rounded-full bg-amber-100 text-amber-800 px-2 py-1">
-              {p.helps || "Mixed"}
+            <div className="text-[11px] rounded-full bg-amber-100 text-amber-800 px-2 py-1 shrink-0">
+              {String(p.helps || "Mixed")}
             </div>
           </div>
 
@@ -504,9 +510,9 @@ function CasesDetails({ caseLaw, retrievedPrecedents }) {
             </div>
 
             <div>
-           {p.relevance ||
-  (p.miniRatio ? `${p.miniRatio.slice(0, 280)}...` : "") ||
-  "לא פורטה רלוונטיות."}
+              {p.relevance ||
+                (p.miniRatio ? `${String(p.miniRatio).slice(0, 280)}...` : "") ||
+                "לא פורטה רלוונטיות."}
             </div>
           </div>
 
@@ -516,9 +522,9 @@ function CasesDetails({ caseLaw, retrievedPrecedents }) {
             </div>
 
             <div>
- {p.useInLitigation ||
-  (p.retrievalReasons || []).slice(0, 2).join(" · ") ||
-  "לא פורט שימוש ליטיגטורי."}
+              {p.useInLitigation ||
+                (p.retrievalReasons || []).slice(0, 2).join(" · ") ||
+                "לא פורט שימוש ליטיגטורי."}
             </div>
           </div>
         </div>
