@@ -2,7 +2,8 @@ export default function buildAnalyzePrompt({
   caseText,
   documentText,
   files = [],
-  legalPacks,
+  legalPacks = [],
+  precedents = [],
 }) {
   const MAX_DOCUMENT_CHARS = 22000;
   const MAX_CASE_CHARS = 6000;
@@ -10,6 +11,9 @@ export default function buildAnalyzePrompt({
 
   const MAX_CHUNKS_PER_FILE = 3;
   const MAX_CHUNK_CHARS = 1600;
+
+  const MAX_PRECEDENTS = 8;
+  const MAX_PRECEDENT_TEXT_CHARS = 1800;
 
   function limitText(text, maxChars) {
     if (!text) return "";
@@ -25,22 +29,16 @@ export default function buildAnalyzePrompt({
   }
 
   function formatFileForPrompt(file, index) {
-    const profile =
-      file?.documentProfile || {};
+    const profile = file?.documentProfile || {};
 
-    const chunks = (
-      file?.chunks || []
-    )
+    const chunks = (file?.chunks || [])
       .slice(0, MAX_CHUNKS_PER_FILE)
       .map((chunk) => {
         return `
 [Chunk ${chunk.index}]
 Chunk ID: ${chunk.id}
 
-${limitText(
-  chunk.text,
-  MAX_CHUNK_CHARS
-)}
+${limitText(chunk.text, MAX_CHUNK_CHARS)}
 `;
       })
       .join("\n\n");
@@ -63,63 +61,36 @@ ${file?.type || "unknown"}
 ${file?.status || "unknown"}
 
 תפקיד ראייתי:
-${
-  profile.documentRole ||
-  "לא זוהה"
-}
+${profile.documentRole || "לא זוהה"}
 
 משקל ראייתי:
-${
-  profile.evidenceWeight ||
-  "Unknown"
-}
+${profile.evidenceWeight || "Unknown"}
 
 תקציר:
-${
-  limitText(
-    profile.summary || "",
-    900
-  ) || "לא זוהה"
-}
+${limitText(profile.summary || "", 900) || "לא זוהה"}
 
 תאריכים מרכזיים:
-${
-  profile?.keyDates
-    ?.join(", ") || "לא זוהו"
-}
+${profile?.keyDates?.join(", ") || "לא זוהו"}
 
 אנשים / גורמים:
-${
-  profile?.keyPeople?.join(
-    ", "
-  ) || "לא זוהו"
-}
+${profile?.keyPeople?.join(", ") || "לא זוהו"}
 
 סימני סיכון:
 ${
   profile?.riskSignals?.length
-    ? profile.riskSignals
-        .map((s) => `- ${s}`)
-        .join("\n")
+    ? profile.riskSignals.map((s) => `- ${s}`).join("\n")
     : "לא זוהו"
 }
 
 אינדיקציות למסמכים חסרים:
 ${
-  profile
-    ?.missingAttachmentSignals
-    ?.length
-    ? profile.missingAttachmentSignals
-        .map((s) => `- ${s}`)
-        .join("\n")
+  profile?.missingAttachmentSignals?.length
+    ? profile.missingAttachmentSignals.map((s) => `- ${s}`).join("\n")
     : "לא זוהו"
 }
 
 Preview:
-${limitText(
-  file?.preview || "",
-  900
-)}
+${limitText(file?.preview || "", 900)}
 
 Chunks:
 ${chunks || "[אין chunks זמינים]"}
@@ -127,51 +98,78 @@ ${chunks || "[אין chunks זמינים]"}
   }
 
   function buildFilesText() {
-    const processedFiles = (
-      files || []
-    ).filter((file) =>
+    const processedFiles = (files || []).filter((file) =>
       file?.text?.trim()
     );
 
     if (!processedFiles.length) {
-      return limitText(
-        documentText,
-        MAX_DOCUMENT_CHARS
-      );
+      return limitText(documentText, MAX_DOCUMENT_CHARS);
     }
 
-    const formatted =
-      processedFiles
-        .map((file, index) =>
-          formatFileForPrompt(
-            file,
-            index
-          )
-        )
-        .join(
-          "\n\n-----------------------------------\n\n"
-        );
+    const formatted = processedFiles
+      .map((file, index) => formatFileForPrompt(file, index))
+      .join("\n\n-----------------------------------\n\n");
 
-    return limitText(
-      formatted,
-      MAX_TOTAL_FILES_CHARS
-    );
+    return limitText(formatted, MAX_TOTAL_FILES_CHARS);
   }
 
-  const safeCaseText = limitText(
-    caseText,
-    MAX_CASE_CHARS
-  );
+  function formatPrecedentsForPrompt() {
+    if (!precedents?.length) {
+      return "לא נטענה פסיקה מהמאגר.";
+    }
 
-  const safeDocumentsText =
-    buildFilesText();
+    return precedents
+      .slice(0, MAX_PRECEDENTS)
+      .map((p, index) => {
+        return `
+====================
+פסק דין ${index + 1}
+====================
 
-  const knowledgeText =
-    legalPacks
-      .map((pack) =>
-        formatLegalPack(pack)
-      )
+ID:
+${p.id || "unknown"}
+
+שם:
+${p.title || p.shortName || "ללא שם"}
+
+שם קצר:
+${p.shortName || "לא זוהה"}
+
+ערכאה:
+${p.court || "לא זוהתה"}
+
+חקיקה:
+${
+  p.statutes?.length
+    ? p.statutes.map((s) => `- ${s}`).join("\n")
+    : "לא זוהתה"
+}
+
+סוגיות:
+${
+  p.issues?.length
+    ? p.issues.map((issue) => `- ${issue}`).join("\n")
+    : "לא זוהו"
+}
+
+מיני-רציו / תקציר:
+${limitText(p.miniRatio || p.rawPreview || "", MAX_PRECEDENT_TEXT_CHARS)}
+
+סטטוס חילוץ:
+${p.extractionStatus || "unknown"}
+`;
+      })
       .join("\n\n");
+  }
+
+  const safeCaseText = limitText(caseText, MAX_CASE_CHARS);
+  const safeDocumentsText = buildFilesText();
+
+  const knowledgeText = legalPacks
+    .map((pack) => formatLegalPack(pack))
+    .join("\n\n");
+
+  const precedentsText = formatPrecedentsForPrompt();
 
   return `
 אתה עורך דין ליטיגציה מסחרית בכיר בישראל.
@@ -209,6 +207,14 @@ pressure points,
   "תומך",
   "מלמד".
 
+שימוש בפסיקה:
+- השתמש בפסיקה רק אם היא רלוונטית לעובדות ולסוגיות.
+- אל תזכיר פסק דין רק מפני שהוא מופיע במאגר.
+- אם פסק דין מחזק טענה — הסבר איזו טענה ולמה.
+- אם פסק דין מחליש טענה — ציין זאת במפורש.
+- כאשר אתה מסתמך על פסיקה, הזכר את שם פסק הדין בתוך הניתוח.
+- אל תמציא הלכות או ציטוטים שאינם מופיעים במאגר.
+
 הוראות מיוחדות:
 - הבחן בין:
   1. חוזים חתומים
@@ -237,6 +243,9 @@ pressure points,
 
 שכבות ידע פעילות:
 ${knowledgeText}
+
+פסיקה רלוונטית מתוך המאגר:
+${precedentsText}
 
 החזר JSON בלבד, בלי Markdown, בדיוק במבנה הבא:
 
@@ -338,16 +347,11 @@ function formatLegalPack(pack) {
 תחום: ${pack.title}
 
 כללי חשיבה:
-${(pack.reasoningRules || [])
-  .map((rule) => `- ${rule}`)
-  .join("\n")}
+${(pack.reasoningRules || []).map((rule) => `- ${rule}`).join("\n")}
 
 חקיקה:
 ${(pack.statutes || [])
-  .map(
-    (s) =>
-      `- ${s.source} ${s.section}: ${s.title} — ${s.summary}`
-  )
+  .map((s) => `- ${s.source} ${s.section}: ${s.title} — ${s.summary}`)
   .join("\n")}
 
 פסיקה:
@@ -360,10 +364,7 @@ ${(pack.cases || [])
 
 יוריסטיקות:
 ${(pack.heuristics || [])
-  .map(
-    (h) =>
-      `- ${h.hebrewTitle}: ${h.pattern} שימוש: ${h.litigationUse}`
-  )
+  .map((h) => `- ${h.hebrewTitle}: ${h.pattern} שימוש: ${h.litigationUse}`)
   .join("\n")}
 `;
 }
