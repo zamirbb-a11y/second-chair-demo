@@ -109,9 +109,12 @@ export default async function handler(req, res) {
     }
 
     try {
-      const parsed = JSON.parse(content);
+const parsed = JSON.parse(content);
 
-      return res.status(200).json(parsed);
+return res.status(200).json({
+  ...parsed,
+  retrievedPrecedents,
+});
     } catch (parseError) {
       console.error("Failed to parse model JSON:", parseError);
       console.error("Raw model content:", content);
