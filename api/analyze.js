@@ -1,6 +1,7 @@
 import buildAnalyzePrompt from "../src/prompts/buildAnalyzePrompt";
 import contractFormationDefectsPack from "../src/legal-packs/contractFormationDefects";
 import precedentBank from "../src/legal-knowledge/precedents.json";
+import { retrieveRelevantPrecedents } from "../src/lib/precedentRetrieval";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -18,7 +19,25 @@ export default async function handler(req, res) {
       files = [],
     } = req.body || {};
 
+    const fullCaseText = [
+      caseText,
+      documentText,
+      ...(files || []).map((file) => file?.text || ""),
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+
+    const retrievedPrecedents = retrieveRelevantPrecedents(
+      fullCaseText,
+      precedentBank,
+      6
+    );
+
     console.log("Loaded precedents:", precedentBank.length);
+    console.log(
+      "Retrieved precedents:",
+      retrievedPrecedents.map((p) => p.shortName || p.title)
+    );
 
     const prompt = buildAnalyzePrompt({
       caseText,
@@ -27,7 +46,7 @@ export default async function handler(req, res) {
       legalPacks: [
         contractFormationDefectsPack,
       ],
-      precedents: precedentBank,
+      precedents: retrievedPrecedents,
     });
 
     console.log("Starting analysis request");
