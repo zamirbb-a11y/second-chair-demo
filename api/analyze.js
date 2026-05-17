@@ -44,7 +44,7 @@ export default async function handler(req, res) {
         },
 
         body: JSON.stringify({
-          model: "gpt-4.1-mini",
+          model: "gpt-4.1",
 
           response_format: {
             type: "json_object",
