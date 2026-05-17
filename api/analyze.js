@@ -1,6 +1,6 @@
-import precedents from "../src/legal-knowledge/precedents.json";
 import buildAnalyzePrompt from "../src/prompts/buildAnalyzePrompt";
 import contractFormationDefectsPack from "../src/legal-packs/contractFormationDefects";
+import precedentBank from "../src/legal-knowledge/precedents.json";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -12,27 +12,25 @@ export default async function handler(req, res) {
   try {
     const startedAt = Date.now();
 
-const {
-  caseText,
-  documentText,
-  files = [],
-  precedents = [],
-} = req.body;
+    const {
+      caseText,
+      documentText,
+      files = [],
+    } = req.body || {};
 
-const prompt =
-  buildAnalyzePrompt({
-    caseText,
-    documentText,
-    files,
-    legalPacks: [
-      contractFormationDefectsPack,
-    ],
-    precedents,
-  });
+    console.log("Loaded precedents:", precedentBank.length);
 
-    console.log(
-      "Starting analysis request"
-    );
+    const prompt = buildAnalyzePrompt({
+      caseText,
+      documentText,
+      files,
+      legalPacks: [
+        contractFormationDefectsPack,
+      ],
+      precedents: precedentBank,
+    });
+
+    console.log("Starting analysis request");
 
     const response = await fetch(
       "https://api.openai.com/v1/chat/completions",
@@ -40,9 +38,7 @@ const prompt =
         method: "POST",
 
         headers: {
-          "Content-Type":
-            "application/json",
-
+          "Content-Type": "application/json",
           Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
         },
 
@@ -56,11 +52,9 @@ const prompt =
           messages: [
             {
               role: "system",
-
               content:
                 "אתה עורך דין ישראלי בכיר בדיני חוזים וליטיגציה מסחרית. אתה בונה cockpit ליטיגטורי: עובדות, ראיות, סיכונים, תיאוריות תיק, עילות רלוונטיות, סעדים וצעדים הבאים.",
             },
-
             {
               role: "user",
               content: prompt,
@@ -72,73 +66,48 @@ const prompt =
       }
     );
 
-    const data =
-      await response.json();
+    const data = await response.json();
 
     console.log(
-      `Analysis completed in ${
-        Date.now() - startedAt
-      }ms`
+      `Analysis completed in ${Date.now() - startedAt}ms`
     );
 
     if (!response.ok) {
-      console.error(
-        "OpenAI request failed:",
-        data
-      );
+      console.error("OpenAI request failed:", data);
 
       return res.status(500).json({
-        error:
-          "OpenAI request failed",
-
+        error: "OpenAI request failed",
         details: data,
       });
     }
 
-    const content =
-      data.choices?.[0]?.message
-        ?.content;
+    const content = data.choices?.[0]?.message?.content;
 
     if (!content) {
       return res.status(500).json({
-        error:
-          "No content returned",
+        error: "No content returned",
       });
     }
 
     try {
-      const parsed =
-        JSON.parse(content);
+      const parsed = JSON.parse(content);
 
-      return res
-        .status(200)
-        .json(parsed);
+      return res.status(200).json(parsed);
     } catch (parseError) {
-      console.error(
-        "Failed to parse model JSON:",
-        parseError
-      );
-
-      console.error(
-        "Raw model content:",
-        content
-      );
+      console.error("Failed to parse model JSON:", parseError);
+      console.error("Raw model content:", content);
 
       return res.status(500).json({
-        error:
-          "Model returned invalid JSON",
-
+        error: "Model returned invalid JSON",
         raw: content,
       });
     }
   } catch (error) {
-    console.error(
-      "Analysis failed:",
-      error
-    );
+    console.error("Analysis failed:", error);
 
     return res.status(500).json({
       error: "Analysis failed",
+      details: error.message,
     });
   }
 }
