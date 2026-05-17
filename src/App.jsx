@@ -6,6 +6,7 @@ import CaseIntake from "./components/CaseIntake";
 import CollapsedCaseHeader from "./components/CollapsedCaseHeader";
 
 import generateAnalysisDiff from "./utils/generateAnalysisDiff";
+import precedents from "./legal-knowledge/precedents.json";
 
 export default function App() {
   const [caseText, setCaseText] = useState("");
