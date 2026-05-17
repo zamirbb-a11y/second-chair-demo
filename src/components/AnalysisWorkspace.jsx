@@ -487,60 +487,30 @@ function CasesDetails({ caseLaw }) {
           </div>
 
           <div className="text-sm text-slate-600 leading-7 mt-3">
-            <div className="font-medium text-slate-700">רלוונטיות</div>
-            <div>{p.relevance || "לא פורטה רלוונטיות."}</div>
+            <div className="font-medium text-slate-700">
+              רלוונטיות
+            </div>
+
+            <div>
+              {p.relevance || "לא פורטה רלוונטיות."}
+            </div>
           </div>
 
           <div className="text-sm text-slate-600 leading-7 mt-3">
-            <div className="font-medium text-slate-700">שימוש ליטיגטורי</div>
-            <div>{p.useInLitigation || "לא פורט שימוש ליטיגטורי."}</div>
+            <div className="font-medium text-slate-700">
+              שימוש ליטיגטורי
+            </div>
+
+            <div>
+              {p.useInLitigation ||
+                "לא פורט שימוש ליטיגטורי."}
+            </div>
           </div>
         </div>
       ))}
     </div>
   );
 }
-
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
-        {tags.map((tag) => (
-          <div
-            key={tag}
-            className="rounded-full bg-amber-100 text-amber-800 px-3 py-1 text-xs font-medium"
-          >
-            {tag}
-          </div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <div className="bg-white border border-amber-100 rounded-2xl p-4">
-          <div className="font-semibold text-sm">
-            חובת גילוי במשא ומתן
-          </div>
-
-          <div className="text-sm text-slate-600 leading-7 mt-2">
-            פסיקה העוסקת בהסתרת מידע מהותי במהלך משא ומתן ובאפשרות
-            לביטול חוזה עקב הטעיה.
-          </div>
-        </div>
-
-        <div className="bg-white border border-amber-100 rounded-2xl p-4">
-          <div className="font-semibold text-sm">
-            הסתמכות על מצגים
-          </div>
-
-          <div className="text-sm text-slate-600 leading-7 mt-2">
-            פסיקה העוסקת בשאלה האם צד סביר היה מסתמך על המצגים שניתנו
-            לפני החתימה.
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function InfoCard({ title, children }) {
   return (
     <div className="bg-white border border-slate-200 rounded-2xl p-5">
