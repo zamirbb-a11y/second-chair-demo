@@ -1,9 +1,5 @@
 import buildAnalyzePrompt from "../src/prompts/buildAnalyzePrompt";
 import contractFormationDefectsPack from "../src/legal-packs/contractFormationDefects";
-import {
-  retrieveRelevantPrecedents,
-  formatPrecedentsForPrompt,
-} from "../src/lib/precedentRetrieval";
 
 export default async function handler(req, res) {
     res.setHeader("Access-Control-Allow-Origin", "http://localhost:5173");
