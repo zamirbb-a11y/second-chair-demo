@@ -30,14 +30,9 @@ export default async function handler(req, res) {
       .filter(Boolean)
       .join("\n\n");
 
-    const relevantPrecedents = retrieveRelevantPrecedents(
-      fullCaseText,
-      precedents,
-      6
-    );
+const relevantPrecedents = [];
 
-    const legalSourcesForPrompt =
-      formatPrecedentsForPrompt(relevantPrecedents);
+const legalSourcesForPrompt = "";
 
     const prompt = buildAnalyzePrompt({
       caseText,
