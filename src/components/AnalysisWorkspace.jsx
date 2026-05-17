@@ -461,8 +461,11 @@ function TimelineDetails({ eg }) {
   );
 }
 
-function CasesDetails({ caseLaw }) {
-  const precedents = caseLaw?.retrievedPrecedents || [];
+function CasesDetails({ caseLaw, retrievedPrecedents }) {
+  const precedents =
+    retrievedPrecedents?.length
+      ? retrievedPrecedents
+      : caseLaw?.retrievedPrecedents || [];
 
   if (!precedents.length) {
     return (
