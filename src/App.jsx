@@ -15,6 +15,7 @@ export default function App() {
   const [status, setStatus] = useState("");
 
   const [analysis, setAnalysis] = useState(null);
+  const [retrievedPrecedents, setRetrievedPrecedents] = useState([]);
   const [previousAnalysis, setPreviousAnalysis] = useState(null);
   const [analysisDiff, setAnalysisDiff] = useState([]);
 
@@ -145,11 +146,14 @@ ${updatesText}
   async function runAnalysis() {
     setLoading(true);
     setError("");
+    setRetrievedPrecedents([]);
 
     try {
       if (analysis) {
         setPreviousAnalysis(analysis);
       }
+
+      const analysisCaseText = buildCaseTextForAnalysis();
 
       const response = await fetch("/api/analyze", {
         method: "POST",
@@ -159,7 +163,7 @@ ${updatesText}
         },
 
         body: JSON.stringify({
-          caseText: buildCaseTextForAnalysis(),
+          caseText: analysisCaseText,
           documentText,
           files: caseFiles,
         }),
@@ -178,6 +182,30 @@ ${updatesText}
 
       setAnalysis(data);
       setIntakeExpanded(false);
+
+      try {
+        const precedentResponse = await fetch("/api/retrieve-precedents", {
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json",
+          },
+
+          body: JSON.stringify({
+            caseText: analysisCaseText,
+            documentText,
+            precedents: [],
+          }),
+        });
+
+        if (precedentResponse.ok) {
+          const precedentData = await precedentResponse.json();
+          setRetrievedPrecedents(precedentData.precedents || []);
+        }
+      } catch (precedentError) {
+        console.error("Precedent retrieval failed:", precedentError);
+        setRetrievedPrecedents([]);
+      }
 
       setTimeout(() => {
         document.getElementById("results")?.scrollIntoView({
@@ -263,6 +291,42 @@ ${updatesText}
               analysisDiff={analysisDiff}
               onAddWorkspaceUpdate={handleWorkspaceUpdate}
             />
+
+            <section className="bg-white border border-slate-200 rounded-2xl p-4">
+              <h2 className="font-bold text-lg mb-2">פסיקה שנשלפה</h2>
+
+              {retrievedPrecedents.length === 0 ? (
+                <p className="text-sm text-slate-500">
+                  לא נשלפה פסיקה רלוונטית בשלב זה.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {retrievedPrecedents.map((precedent) => (
+                    <div
+                      key={precedent.id || precedent.title}
+                      className="border border-slate-200 rounded-xl p-3 text-sm"
+                    >
+                      <div className="font-semibold">
+                        {precedent.title || precedent.shortName || "ללא כותרת"}
+                      </div>
+
+                      {precedent.court && (
+                        <div className="text-slate-500 mt-1">
+                          {precedent.court}
+                        </div>
+                      )}
+
+                      {precedent.retrievalReasons?.length > 0 && (
+                        <div className="text-slate-600 mt-2">
+                          סיבות שליפה:{" "}
+                          {precedent.retrievalReasons.join("; ")}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
           </main>
         )}
       </div>
