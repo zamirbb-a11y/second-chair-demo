@@ -12,11 +12,12 @@ export default async function handler(req, res) {
   try {
     const startedAt = Date.now();
 
-    const {
-      caseText,
-      documentText,
-      files = [],
-    } = req.body;
+const {
+  caseText,
+  documentText,
+  files = [],
+  precedents = [],
+} = req.body;
 
 const prompt =
   buildAnalyzePrompt({
