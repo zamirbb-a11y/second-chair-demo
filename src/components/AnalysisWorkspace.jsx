@@ -458,14 +458,48 @@ function TimelineDetails({ eg }) {
   );
 }
 
-function CasesPlaceholder() {
-  const tags = [
-    "הטעיה",
-    "ביטול חוזה",
-    "גילוי מידע",
-    "הסתמכות",
-    "חובת גילוי",
-  ];
+function CasesDetails({ caseLaw }) {
+  const precedents = caseLaw?.retrievedPrecedents || [];
+
+  if (!precedents.length) {
+    return (
+      <div className="bg-white border border-amber-100 rounded-2xl p-5 text-sm text-slate-500">
+        לא הוחזרה פסיקה רלוונטית מהניתוח.
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+      {precedents.map((p, index) => (
+        <div
+          key={index}
+          className="bg-white border border-amber-100 rounded-2xl p-4"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="font-semibold text-sm">
+              {p.name || "פסק דין ללא שם"}
+            </div>
+
+            <div className="text-[11px] rounded-full bg-amber-100 text-amber-800 px-2 py-1">
+              {p.helps || "Mixed"}
+            </div>
+          </div>
+
+          <div className="text-sm text-slate-600 leading-7 mt-3">
+            <div className="font-medium text-slate-700">רלוונטיות</div>
+            <div>{p.relevance || "לא פורטה רלוונטיות."}</div>
+          </div>
+
+          <div className="text-sm text-slate-600 leading-7 mt-3">
+            <div className="font-medium text-slate-700">שימוש ליטיגטורי</div>
+            <div>{p.useInLitigation || "לא פורט שימוש ליטיגטורי."}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
   return (
     <div className="space-y-4">
