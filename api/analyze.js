@@ -1,6 +1,5 @@
 import buildAnalyzePrompt from "../src/prompts/buildAnalyzePrompt";
 import contractFormationDefectsPack from "../src/legal-packs/contractFormationDefects";
-import { retrieveRelevantPrecedents } from "../src/lib/precedentRetrieval";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -16,38 +15,21 @@ export default async function handler(req, res) {
       caseText,
       documentText,
       files = [],
-      precedents = [],
     } = req.body;
 
-    const fullCaseText = [caseText, documentText]
-      .filter(Boolean)
-      .join("\n\n");
+    const prompt =
+      buildAnalyzePrompt({
+        caseText,
+        documentText,
+        files,
+        legalPacks: [
+          contractFormationDefectsPack,
+        ],
+      });
 
-    let retrievedPrecedents = [];
-
-    try {
-      retrievedPrecedents = retrieveRelevantPrecedents(
-        fullCaseText,
-        precedents,
-        6
-      );
-
-      console.log(
-        `Retrieved ${retrievedPrecedents.length} relevant precedents`
-      );
-    } catch (retrievalError) {
-      console.error("Precedent retrieval failed:", retrievalError);
-      retrievedPrecedents = [];
-    }
-
-    const prompt = buildAnalyzePrompt({
-      caseText,
-      documentText,
-      files,
-      legalPacks: [contractFormationDefectsPack],
-    });
-
-    console.log("Starting analysis request");
+    console.log(
+      "Starting analysis request"
+    );
 
     const response = await fetch(
       "https://api.openai.com/v1/chat/completions",
@@ -55,7 +37,9 @@ export default async function handler(req, res) {
         method: "POST",
 
         headers: {
-          "Content-Type": "application/json",
+          "Content-Type":
+            "application/json",
+
           Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
         },
 
@@ -69,6 +53,7 @@ export default async function handler(req, res) {
           messages: [
             {
               role: "system",
+
               content:
                 "אתה עורך דין ישראלי בכיר בדיני חוזים וליטיגציה מסחרית. אתה בונה cockpit ליטיגטורי: עובדות, ראיות, סיכונים, תיאוריות תיק, עילות רלוונטיות, סעדים וצעדים הבאים.",
             },
@@ -84,52 +69,70 @@ export default async function handler(req, res) {
       }
     );
 
-    const data = await response.json();
+    const data =
+      await response.json();
 
-    console.log(`Analysis completed in ${Date.now() - startedAt}ms`);
+    console.log(
+      `Analysis completed in ${
+        Date.now() - startedAt
+      }ms`
+    );
 
     if (!response.ok) {
-      console.error("OpenAI request failed:", data);
+      console.error(
+        "OpenAI request failed:",
+        data
+      );
 
       return res.status(500).json({
-        error: "OpenAI request failed",
+        error:
+          "OpenAI request failed",
+
         details: data,
       });
     }
 
-    const content = data.choices?.[0]?.message?.content;
+    const content =
+      data.choices?.[0]?.message
+        ?.content;
 
     if (!content) {
       return res.status(500).json({
-        error: "No content returned",
+        error:
+          "No content returned",
       });
     }
 
     try {
-      const parsed = JSON.parse(content);
+      const parsed =
+        JSON.parse(content);
 
-      parsed.retrievedPrecedents = retrievedPrecedents.map((p) => ({
-        id: p.id,
-        title: p.title,
-        shortName: p.shortName,
-        court: p.court,
-        helps: p.helps,
-        retrievalScore: p.retrievalScore,
-        retrievalReasons: p.retrievalReasons,
-      }));
-
-      return res.status(200).json(parsed);
+      return res
+        .status(200)
+        .json(parsed);
     } catch (parseError) {
-      console.error("Failed to parse model JSON:", parseError);
-      console.error("Raw model content:", content);
+      console.error(
+        "Failed to parse model JSON:",
+        parseError
+      );
+
+      console.error(
+        "Raw model content:",
+        content
+      );
 
       return res.status(500).json({
-        error: "Model returned invalid JSON",
+        error:
+          "Model returned invalid JSON",
+
         raw: content,
       });
     }
   } catch (error) {
-    console.error("Analysis failed:", error);
+    console.error(
+      "Analysis failed:",
+      error
+    );
 
     return res.status(500).json({
       error: "Analysis failed",
