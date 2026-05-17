@@ -304,6 +304,16 @@ ${precedentsText}
       "grounding": []
     }
   },
+    "caseLaw": {
+    "retrievedPrecedents": [
+      {
+        "name": "",
+        "relevance": "",
+        "helps": "Claimant/Defense/Mixed",
+        "useInLitigation": ""
+      }
+    ]
+  },
 
   "evidenceAndGaps": {
     "timeline": [
