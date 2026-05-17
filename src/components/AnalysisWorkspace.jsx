@@ -2,36 +2,15 @@ import { useState } from "react";
 
 import Card from "./Card";
 import CompactList from "./CompactList";
-import GroundingInline from "./GroundingInline";
 import HorizontalTimeline from "./HorizontalTimeline";
 import SeverityBadge from "./SeverityBadge";
 
 const SECTIONS = [
-  {
-    id: "case",
-    title: "מצב התיק",
-    color: "border-blue-500",
-  },
-  {
-    id: "timeline",
-    title: "ציר זמן",
-    color: "border-violet-500",
-  },
-  {
-    id: "theory",
-    title: "תיאוריה משפטית",
-    color: "border-indigo-500",
-  },
-  {
-    id: "evidence",
-    title: "מצב ראייתי",
-    color: "border-emerald-500",
-  },
-  {
-    id: "cases",
-    title: "פסיקה",
-    color: "border-amber-500",
-  },
+  { id: "case", title: "מצב התיק", color: "border-blue-500" },
+  { id: "timeline", title: "ציר זמן", color: "border-violet-500" },
+  { id: "theory", title: "תיאוריה משפטית", color: "border-indigo-500" },
+  { id: "evidence", title: "מצב ראייתי", color: "border-emerald-500" },
+  { id: "cases", title: "פסיקה", color: "border-amber-500" },
 ];
 
 export default function AnalysisWorkspace({
@@ -51,11 +30,8 @@ export default function AnalysisWorkspace({
   const eg = analysis?.evidenceAndGaps;
   const ac = analysis?.actionCenter;
 
-  const parties =
-    snapshot?.parties?.join(" · ") || "לא זוהו צדדים";
-
-  const dispute =
-    snapshot?.coreDispute || "לא זוהה מוקד מחלוקת";
+  const parties = snapshot?.parties?.join(" · ") || "לא זוהו צדדים";
+  const dispute = snapshot?.coreDispute || "לא זוהה מוקד מחלוקת";
 
   const workstreams = [
     {
@@ -113,10 +89,7 @@ export default function AnalysisWorkspace({
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="text-xs text-slate-500">
-              סיכויי התיק:
-            </div>
-
+            <div className="text-xs text-slate-500">סיכויי התיק:</div>
             <SeverityBadge value={snapshot?.riskLevel} />
           </div>
         </div>
@@ -129,10 +102,7 @@ export default function AnalysisWorkspace({
             className="w-full px-5 py-4 flex items-center justify-between text-right"
           >
             <div>
-              <div className="font-semibold text-slate-800">
-                עדכוני תיק
-              </div>
-
+              <div className="font-semibold text-slate-800">עדכוני תיק</div>
               <div className="text-xs text-slate-500 mt-1">
                 שינויים, מידע חדש והשפעה אפשרית על הניתוח
               </div>
@@ -156,10 +126,7 @@ export default function AnalysisWorkspace({
 
       <section className="space-y-4">
         <div className="flex items-center gap-3">
-          <div className="text-xl font-bold text-slate-900">
-            ניתוח התיק
-          </div>
-
+          <div className="text-xl font-bold text-slate-900">ניתוח התיק</div>
           <div className="h-px bg-slate-300 flex-1" />
         </div>
 
@@ -175,22 +142,10 @@ export default function AnalysisWorkspace({
                     : "text-right px-4 py-3 hover:bg-white/70 border-t-4 border-transparent transition"
                 }
               >
-<div className="space-y-1">
-  <div className="text-xs text-slate-500">
-    {p.title || "ללא מספר הליך"}
-  </div>
-
-  <div className="font-semibold text-sm">
-    {p.shortName || p.name || "פסק דין"}
-  </div>
-</div>
+                <div className="font-semibold text-sm">{section.title}</div>
 
                 <div className="text-[11px] text-slate-500 mt-1 line-clamp-1">
-                  {getSectionSummary(section.id, {
-                    snapshot,
-                    ct,
-                    eg,
-                  })}
+                  {getSectionSummary(section.id, { snapshot, ct, eg })}
                 </div>
               </button>
             ))}
@@ -201,34 +156,25 @@ export default function AnalysisWorkspace({
               <CaseDetails ev={ev} snapshot={snapshot} />
             )}
 
-            {activeSection === "timeline" && (
-              <TimelineDetails eg={eg} />
-            )}
+            {activeSection === "timeline" && <TimelineDetails eg={eg} />}
 
-            {activeSection === "theory" && (
-              <TheoryDetails ct={ct} />
-            )}
+            {activeSection === "theory" && <TheoryDetails ct={ct} />}
 
-            {activeSection === "evidence" && (
-              <EvidenceDetails eg={eg} />
-            )}
+            {activeSection === "evidence" && <EvidenceDetails eg={eg} />}
 
-          {activeSection === "cases" && (
-<CasesDetails
-  caseLaw={analysis?.caseLaw}
-  retrievedPrecedents={analysis?.retrievedPrecedents}
-/>
-)}
+            {activeSection === "cases" && (
+              <CasesDetails
+                caseLaw={analysis?.caseLaw}
+                retrievedPrecedents={analysis?.retrievedPrecedents}
+              />
+            )}
           </div>
         </div>
       </section>
 
       <section className="space-y-4">
         <div className="flex items-center gap-3">
-          <div className="text-xl font-bold text-slate-900">
-            מרחב עבודה
-          </div>
-
+          <div className="text-xl font-bold text-slate-900">מרחב עבודה</div>
           <div className="h-px bg-slate-300 flex-1" />
         </div>
 
@@ -304,21 +250,10 @@ function getSectionSummary(id, { snapshot, ct, eg }) {
       : "מוקד וסיכון";
   }
 
-  if (id === "timeline") {
-    return "כרונולוגיה";
-  }
-
-  if (id === "theory") {
-    return ct?.litigationBattleground?.issue || "עילות והגנות";
-  }
-
-  if (id === "evidence") {
-    return eg?.missingEvidence?.[0] || "חוסרים ופערים";
-  }
-
-  if (id === "cases") {
-    return "פסיקה רלוונטית";
-  }
+  if (id === "timeline") return "כרונולוגיה";
+  if (id === "theory") return ct?.litigationBattleground?.issue || "עילות והגנות";
+  if (id === "evidence") return eg?.missingEvidence?.[0] || "חוסרים ופערים";
+  if (id === "cases") return "פסיקה רלוונטית";
 
   return "";
 }
@@ -331,15 +266,10 @@ function CaseDetails({ ev, snapshot }) {
     <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
       <InfoCard title="מוקד המחלוקת">
         <div className="space-y-4">
-          <p className="leading-7">
-            {snapshot?.coreDispute || "לא זוהה"}
-          </p>
+          <p className="leading-7">{snapshot?.coreDispute || "לא זוהה"}</p>
 
           <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
-            <span className="text-xs text-slate-500">
-              סיכויי התיק:
-            </span>
-
+            <span className="text-xs text-slate-500">סיכויי התיק:</span>
             <SeverityBadge value={snapshot?.riskLevel || "Medium"} />
           </div>
         </div>
@@ -354,22 +284,7 @@ function CaseDetails({ ev, snapshot }) {
           )}
 
           {criticalIssues.map((item, index) => (
-            <div
-              key={index}
-              className="pb-4 border-b border-slate-100 last:border-b-0 last:pb-0"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div className="font-semibold text-sm">
-                  {item.title}
-                </div>
-
-                <SeverityBadge value={item.severity} />
-              </div>
-
-              <div className="text-sm text-slate-600 leading-7 mt-2">
-                {item.analysis}
-              </div>
-            </div>
+            <IssueRow key={index} item={item} />
           ))}
         </div>
       </InfoCard>
@@ -388,9 +303,7 @@ function CaseDetails({ ev, snapshot }) {
               className="pb-4 border-b border-slate-100 last:border-b-0 last:pb-0"
             >
               <div className="flex items-center justify-between gap-3">
-                <div className="font-medium text-sm">
-                  {item.title}
-                </div>
+                <div className="font-medium text-sm">{item.title}</div>
 
                 <div className="text-[11px] rounded-full bg-slate-100 px-2 py-1 text-slate-500">
                   משני
@@ -404,6 +317,21 @@ function CaseDetails({ ev, snapshot }) {
           ))}
         </div>
       </InfoCard>
+    </div>
+  );
+}
+
+function IssueRow({ item }) {
+  return (
+    <div className="pb-4 border-b border-slate-100 last:border-b-0 last:pb-0">
+      <div className="flex items-center justify-between gap-3">
+        <div className="font-semibold text-sm">{item.title}</div>
+        <SeverityBadge value={item.severity} />
+      </div>
+
+      <div className="text-sm text-slate-600 leading-7 mt-2">
+        {item.analysis}
+      </div>
     </div>
   );
 }
@@ -432,16 +360,12 @@ function EvidenceDetails({ eg }) {
         >
           <div className="flex items-center justify-between gap-3">
             <div className="font-semibold">{row.issue}</div>
-
             <SeverityBadge value={row.risk} />
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mt-4 text-sm">
             <div>
-              <div className="text-xs text-slate-500 mb-1">
-                ראיה קיימת
-              </div>
-
+              <div className="text-xs text-slate-500 mb-1">ראיה קיימת</div>
               <div>{row.existingEvidence}</div>
             </div>
 
@@ -449,7 +373,6 @@ function EvidenceDetails({ eg }) {
               <div className="text-xs text-slate-500 mb-1">
                 חסר / דורש השלמה
               </div>
-
               <div>{row.missingEvidence}</div>
             </div>
           </div>
@@ -505,26 +428,24 @@ function CasesDetails({ caseLaw, retrievedPrecedents }) {
           </div>
 
           <div className="text-sm text-slate-600 leading-7 mt-3">
-            <div className="font-medium text-slate-700">
-              רלוונטיות
-            </div>
+            <div className="font-medium text-slate-700">רלוונטיות</div>
 
             <div>
               {p.relevance ||
-                (p.miniRatio ? `${String(p.miniRatio).slice(0, 280)}...` : "") ||
+                (p.miniRatio
+                  ? `${String(p.miniRatio).slice(0, 280)}...`
+                  : "") ||
                 "לא פורטה רלוונטיות."}
             </div>
           </div>
 
           <div className="text-sm text-slate-600 leading-7 mt-3">
-            <div className="font-medium text-slate-700">
-              שימוש ליטיגטורי
-            </div>
+            <div className="font-medium text-slate-700">סיבות שליפה</div>
 
             <div>
               {p.useInLitigation ||
                 (p.retrievalReasons || []).slice(0, 2).join(" · ") ||
-                "לא פורט שימוש ליטיגטורי."}
+                "לא פורטו סיבות שליפה."}
             </div>
           </div>
         </div>
@@ -532,14 +453,12 @@ function CasesDetails({ caseLaw, retrievedPrecedents }) {
     </div>
   );
 }
+
 function InfoCard({ title, children }) {
   return (
     <div className="bg-white border border-slate-200 rounded-2xl p-5">
       <h3 className="font-semibold mb-3">{title}</h3>
-
-      <div className="text-sm text-slate-700 leading-7">
-        {children}
-      </div>
+      <div className="text-sm text-slate-700 leading-7">{children}</div>
     </div>
   );
 }
@@ -603,10 +522,7 @@ function SmallItemDrawer({ item, onClose, onAddWorkspaceUpdate }) {
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="text-xs text-slate-500">{item.title}</div>
-
-            <div className="font-semibold mt-1 leading-7">
-              {item.text}
-            </div>
+            <div className="font-semibold mt-1 leading-7">{item.text}</div>
           </div>
 
           <button onClick={onClose} className="text-slate-400">
