@@ -1,19 +1,15 @@
 import { useEffect, useState } from "react";
 
 import IssueCard from "../components/issues/IssueCard";
-import { mockCaseData } from "../mock/mockCaseData";
 import { normalizeIssues } from "../utils/normalizeIssues";
 
 export default function IssuesView({ analysis, onWorkspaceUpdate }) {
-  const [issues, setIssues] = useState(() =>
-    normalizeIssues(mockCaseData)
-  );
-  const [importanceFilter, setImportanceFilter] =
-  useState("all");
+  const [issues, setIssues] = useState([]);
+  const [importanceFilter, setImportanceFilter] = useState("all");
 
   useEffect(() => {
     if (!analysis) {
-      setIssues(normalizeIssues(mockCaseData));
+      setIssues([]);
       return;
     }
 
@@ -133,7 +129,11 @@ export default function IssuesView({ analysis, onWorkspaceUpdate }) {
     </button>
   </div>
 </div>
-
+{filteredIssues.length === 0 && (
+  <div className="bg-white/90 border border-blue-100 rounded-2xl p-6 text-sm text-slate-600 shadow-sm">
+    לאחר ניתוח התיק, יופיעו כאן המחלוקות המרכזיות שזוהו.
+  </div>
+)}
 {filteredIssues.map((issue) => (
 <IssueCard
   key={issue.id}
