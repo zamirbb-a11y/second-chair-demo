@@ -7,10 +7,18 @@ import CollapsedCaseHeader from "./components/CollapsedCaseHeader";
 
 import generateAnalysisDiff from "./utils/generateAnalysisDiff";
 import precedents from "./legal-knowledge/precedents.json";
+import WorkspaceSidebar from "./components/layout/WorkspaceSidebar";
+import WorkspaceHeader from "./components/layout/WorkspaceHeader";
+import IssuesView from "./views/IssuesView";
+import EvidenceView from "./views/EvidenceView";
+import WitnessesView from "./views/WitnessesView";
 
 export default function App() {
   const [caseText, setCaseText] = useState("");
   const [documentText, setDocumentText] = useState("");
+  const [caseName, setCaseName] = useState(
+  "צד א׳ נ׳ צד ב׳"
+);
   const [caseFiles, setCaseFiles] = useState([]);
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [status, setStatus] = useState("");
@@ -24,6 +32,7 @@ export default function App() {
   const [intakeExpanded, setIntakeExpanded] = useState(true);
 
   const [workspaceUpdates, setWorkspaceUpdates] = useState([]);
+const [activeView, setActiveView] = useState("case-map");
 
   async function handleWordUpload(event) {
     const files = Array.from(event.target.files || []);
@@ -50,6 +59,7 @@ export default function App() {
       }
 
       const data = await response.json();
+      console.log("ANALYSIS DATA:", data);
       const processedFiles = data.files || [];
 
       setCaseFiles((prev) => [...prev, ...processedFiles]);
@@ -118,6 +128,7 @@ export default function App() {
   function buildCaseTextForAnalysis() {
     const updatesText = workspaceUpdates
       .map((update, index) => {
+   
         return `
 עדכון ${index + 1}
 סוג: ${update.type || "עדכון"}
@@ -202,32 +213,50 @@ ${updatesText}
       "אפשר להוסיף קבצים או לעדכן את תיאור המקרה ואז להריץ ניתוח מחדש."
     );
   }
+function renderWorkspaceView() {
+  switch (activeView) {
+    case "pleadings":
+      return <EvidenceView />;
 
-  return (
-    <div
-      dir="rtl"
-      className="min-h-screen bg-slate-50 text-slate-900 p-5"
-    >
-      {loading && <AnalysisLoadingOverlay />}
+    case "discovery":
+      return <WitnessesView />;
 
-      <div className="max-w-[1500px] mx-auto space-y-4">
-        <header className="flex flex-col md:flex-row justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-3">
-              <span className="text-3xl">⚖️</span>
+    case "proofs":
+      return <EvidenceView />;
 
-              <h1 className="text-3xl font-bold">Second Chair</h1>
+    case "summaries":
+      return <WitnessesView />;
 
-              <span className="text-xs bg-slate-200 rounded-full px-3 py-1">
-                Cockpit
-              </span>
-            </div>
+case "case-map":
+default:
+return (
+  <IssuesView
+    analysis={analysis}
+    onWorkspaceUpdate={handleWorkspaceUpdate}
+  />
+);
+  }
+}
 
-            <p className="text-slate-600 mt-2">
-              סביבת עבודה לניתוח תיקי ליטיגציה מסחרית.
-            </p>
-          </div>
-        </header>
+return (
+  <div
+  dir="rtl"
+  className="
+    min-h-screen
+    bg-[#eef4fb]
+    text-slate-900
+  "
+>
+    {loading && <AnalysisLoadingOverlay />}
+
+    <div className="flex min-h-screen">
+      <WorkspaceSidebar
+        activeView={activeView}
+        onChangeView={setActiveView}
+      />
+
+<div className="flex-1 p-6 bg-[#f4f8fd]">
+        <div className="max-w-[1500px] mx-auto space-y-4">
 
         {intakeExpanded || !analysis ? (
           <CaseIntake
@@ -241,6 +270,7 @@ ${updatesText}
           />
         ) : (
           <CollapsedCaseHeader
+          caseName={caseName}
             caseText={caseText}
             uploadedFiles={uploadedFiles}
             onEdit={() => setIntakeExpanded(true)}
@@ -249,6 +279,7 @@ ${updatesText}
             loading={loading}
           />
         )}
+        <WorkspaceHeader activeView={activeView} />
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 rounded-2xl p-4 text-sm">
@@ -256,17 +287,13 @@ ${updatesText}
           </div>
         )}
 
-        {analysis && (
-          <main id="results" className="space-y-4 min-w-0">
-            <AnalysisWorkspace
-              analysis={analysis}
-              workspaceUpdates={workspaceUpdates}
-              analysisDiff={analysisDiff}
-              onAddWorkspaceUpdate={handleWorkspaceUpdate}
-            />
-          </main>
-        )}
+
+ <main id="results" className="space-y-4 min-w-0">
+  {renderWorkspaceView()}
+</main>
+     </div>
       </div>
     </div>
-  );
+  </div>
+);
 }

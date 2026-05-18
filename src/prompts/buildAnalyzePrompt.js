@@ -250,13 +250,53 @@ ${knowledgeText}
 
 פסיקה רלוונטית מתוך המאגר:
 ${precedentsText}
+בנוסף למבנים הקיימים, החזר גם מערך issues.
+כל issue צריך להיות יחידת מחלוקת עצמאית.
+יש למפות לכל issue:
+- עמדות הצדדים הרלוונטיות
+- המשמעות המשפטית
+- הראיות הרלוונטיות
+- החוסרים הראייתיים
+- שאלות ללקוח
+- צעדים ליטיגטוריים ממוקדים
 
+אין ליצור issues כפולים.
 החזר JSON בלבד, בלי Markdown, בדיוק במבנה הבא:
 
 {
   "source": "OpenAI GPT-4.1-mini",
   "confidence": "High/Medium/Low",
+"issues": [
+  {
+    "id": "",
+    "title": "",
+    "description": "",
+    "status": "",
+    "importance": "central/secondary/peripheral",
 
+    "partyPositions": {
+      "claimant": "",
+      "defendant": "",
+      "coreDispute": ""
+    },
+
+    "legalAssessment": {
+      "summary": "",
+      "relevantLaw": []
+    },
+
+    "linkedEvidence": [],
+    "linkedWitnesses": [],
+
+    "missingInfo": [],
+
+    "actionItems": {
+      "clientQuestions": [],
+      "missingEvidence": [],
+      "suggestedActions": []
+    }
+  }
+],
   "executiveView": {
     "caseSnapshot": {
       "parties": [],
