@@ -32,6 +32,63 @@ export default function App() {
   const [workspaceUpdates, setWorkspaceUpdates] = useState([]);
   const [activeView, setActiveView] = useState("case-map");
   const [entryMode, setEntryMode] = useState(null);
+  const [isAuthorized, setIsAuthorized] = useState(false);
+const [passwordInput, setPasswordInput] = useState("");
+if (!isAuthorized) {
+  return (
+    <div
+      dir="rtl"
+      className="min-h-screen bg-[#eef4fb] flex items-center justify-center p-6"
+    >
+      <div className="w-full max-w-md rounded-3xl bg-white border border-slate-200 shadow-xl p-8 space-y-6">
+        <div className="space-y-2 text-center">
+          <h1 className="text-3xl font-bold text-slate-900">
+            Second Chair
+          </h1>
+
+          <p className="text-sm text-slate-500">
+            סביבת ניסוי פנימית
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          <input
+            type="password"
+            value={passwordInput}
+            onChange={(e) =>
+              setPasswordInput(e.target.value)
+            }
+            placeholder="הכנס סיסמה"
+            className="
+              w-full rounded-2xl border border-slate-300
+              px-4 py-3 text-right
+              focus:outline-none focus:ring-2
+              focus:ring-slate-400
+            "
+          />
+
+          <button
+            type="button"
+            onClick={() => {
+              if (passwordInput === "1984") {
+                setIsAuthorized(true);
+              } else {
+                alert("סיסמה שגויה");
+              }
+            }}
+            className="
+              w-full rounded-2xl bg-slate-900
+              py-3 text-white font-bold
+              hover:bg-slate-800
+            "
+          >
+            כניסה
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 if (!entryMode) {
   return (
     <div
