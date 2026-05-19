@@ -3,33 +3,43 @@ import cases from "../legal-knowledge/cases";
 import packs from "../legal-knowledge/packs";
 import litigationHeuristics from "../legal-knowledge/litigationHeuristics";
 
-function hasMatchingTag(item, includeTags) {
+function hasMatchingTag(item, includeTags = []) {
   return item.tags?.some((tag) => includeTags.includes(tag));
 }
 
-function hasMatchingHeuristic(item, includeHeuristics) {
-  return includeHeuristics?.includes(item.id);
+function hasMatchingHeuristic(item, includeHeuristics = []) {
+  return includeHeuristics.includes(item.id);
 }
 
-const packDefinition = packs.contractFormationDefects;
+const selectedPackDefinitions = [
+  packs.contractFormationDefects,
+  packs.contractInterpretation,
+  packs.contractBreach,
+  packs.contractRemedies,
+].filter(Boolean);
 
-const contractFormationDefectsPack = {
-  ...packDefinition,
+const combinedPack = {
+  id: "contractLitigationCore",
 
-  statutes: statutes.filter((statute) =>
-    hasMatchingTag(statute, packDefinition.includeTags)
+  title: "ליבת ליטיגציה חוזית",
+
+  statutes: selectedPackDefinitions.flatMap((pack) =>
+    statutes.filter((statute) => hasMatchingTag(statute, pack.includeTags))
   ),
 
-  cases: cases.filter((caseItem) =>
-    hasMatchingTag(caseItem, packDefinition.includeTags)
+  cases: selectedPackDefinitions.flatMap((pack) =>
+    cases.filter((caseItem) => hasMatchingTag(caseItem, pack.includeTags))
   ),
 
-  heuristics: litigationHeuristics.filter((heuristic) =>
-    hasMatchingHeuristic(
-      heuristic,
-      packDefinition.includeHeuristics
+  heuristics: selectedPackDefinitions.flatMap((pack) =>
+    litigationHeuristics.filter((heuristic) =>
+      hasMatchingHeuristic(heuristic, pack.includeHeuristics)
     )
-  )
+  ),
+
+  reasoningRules: selectedPackDefinitions.flatMap(
+    (pack) => pack.reasoningRules || []
+  ),
 };
 
-export default contractFormationDefectsPack;
+export default combinedPack;

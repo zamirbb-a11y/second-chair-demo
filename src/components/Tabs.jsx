@@ -1,5 +1,5 @@
 const tabs = [
-  { id: "overview", label: "מבט על" },
+  { id: "overview", label: "ניתוח בסיסי" },
   { id: "theory", label: "תיאוריות התיק" },
   { id: "evidence", label: "ראיות ופערים" },
   { id: "actions", label: "מרכז פעולות" },

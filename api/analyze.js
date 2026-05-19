@@ -1,75 +1,76 @@
 import buildAnalyzePrompt from "../src/prompts/buildAnalyzePrompt";
-import contractFormationDefectsPack from "../src/legal-packs/contractFormationDefects";
-import {
-  retrieveRelevantPrecedents,
-  formatPrecedentsForPrompt,
-} from "../src/lib/precedentRetrieval";
+import contractLitigationCorePack from "../src/legal-packs/contractFormationDefects";
+import precedentBank from "../src/legal-knowledge/precedents.json";
+import { retrieveRelevantPrecedents } from "../src/lib/precedentRetrieval";
 
 export default async function handler(req, res) {
-    res.setHeader("Access-Control-Allow-Origin", "http://localhost:5173");
+  res.setHeader("Access-Control-Allow-Origin", "http://localhost:5173");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
   if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
+
   if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
+    return res.status(405).json({
+      error: "Method not allowed",
+    });
   }
 
   try {
     const startedAt = Date.now();
 
-    const {
-      caseText = "",
-      documentText = "",
-      precedents = [],
-    } = req.body;
+    const { caseText, documentText, files = [] } = req.body || {};
 
-    const fullCaseText = [caseText, documentText]
+    const fullCaseText = [
+      caseText,
+      documentText,
+      ...(files || []).map((file) => file?.text || ""),
+    ]
       .filter(Boolean)
       .join("\n\n");
 
-    const relevantPrecedents = retrieveRelevantPrecedents(
+    const retrievedPrecedents = retrieveRelevantPrecedents(
       fullCaseText,
-      precedents,
+      precedentBank,
       6
     );
 
-    const legalSourcesForPrompt =
-      formatPrecedentsForPrompt(relevantPrecedents);
+    console.log("Loaded precedents:", precedentBank.length);
+    console.log(
+      "Retrieved precedents:",
+      retrievedPrecedents.map((p) => p.shortName || p.title)
+    );
 
     const prompt = buildAnalyzePrompt({
       caseText,
       documentText,
-      legalPacks: [contractFormationDefectsPack],
-      legalSourcesForPrompt,
+      files,
+      legalPacks: [contractLitigationCorePack],
+      precedents: retrievedPrecedents,
     });
 
-   console.log("Starting analysis request");
-console.log("OPENAI_API_KEY exists:", Boolean(process.env.OPENAI_API_KEY));
-console.log("OPENAI_API_KEY prefix:", process.env.OPENAI_API_KEY?.slice(0, 7));
-    console.log(
-      `Retrieved ${relevantPrecedents.length} relevant precedents`
-    );
+    console.log("Starting analysis request");
 
     const response = await fetch(
       "https://api.openai.com/v1/chat/completions",
       {
         method: "POST",
+
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
         },
 
-      body: JSON.stringify({
-  model: "gpt-4.1-mini",
+        body: JSON.stringify({
+          model: "gpt-4.1",
 
-  response_format: {
-    type: "json_object",
-  },
+          response_format: {
+            type: "json_object",
+          },
 
-  messages: [
+          messages: [
             {
               role: "system",
               content:
@@ -107,34 +108,13 @@ console.log("OPENAI_API_KEY prefix:", process.env.OPENAI_API_KEY?.slice(0, 7));
       });
     }
 
-    const cleaned = content
-      .replace(/^```json/i, "")
-      .replace(/^```/i, "")
-      .replace(/```$/i, "")
-      .trim();
-
     try {
-      const jsonStart = cleaned.indexOf("{");
-      const jsonEnd = cleaned.lastIndexOf("}");
+      const parsed = JSON.parse(content);
 
-      if (jsonStart === -1 || jsonEnd === -1) {
-        throw new Error("No JSON object found in model response");
-      }
-
-      const jsonText = cleaned.slice(jsonStart, jsonEnd + 1);
-      const parsed = JSON.parse(jsonText);
-
-      parsed.retrievedPrecedents = relevantPrecedents.map((p) => ({
-        id: p.id,
-        title: p.title,
-        shortName: p.shortName,
-        court: p.court,
-        helps: p.helps,
-        retrievalScore: p.retrievalScore,
-        retrievalReasons: p.retrievalReasons,
-      }));
-
-      return res.status(200).json(parsed);
+      return res.status(200).json({
+        ...parsed,
+        retrievedPrecedents,
+      });
     } catch (parseError) {
       console.error("Failed to parse model JSON:", parseError);
       console.error("Raw model content:", content);

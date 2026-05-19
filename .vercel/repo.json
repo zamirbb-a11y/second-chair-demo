@@ -1,0 +1,11 @@
+{
+  "remoteName": "origin",
+  "projects": [
+    {
+      "id": "prj_2wsx9xGHRnOS7xXJxUlABcaweG8v",
+      "name": "second-chair-demo",
+      "directory": ".",
+      "orgId": "team_Oq6ioROrq1ScKa5oaDKx5xaF"
+    }
+  ]
+}
