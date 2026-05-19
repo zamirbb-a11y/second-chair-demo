@@ -1,3 +1,4 @@
+import { successAssessmentPrompt } from "../../api/lib/successAssessmentPrompt.js";
 export default function buildAnalyzePrompt({
   caseText,
   documentText,
@@ -276,6 +277,7 @@ ${knowledgeText}
 
 פסיקה רלוונטית מתוך המאגר:
 ${precedentsText}
+${successAssessmentPrompt}
 בנוסף למבנים הקיימים, החזר גם מערך issues.
 כל issue צריך להיות יחידת מחלוקת עצמאית.
 יש למפות לכל issue:
@@ -332,6 +334,14 @@ ${precedentsText}
       "grounding": []
     },
 
+
+"successAssessment": {
+  "level": "גבוה מאוד/גבוה/בינוני-גבוה/בינוני/בינוני-נמוך/נמוך/נמוך מאוד",
+  "summary": "",
+  "disputeFocus": "",
+  "reservation": "",
+  "additionalInformationNeeded": []
+},
     "criticalIssues": [
       {
         "severity": "High/Medium/Low",

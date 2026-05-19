@@ -73,7 +73,7 @@ export default function IssuesView({ analysis, onWorkspaceUpdate }) {
   const hiddenCount = filteredIssues.length - visibleIssues.length;
 
   return (
-    <div className="space-y-4">
+    <div id="evidence-gaps" className="space-y-4">
       <div className="bg-white/90 border border-blue-100 rounded-2xl px-5 py-3 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div className="flex items-center gap-3">

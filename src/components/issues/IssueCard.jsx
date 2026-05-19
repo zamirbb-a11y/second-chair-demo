@@ -79,7 +79,7 @@ shadow-[0_6px_18px_rgba(15,23,42,0.08)]
         <div
           className="
             flex flex-wrap items-center gap-3 cursor-pointer
-            rounded-xl px-2 py-1 transition-all duration-150 hover:bg-slate-50
+            rounded-xl px-3 py-3 transition-all duration-150 hover:bg-slate-50
           "
           onClick={() => setIsExpanded((prev) => !prev)}
         >

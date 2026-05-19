@@ -12,6 +12,7 @@ import EvidenceView from "./views/EvidenceView";
 import WitnessesView from "./views/WitnessesView";
 import PrecedentBankManager from "./admin/PrecedentBankManager";
 import HorizontalTimeline from "./components/HorizontalTimeline";
+import SuccessAssessment from "./components/SuccessAssessment";
 
 export default function App() {
   const [caseText, setCaseText] = useState("");
@@ -455,9 +456,16 @@ if (parties.length >= 2) {
               </div>
             )}
 
-            <main id="results" className="space-y-4 min-w-0">
-              {renderWorkspaceView()}
-            </main>
+  <main id="results" className="space-y-4 min-w-0">
+ {activeView === "case-map" &&
+  analysis?.executiveView?.successAssessment && (
+    <SuccessAssessment
+      assessment={analysis.executiveView.successAssessment}
+    />
+)}
+
+  {renderWorkspaceView()}
+</main>
           </div>
         </div>
       </div>
