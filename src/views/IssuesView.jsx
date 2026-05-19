@@ -6,6 +6,7 @@ import { normalizeIssues } from "../utils/normalizeIssues";
 export default function IssuesView({ analysis, onWorkspaceUpdate }) {
   const [issues, setIssues] = useState([]);
   const [importanceFilter, setImportanceFilter] = useState("all");
+  const [showAllIssues, setShowAllIssues] = useState(false);
 
   useEffect(() => {
     if (!analysis) {
@@ -39,123 +40,175 @@ export default function IssuesView({ analysis, onWorkspaceUpdate }) {
   const peripheralIssues = issues.filter(
     (issue) => issue.importance === "peripheral"
   ).length;
+
   const filteredIssues =
-  importanceFilter === "all"
-    ? issues
-    : issues.filter(
-        (issue) =>
-          issue.importance === importanceFilter
-      );
+    importanceFilter === "all"
+      ? issues
+      : issues.filter((issue) => issue.importance === importanceFilter);
+
+  const visibleIssues = showAllIssues
+    ? filteredIssues
+    : filteredIssues.filter((issue, index) => {
+        if (importanceFilter !== "all") return index < 5;
+
+        const centralVisible = filteredIssues.filter(
+          (item) => item.importance === "central"
+        );
+
+        const secondaryVisible = filteredIssues.filter(
+          (item) => item.importance === "secondary"
+        );
+
+        const peripheralVisible = filteredIssues.filter(
+          (item) => item.importance === "peripheral"
+        );
+
+        return (
+          centralVisible.slice(0, 3).includes(issue) ||
+          secondaryVisible.slice(0, 3).includes(issue) ||
+          peripheralVisible.slice(0, 2).includes(issue)
+        );
+      });
+
+  const hiddenCount = filteredIssues.length - visibleIssues.length;
 
   return (
     <div className="space-y-4">
-   <div className="bg-white/90 border border-blue-100 rounded-2xl px-5 py-3 shadow-sm">
-  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-    <div className="flex items-center gap-3">
-      <h2 className="text-lg font-bold text-slate-900">
-        תמונת מחלוקות
-      </h2>
+      <div className="bg-white/90 border border-blue-100 rounded-2xl px-5 py-3 shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-bold text-slate-900">
+              תמונת מחלוקות
+            </h2>
 
-   <div className="flex items-center gap-2 text-xs">
-  <button
-    type="button"
-    onClick={() => setImportanceFilter("central")}
-    className={`
-      rounded-full px-2 py-1 transition
-      ${
-        importanceFilter === "central"
-          ? "bg-blue-900 text-white"
-          : "text-slate-600 hover:bg-blue-50"
-      }
-    `}
-  >
-    מרכזיות: {centralIssues}
-  </button>
+            <div className="flex items-center gap-2 text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  setImportanceFilter("central");
+                  setShowAllIssues(false);
+                }}
+                className={`
+                  rounded-full px-2 py-1 transition
+                  ${
+                    importanceFilter === "central"
+                      ? "bg-blue-900 text-white"
+                      : "text-slate-600 hover:bg-blue-50"
+                  }
+                `}
+              >
+                מרכזיות: {centralIssues}
+              </button>
 
-  <button
-    type="button"
-    onClick={() => setImportanceFilter("secondary")}
-    className={`
-      rounded-full px-2 py-1 transition
-      ${
-        importanceFilter === "secondary"
-          ? "bg-blue-200 text-blue-900"
-          : "text-slate-600 hover:bg-blue-50"
-      }
-    `}
-  >
-    משניות: {secondaryIssues}
-  </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setImportanceFilter("secondary");
+                  setShowAllIssues(false);
+                }}
+                className={`
+                  rounded-full px-2 py-1 transition
+                  ${
+                    importanceFilter === "secondary"
+                      ? "bg-blue-200 text-blue-900"
+                      : "text-slate-600 hover:bg-blue-50"
+                  }
+                `}
+              >
+                משניות: {secondaryIssues}
+              </button>
 
-  <button
-    type="button"
-    onClick={() => setImportanceFilter("peripheral")}
-    className={`
-      rounded-full px-2 py-1 transition
-      ${
-        importanceFilter === "peripheral"
-          ? "bg-slate-300 text-slate-900"
-          : "text-slate-600 hover:bg-blue-50"
-      }
-    `}
-  >
-    שוליות: {peripheralIssues}
-  </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setImportanceFilter("peripheral");
+                  setShowAllIssues(false);
+                }}
+                className={`
+                  rounded-full px-2 py-1 transition
+                  ${
+                    importanceFilter === "peripheral"
+                      ? "bg-slate-300 text-slate-900"
+                      : "text-slate-600 hover:bg-blue-50"
+                  }
+                `}
+              >
+                שוליות: {peripheralIssues}
+              </button>
 
-  {importanceFilter !== "all" && (
-    <button
-      type="button"
-      onClick={() => setImportanceFilter("all")}
-      className="
-        text-slate-500 hover:text-slate-900
-        px-2 py-1
-      "
-    >
-      נקה סינון
-    </button>
-  )}
-</div>
-    </div>
+              {importanceFilter !== "all" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setImportanceFilter("all");
+                    setShowAllIssues(false);
+                  }}
+                  className="
+                    text-slate-500 hover:text-slate-900
+                    px-2 py-1
+                  "
+                >
+                  נקה סינון
+                </button>
+              )}
+            </div>
+          </div>
 
-    <button
-      type="button"
-      className="
-        rounded-xl bg-slate-900
-        px-4 py-2 text-sm font-bold text-white
-        hover:bg-slate-800
-      "
-    >
-      הוסף מחלוקת
-    </button>
-  </div>
-</div>
-{filteredIssues.length === 0 && (
-  <div className="bg-white/90 border border-blue-100 rounded-2xl p-6 text-sm text-slate-600 shadow-sm">
-    לאחר ניתוח התיק, יופיעו כאן המחלוקות המרכזיות שזוהו.
-  </div>
-)}
-{filteredIssues.map((issue) => (
-<IssueCard
-  key={issue.id}
-  issue={issue}
-  onUpdateIssue={handleUpdateIssue}
-  onWorkspaceUpdate={onWorkspaceUpdate}
-/>
+          <button
+            type="button"
+            className="
+              rounded-xl bg-slate-900
+              px-4 py-2 text-sm font-bold text-white
+              hover:bg-slate-800
+            "
+          >
+            הוסף מחלוקת
+          </button>
+        </div>
+      </div>
+
+      {filteredIssues.length === 0 && (
+        <div className="bg-white/90 border border-blue-100 rounded-2xl p-6 text-sm text-slate-600 shadow-sm">
+          לאחר ניתוח התיק, יופיעו כאן המחלוקות המרכזיות שזוהו.
+        </div>
+      )}
+
+      {visibleIssues.map((issue) => (
+        <IssueCard
+          key={issue.id}
+          issue={issue}
+          onUpdateIssue={handleUpdateIssue}
+          onWorkspaceUpdate={onWorkspaceUpdate}
+        />
       ))}
-    </div>
-  );
-}
 
-function SummaryBox({ title, value }) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-      <div className="text-xs font-bold text-slate-500">
-        {title}
-      </div>
+      {hiddenCount > 0 && (
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onClick={() => setShowAllIssues(true)}
+            className="
+              rounded-xl border border-slate-200 bg-white
+              px-5 py-2 text-sm font-bold text-slate-700
+              shadow-sm hover:bg-slate-50
+            "
+          >
+            הצג עוד {hiddenCount} מחלוקות
+          </button>
+        </div>
+      )}
 
-      <div className="text-2xl font-bold text-slate-900 mt-1">
-        {value}
-      </div>
+      {showAllIssues && filteredIssues.length > visibleIssues.length && (
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onClick={() => setShowAllIssues(false)}
+            className="text-sm text-slate-500 hover:text-slate-900"
+          >
+            צמצם תצוגה
+          </button>
+        </div>
+      )}
     </div>
   );
 }
