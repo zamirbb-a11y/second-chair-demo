@@ -17,6 +17,7 @@ import PrecedentBankManager from "./admin/PrecedentBankManager";
 
 import HorizontalTimeline from "./components/HorizontalTimeline";
 import SuccessAssessment from "./components/SuccessAssessment";
+import DeltaNotificationPanel from "./components/DeltaNotificationPanel";
 
 import {
   createCaseId,
@@ -28,6 +29,7 @@ import {
 
 export default function App() {
   const [caseText, setCaseText] = useState("");
+  const [additionalInfoText, setAdditionalInfoText] = useState("");
   const [documentText, setDocumentText] = useState("");
   const [caseName, setCaseName] = useState("צד א׳ נ׳ צד ב׳");
 
@@ -38,6 +40,10 @@ export default function App() {
   const [analysis, setAnalysis] = useState(null);
   const [previousAnalysis, setPreviousAnalysis] = useState(null);
   const [analysisDiff, setAnalysisDiff] = useState([]);
+  const [latestDelta, setLatestDelta] = useState(null);
+  const [acceptedWorkItems, setAcceptedWorkItems] = useState([]);
+  const [lastAnalyzedCaseText, setLastAnalyzedCaseText] = useState("");
+  const [showDeltaPanel, setShowDeltaPanel] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -113,6 +119,9 @@ export default function App() {
       uploadedFiles: overrides.uploadedFiles ?? uploadedFiles,
       analysis: analysisData,
       workspaceUpdates: overrides.workspaceUpdates ?? workspaceUpdates,
+      acceptedWorkItems: overrides.acceptedWorkItems ?? acceptedWorkItems,
+      lastAnalyzedCaseText:
+  overrides.lastAnalyzedCaseText ?? lastAnalyzedCaseText,
     };
   }
 
@@ -134,6 +143,8 @@ export default function App() {
     setUploadedFiles(loaded.uploadedFiles || []);
     setAnalysis(loaded.analysis || null);
     setWorkspaceUpdates(loaded.workspaceUpdates || []);
+    setAcceptedWorkItems(loaded.acceptedWorkItems || []);
+    setLastAnalyzedCaseText(loaded.lastAnalyzedCaseText || "");
     setEntryMode("existing");
     setIntakeExpanded(!loaded.analysis);
     setStatus("");
@@ -155,12 +166,14 @@ export default function App() {
     setPreviousAnalysis(null);
     setAnalysisDiff([]);
     setWorkspaceUpdates([]);
+    setAcceptedWorkItems([]);
     setStatus("");
     setError("");
     setIntakeExpanded(true);
     setEntryMode("new");
     setShowNewCaseForm(false);
     setNewCaseName("");
+    setLastAnalyzedCaseText("");
   }
 
  function removeSavedCase(caseId) {
@@ -337,6 +350,33 @@ export default function App() {
       setCaseFiles(nextCaseFiles);
       setUploadedFiles(nextUploadedFiles);
       setDocumentText(nextDocumentText);
+      const documentUpdate = {
+  type: "new_document",
+  targetType: "case",
+  targetId: currentCaseId,
+  title: `נוספו ${processedFiles.length} מסמכים`,
+  text: processedFiles
+    .map((file) => {
+      return `שם מסמך: ${file.name}
+סטטוס: ${file.status || ""}
+סוג: ${file.type || ""}
+אורך טקסט שחולץ: ${file.textLength || 0}
+דורש OCR: ${file.needsOcr ? "כן" : "לא"}`;
+    })
+    .join("\n\n---\n\n"),
+  status: "pending_analysis",
+};
+
+const nextUpdates = [
+  {
+    id: `update-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    ...documentUpdate,
+    createdAt: new Date().toISOString(),
+  },
+  ...workspaceUpdates,
+];
+
+setWorkspaceUpdates(nextUpdates);
 
       const loadedCount = processedFiles.filter(
         (file) => file.status === "נטען"
@@ -348,11 +388,12 @@ export default function App() {
         setStatus("הקבצים נוספו, אך לא חולץ מהם טקסט לניתוח.");
       }
 
-      persistCurrentCase(analysis, {
-        caseFiles: nextCaseFiles,
-        uploadedFiles: nextUploadedFiles,
-        documentText: nextDocumentText,
-      });
+persistCurrentCase(analysis, {
+  caseFiles: nextCaseFiles,
+  uploadedFiles: nextUploadedFiles,
+  documentText: nextDocumentText,
+  workspaceUpdates: nextUpdates,
+});
     } catch (err) {
       console.error(err);
       setStatus("לא הצלחתי להעלות או לקרוא את הקבצים.");
@@ -361,50 +402,75 @@ export default function App() {
     }
   }
 
-  function handleWorkspaceUpdate(update) {
-    const enrichedUpdate = {
-      ...update,
-      createdAt: new Date().toISOString(),
-    };
+function handleWorkspaceUpdate(update) {
+  const enrichedUpdate = {
+    id:
+      update.id ||
+      `update-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    type: update.type || "general_note",
+    targetType: update.targetType || "case",
+    targetId: update.targetId || null,
+    title: update.title || update.topic || "עדכון לתיק",
+    text: update.text || "",
+    createdAt: update.createdAt || new Date().toISOString(),
+    status: update.status || "pending_analysis",
+  };
 
-    const nextUpdates = [enrichedUpdate, ...workspaceUpdates];
+  const nextUpdates = [enrichedUpdate, ...workspaceUpdates];
 
-    setWorkspaceUpdates(nextUpdates);
-    setError("");
-    setStatus("נוסף מידע חדש לתיק. ניתן להריץ ניתוח מחדש.");
+  setWorkspaceUpdates(nextUpdates);
+  setError("");
+  setStatus("נוסף מידע חדש לתיק. ניתן להריץ ניתוח מחדש.");
 
-    persistCurrentCase(analysis, {
-      workspaceUpdates: nextUpdates,
-    });
-  }
+  persistCurrentCase(analysis, {
+    workspaceUpdates: nextUpdates,
+  });
+}
 
-  function buildCaseTextForAnalysis() {
-    const updatesText = workspaceUpdates
-      .map((update, index) => {
-        return `
-עדכון ${index + 1}
-סוג: ${update.type || "עדכון"}
-נושא: ${update.topic || "ללא נושא"}
-תוכן:
+function buildCaseTextForAnalysis() {
+  const updatesText = workspaceUpdates
+    .map((update, index) => {
+      return `
+Update ${index + 1}
+id: ${update.id || ""}
+type: ${update.type || "general_note"}
+targetType: ${update.targetType || "case"}
+targetId: ${update.targetId || ""}
+status: ${update.status || "pending_analysis"}
+title: ${update.title || update.topic || "עדכון לתיק"}
+createdAt: ${update.createdAt || ""}
+
+text:
 ${update.text || ""}
 `;
-      })
-      .join("\n---\n");
+    })
+    .join("\n---\n");
 
-    if (!updatesText.trim()) {
-      return caseText;
-    }
+  if (!updatesText.trim()) {
+    return caseText;
+  }
 
-    return `
+  return `
 ${caseText}
 
 ====================
-עדכונים שנוספו במהלך העבודה על התיק
+STRUCTURED LITIGATION WORKSPACE EVENT LOG
 ====================
+
+These are structured updates added after the initial case analysis.
+The analysis should evaluate each update according to its type, target and status.
+
+Update handling guidance:
+- added_issue: analyze the new dispute/issue and integrate it into the case map.
+- edited_issue: reassess the existing issue and update risks, strengths, weaknesses and evidence needs.
+- client_answer: evaluate how the answer affects case theory, evidence gaps, credibility and next steps.
+- new_document: evaluate impact on evidence, timeline, legal theory and prospects.
+- general_note: evaluate whether it changes any material assessment.
+- new_pleading: identify opposing claims, admissions, contradictions, missing responses and cited authorities.
 
 ${updatesText}
 `;
-  }
+}
 
   async function runAnalysis() {
     setLoading(true);
@@ -464,13 +530,203 @@ ${updatesText}
       setLoading(false);
     }
   }
+ async function handleCaseTextUpdateAndReanalyze() {
+  const text = additionalInfoText?.trim();
+
+  const existingPendingUpdates = workspaceUpdates.filter(
+    (update) => update.status === "pending_analysis"
+  );
+
+ if (!text && existingPendingUpdates.length > 0) {
+  await runIncrementalAnalysis();
+  setIntakeExpanded(false);
+  return;
+}
+
+  if (!text) {
+    setStatus("לא זוהה מידע חדש לניתוח.");
+    return;
+  }
+
+  const textUpdate = {
+    id: `update-${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2, 8)}`,
+    type: "case_text_update",
+    targetType: "case",
+    targetId: currentCaseId,
+    title: "עדכון טקסטואלי לתיק",
+    text,
+    createdAt: new Date().toISOString(),
+    status: "pending_analysis",
+  };
+
+  const nextUpdates = [textUpdate, ...workspaceUpdates];
+
+  setWorkspaceUpdates(nextUpdates);
+
+  setAdditionalInfoText("");
+
+  persistCurrentCase(analysis, {
+    workspaceUpdates: nextUpdates,
+  });
+
+  await runIncrementalAnalysis(nextUpdates);
+}
+async function runIncrementalAnalysis(updatesOverride = null) {
+  console.log("RUN INCREMENTAL CLICKED");
+
+  console.log("workspaceUpdates:", workspaceUpdates);
+
+  console.log(
+    "pending:",
+    workspaceUpdates.filter(
+      (u) => u.status === "pending_analysis"
+    )
+  );
+
+  setLoading(true);
+  setError("");
+
+  try {
+const effectiveUpdates = updatesOverride || workspaceUpdates;
+
+const pendingUpdates = effectiveUpdates.filter(
+  (update) => update.status === "pending_analysis"
+);
+
+    if (!pendingUpdates.length) {
+      setStatus("אין עדכונים חדשים לניתוח.");
+      return;
+    }
+
+    const response = await fetch("/api/reanalyze", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+body: JSON.stringify({
+  previousAnalysis: {
+    executiveView: analysis?.executiveView,
+    caseTheory: analysis?.caseTheory,
+  },
+  workspaceUpdates: pendingUpdates.map((update) => ({
+    id: update.id,
+    type: update.type,
+    targetType: update.targetType,
+    targetId: update.targetId,
+    title: update.title,
+    text: update.text,
+    createdAt: update.createdAt,
+    status: update.status,
+  })),
+  caseText: caseText.slice(0, 4000),
+  documentText: "",
+}),
+    });
+
+if (!response.ok) {
+  const errorData = await response.json().catch(() => null);
+console.error(
+  "REANALYSIS SERVER ERROR:",
+  JSON.stringify(errorData, null, 2)
+);
+  throw new Error(errorData?.error || "Reanalysis failed");
+}
+
+    const delta = await response.json();
+    setLatestDelta(delta);
+    setShowDeltaPanel(true);
+
+    console.log("DELTA ANALYSIS:", delta);
+
+    const analyzedIds = delta.analyzedUpdateIds || [];
+
+const nextUpdates = effectiveUpdates.map((update) => {
+      if (analyzedIds.includes(update.id)) {
+        return {
+          ...update,
+          status: "analyzed",
+        };
+      }
+
+      return update;
+    });
+
+    setWorkspaceUpdates(nextUpdates);
+
+    setStatus("בוצע עדכון ניתוח לתיק.");
+    setIntakeExpanded(false);
+
+    persistCurrentCase(analysis, {
+      workspaceUpdates: nextUpdates,
+    });
+
+    console.log("REANALYSIS RESULT:", delta);
+  } catch (err) {
+    console.error(err);
+    setError("עדכון הניתוח נכשל.");
+  } finally {
+    setLoading(false);
+  }
+}
 
   function handleAddInfo() {
     setIntakeExpanded(true);
     setError("");
     setStatus("אפשר להוסיף קבצים או לעדכן את תיאור המקרה ואז להריץ ניתוח מחדש.");
   }
+function acceptGeneratedWorkItem(item, index) {
+  const acceptedItem = {
+    ...item,
+    id:
+      item.id ||
+      `work-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    status: "accepted",
+    acceptedAt: new Date().toISOString(),
+  };
 
+  const nextAcceptedWorkItems = [acceptedItem, ...acceptedWorkItems];
+
+  const nextGeneratedWorkItems =
+    latestDelta?.generatedWorkItems?.filter((_, itemIndex) => itemIndex !== index) ||
+    [];
+
+  const nextDelta = {
+    ...latestDelta,
+    generatedWorkItems: nextGeneratedWorkItems,
+  };
+
+  setAcceptedWorkItems(nextAcceptedWorkItems);
+  setLatestDelta(nextDelta);
+
+  persistCurrentCase(analysis, {
+    acceptedWorkItems: nextAcceptedWorkItems,
+  });
+}
+
+function rejectGeneratedWorkItem(index) {
+  const nextGeneratedWorkItems =
+    latestDelta?.generatedWorkItems?.filter((_, itemIndex) => itemIndex !== index) ||
+    [];
+
+  setLatestDelta({
+    ...latestDelta,
+    generatedWorkItems: nextGeneratedWorkItems,
+  });
+}
+
+function removeAcceptedWorkItem(itemId) {
+  const nextAcceptedWorkItems = acceptedWorkItems.filter(
+    (item) => item.id !== itemId
+  );
+
+  setAcceptedWorkItems(nextAcceptedWorkItems);
+
+  persistCurrentCase(analysis, {
+    acceptedWorkItems: nextAcceptedWorkItems,
+  });
+}
   function renderWorkspaceView() {
     switch (activeView) {
       case "pleadings":
@@ -495,15 +751,53 @@ ${updatesText}
             />
           </div>
         );
+case "case-map":
+default:
+  return (
+    <div className="space-y-4">
+      <IssuesView
+        analysis={analysis}
+        onWorkspaceUpdate={handleWorkspaceUpdate}
+      />
 
-      case "case-map":
-      default:
-        return (
-          <IssuesView
-            analysis={analysis}
-            onWorkspaceUpdate={handleWorkspaceUpdate}
-          />
-        );
+      {acceptedWorkItems.length > 0 && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="font-bold text-slate-900 mb-3">
+            משימות שאושרו
+          </div>
+
+          <div className="space-y-2">
+            {acceptedWorkItems.map((item) => (
+              <div
+                key={item.id}
+                className="rounded-xl border border-slate-200 bg-slate-50 p-3"
+              >
+                <div className="flex justify-between gap-3">
+                  <div>
+                    <div className="font-semibold">
+                      {item.title}
+                    </div>
+
+                    <div className="mt-1 text-sm text-slate-600 leading-6">
+                      {item.description}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => removeAcceptedWorkItem(item.id)}
+                    className="text-xs text-red-600 hover:text-red-800"
+                  >
+                    מחק
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
     }
   }
 
@@ -547,6 +841,22 @@ ${updatesText}
                 >
                   מחק תיק
                 </button>
+               {latestDelta && (
+  <button
+    type="button"
+    onClick={() => {
+      console.log("BELL CLICKED");
+      setShowDeltaPanel((prev) => !prev);
+    }}
+    className="relative rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm hover:bg-slate-50"
+  >
+    🔔 עדכונים
+
+    <span className="absolute -top-2 -left-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[11px] font-bold text-white">
+      {latestDelta.generatedWorkItems?.length || 1}
+    </span>
+  </button>
+)}
               </div>
 
               <a
@@ -558,25 +868,25 @@ ${updatesText}
             </div>
 
             {intakeExpanded || !analysis ? (
-              <CaseIntake
-                caseText={caseText}
-                setCaseText={setCaseText}
-                handleWordUpload={handleWordUpload}
-                uploadedFiles={uploadedFiles}
-                status={status}
-                runAnalysis={runAnalysis}
-                loading={loading}
-              />
+<CaseIntake
+  caseText={analysis ? additionalInfoText : caseText}
+  setCaseText={analysis ? setAdditionalInfoText : setCaseText}
+  handleWordUpload={handleWordUpload}
+  uploadedFiles={uploadedFiles}
+  status={status}
+runAnalysis={analysis ? handleCaseTextUpdateAndReanalyze : runAnalysis}
+  loading={loading}
+  hasAnalysis={!!analysis}
+/>
             ) : (
-              <CollapsedCaseHeader
-                caseName={caseName}
-                caseText={caseText}
-                uploadedFiles={uploadedFiles}
-                onEdit={() => setIntakeExpanded(true)}
-                onAddInfo={handleAddInfo}
-                onReanalyze={runAnalysis}
-                loading={loading}
-              />
+      <CollapsedCaseHeader
+  caseName={caseName}
+  caseText={caseText}
+  uploadedFiles={uploadedFiles}
+  onAddInfo={handleAddInfo}
+  onReanalyze={runIncrementalAnalysis}
+  loading={loading}
+/>
             )}
 
             <WorkspaceHeader activeView={activeView} />
@@ -587,6 +897,14 @@ ${updatesText}
               </div>
             )}
 
+{latestDelta && showDeltaPanel && (
+<DeltaNotificationPanel
+  delta={latestDelta}
+  onClose={() => setShowDeltaPanel(false)}
+  onAcceptWorkItem={acceptGeneratedWorkItem}
+  onRejectWorkItem={rejectGeneratedWorkItem}
+/>
+)}
             <main id="results" className="space-y-4 min-w-0">
               {activeView === "case-map" &&
                 analysis?.executiveView?.successAssessment && (
@@ -602,4 +920,29 @@ ${updatesText}
       </div>
     </div>
   );
+  function DeltaMetric({ label, value }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center">
+      <div className="text-lg font-bold text-slate-900">{value}</div>
+      <div className="mt-1 text-slate-500">{label}</div>
+    </div>
+  );
+}
+
+function translateWorkItemType(type) {
+  switch (type) {
+    case "client_question":
+      return "שאלה ללקוח";
+    case "evidence_to_obtain":
+      return "ראיה להשגה";
+    case "suggested_action":
+      return "מהלך מוצע";
+    case "pleading_gap":
+      return "פער בכתב טענות";
+    case "legal_research":
+      return "בדיקה משפטית";
+    default:
+      return "משימה";
+  }
+}
 }
