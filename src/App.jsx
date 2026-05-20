@@ -27,6 +27,14 @@ import {
   deleteCase,
 } from "./utils/caseStorage";
 
+import {
+  translateEvidenceType,
+  getUnscopedEvidenceOverlays,
+  getUnscopedWorkItems,
+} from "./utils/applyOverlays";
+import { normalizeIssues } from "./utils/normalizeIssues";
+import { normalizeDeltaIssueLinks } from "./utils/normalizeDeltaIssueLinks";
+
 export default function App() {
   const [caseText, setCaseText] = useState("");
   const [additionalInfoText, setAdditionalInfoText] = useState("");
@@ -42,6 +50,7 @@ export default function App() {
   const [analysisDiff, setAnalysisDiff] = useState([]);
   const [latestDelta, setLatestDelta] = useState(null);
   const [acceptedWorkItems, setAcceptedWorkItems] = useState([]);
+  const [overlays, setOverlays] = useState([]);
   const [lastAnalyzedCaseText, setLastAnalyzedCaseText] = useState("");
   const [showDeltaPanel, setShowDeltaPanel] = useState(false);
 
@@ -64,6 +73,19 @@ export default function App() {
   useEffect(() => {
     setSavedCases(listCases());
   }, []);
+
+  useEffect(() => {
+    if (!analysis) return;
+    const hasPending = workspaceUpdates.some(
+      (u) => u.status === "pending_analysis"
+    );
+    if (!hasPending) return;
+    const cleaned = workspaceUpdates.map((u) =>
+      u.status === "pending_analysis" ? { ...u, status: "analyzed" } : u
+    );
+    setWorkspaceUpdates(cleaned);
+    persistCurrentCase(analysis, { workspaceUpdates: cleaned });
+  }, [analysis]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!isAuthorized) {
     return (
@@ -120,6 +142,7 @@ export default function App() {
       analysis: analysisData,
       workspaceUpdates: overrides.workspaceUpdates ?? workspaceUpdates,
       acceptedWorkItems: overrides.acceptedWorkItems ?? acceptedWorkItems,
+      overlays: overrides.overlays ?? overlays,
       lastAnalyzedCaseText:
   overrides.lastAnalyzedCaseText ?? lastAnalyzedCaseText,
     };
@@ -142,8 +165,14 @@ export default function App() {
     setCaseFiles(loaded.caseFiles || []);
     setUploadedFiles(loaded.uploadedFiles || []);
     setAnalysis(loaded.analysis || null);
-    setWorkspaceUpdates(loaded.workspaceUpdates || []);
+    const loadedUpdates = (loaded.workspaceUpdates || []).map((u) =>
+      loaded.analysis && u.status === "pending_analysis"
+        ? { ...u, status: "analyzed" }
+        : u
+    );
+    setWorkspaceUpdates(loadedUpdates);
     setAcceptedWorkItems(loaded.acceptedWorkItems || []);
+    setOverlays(loaded.overlays || []);
     setLastAnalyzedCaseText(loaded.lastAnalyzedCaseText || "");
     setEntryMode("existing");
     setIntakeExpanded(!loaded.analysis);
@@ -514,8 +543,14 @@ ${updatesText}
       setAnalysis(data);
       setIntakeExpanded(false);
 
+      const analyzedUpdates = workspaceUpdates.map((u) =>
+        u.status === "pending_analysis" ? { ...u, status: "analyzed" } : u
+      );
+      setWorkspaceUpdates(analyzedUpdates);
+
       persistCurrentCase(data, {
         caseName: nextCaseName,
+        workspaceUpdates: analyzedUpdates,
       });
 
       setTimeout(() => {
@@ -544,7 +579,7 @@ ${updatesText}
 }
 
   if (!text) {
-    setStatus("לא זוהה מידע חדש לניתוח.");
+    setError("לא הוכנס מידע חדש");
     return;
   }
 
@@ -596,9 +631,14 @@ const pendingUpdates = effectiveUpdates.filter(
 );
 
     if (!pendingUpdates.length) {
-      setStatus("אין עדכונים חדשים לניתוח.");
+      setError("לא הוכנס מידע חדש");
       return;
     }
+
+    const allowedIssues = normalizeIssues(analysis).map((issue) => ({
+      id: issue.id,
+      title: issue.title,
+    }));
 
     const response = await fetch("/api/reanalyze", {
       method: "POST",
@@ -620,6 +660,7 @@ body: JSON.stringify({
     createdAt: update.createdAt,
     status: update.status,
   })),
+  allowedIssues,
   caseText: caseText.slice(0, 4000),
   documentText: "",
 }),
@@ -635,7 +676,9 @@ console.error(
 }
 
     const delta = await response.json();
-    setLatestDelta(delta);
+    const normalizedDelta = normalizeDeltaIssueLinks(delta, allowedIssues);
+    setLatestDelta(normalizedDelta);
+    setOverlays((prev) => prev.map((o) => ({ ...o, isNew: false })));
     setShowDeltaPanel(true);
 
     console.log("DELTA ANALYSIS:", delta);
@@ -727,16 +770,57 @@ function removeAcceptedWorkItem(itemId) {
     acceptedWorkItems: nextAcceptedWorkItems,
   });
 }
+  function acceptEvidenceUpdate(item, index) {
+    const overlay = {
+      id: `overlay-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      createdAt: new Date().toISOString(),
+      type: "evidence",
+      isNew: true,
+      sourceDeltaItem: item,
+      patch: {
+        action: "add_evidence_update",
+        evidenceType: item.type,
+        title: item.title,
+        description: item.description,
+        relatedIssueId: item.relatedIssueId || null,
+        relatedIssueTitle: item.relatedIssueTitle || null,
+        relatedUpdateId: item.relatedUpdateId || null,
+      },
+    };
+    console.log("[acceptEvidenceUpdate] delta item:", item);
+    console.log("[acceptEvidenceUpdate] overlay created:", overlay);
+
+    const nextOverlays = [...overlays, overlay];
+    const nextEvidenceUpdates =
+      latestDelta?.evidenceUpdates?.filter((_, i) => i !== index) || [];
+
+    setOverlays(nextOverlays);
+    setLatestDelta({ ...latestDelta, evidenceUpdates: nextEvidenceUpdates });
+    persistCurrentCase(analysis, { overlays: nextOverlays });
+  }
+
+  function rejectEvidenceUpdate(index) {
+    const nextEvidenceUpdates =
+      latestDelta?.evidenceUpdates?.filter((_, i) => i !== index) || [];
+    setLatestDelta({ ...latestDelta, evidenceUpdates: nextEvidenceUpdates });
+  }
+
+  function rollbackOverlay(overlayId) {
+    const nextOverlays = overlays.filter((o) => o.id !== overlayId);
+    setOverlays(nextOverlays);
+    persistCurrentCase(analysis, { overlays: nextOverlays });
+  }
+
   function renderWorkspaceView() {
     switch (activeView) {
       case "pleadings":
-        return <EvidenceView />;
+        return <EvidenceView overlays={overlays} onRollback={rollbackOverlay} />;
 
       case "discovery":
         return <WitnessesView />;
 
       case "proofs":
-        return <EvidenceView />;
+        return <EvidenceView overlays={overlays} onRollback={rollbackOverlay} />;
 
       case "summaries":
         return <WitnessesView />;
@@ -758,44 +842,18 @@ default:
       <IssuesView
         analysis={analysis}
         onWorkspaceUpdate={handleWorkspaceUpdate}
+        overlays={overlays}
+        acceptedWorkItems={acceptedWorkItems}
+        onRollbackOverlay={rollbackOverlay}
+        onRemoveWorkItem={removeAcceptedWorkItem}
       />
 
-      {acceptedWorkItems.length > 0 && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="font-bold text-slate-900 mb-3">
-            משימות שאושרו
-          </div>
-
-          <div className="space-y-2">
-            {acceptedWorkItems.map((item) => (
-              <div
-                key={item.id}
-                className="rounded-xl border border-slate-200 bg-slate-50 p-3"
-              >
-                <div className="flex justify-between gap-3">
-                  <div>
-                    <div className="font-semibold">
-                      {item.title}
-                    </div>
-
-                    <div className="mt-1 text-sm text-slate-600 leading-6">
-                      {item.description}
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => removeAcceptedWorkItem(item.id)}
-                    className="text-xs text-red-600 hover:text-red-800"
-                  >
-                    מחק
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      <UnscopedFallback
+        evidenceOverlays={getUnscopedEvidenceOverlays(overlays, normalizeIssues(analysis))}
+        workItems={getUnscopedWorkItems(acceptedWorkItems)}
+        onRollbackOverlay={rollbackOverlay}
+        onRemoveWorkItem={removeAcceptedWorkItem}
+      />
     </div>
   );
     }
@@ -884,7 +942,7 @@ runAnalysis={analysis ? handleCaseTextUpdateAndReanalyze : runAnalysis}
   caseText={caseText}
   uploadedFiles={uploadedFiles}
   onAddInfo={handleAddInfo}
-  onReanalyze={runIncrementalAnalysis}
+  onReanalyze={() => runIncrementalAnalysis()}
   loading={loading}
 />
             )}
@@ -903,6 +961,8 @@ runAnalysis={analysis ? handleCaseTextUpdateAndReanalyze : runAnalysis}
   onClose={() => setShowDeltaPanel(false)}
   onAcceptWorkItem={acceptGeneratedWorkItem}
   onRejectWorkItem={rejectGeneratedWorkItem}
+  onAcceptEvidenceUpdate={acceptEvidenceUpdate}
+  onRejectEvidenceUpdate={rejectEvidenceUpdate}
 />
 )}
             <main id="results" className="space-y-4 min-w-0">
@@ -945,4 +1005,73 @@ function translateWorkItemType(type) {
       return "משימה";
   }
 }
+}
+
+function UnscopedFallback({
+  evidenceOverlays,
+  workItems,
+  onRollbackOverlay,
+  onRemoveWorkItem,
+}) {
+  if (!evidenceOverlays.length && !workItems.length) return null;
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="font-bold text-slate-900 mb-1">עדכונים שלא שויכו למחלוקת</div>
+      <div className="text-xs text-slate-500 mb-3">
+        עדכונים אלו לא קושרו לאף מחלוקת ספציפית
+      </div>
+
+      <div className="space-y-2">
+        {evidenceOverlays.map((overlay) => (
+          <div
+            key={overlay.id}
+            className="flex items-start justify-between gap-3 rounded-xl border border-emerald-100 bg-emerald-50/40 px-3 py-2.5"
+          >
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">
+                  {translateEvidenceType(overlay.patch.evidenceType)}
+                </span>
+                <span className="text-sm font-semibold text-slate-900">
+                  {overlay.patch.title}
+                </span>
+              </div>
+              <p className="mt-1 text-xs leading-5 text-slate-600">
+                {overlay.patch.description}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => onRollbackOverlay?.(overlay.id)}
+              className="shrink-0 text-xs text-slate-400 hover:text-red-500"
+            >
+              בטל
+            </button>
+          </div>
+        ))}
+
+        {workItems.map((item) => (
+          <div
+            key={item.id}
+            className="flex items-start justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5"
+          >
+            <div>
+              <div className="text-sm font-semibold text-slate-900">{item.title}</div>
+              {item.description && (
+                <p className="mt-1 text-xs leading-5 text-slate-600">{item.description}</p>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => onRemoveWorkItem?.(item.id)}
+              className="shrink-0 text-xs text-slate-400 hover:text-red-500"
+            >
+              מחק
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }

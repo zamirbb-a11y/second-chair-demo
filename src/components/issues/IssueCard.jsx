@@ -1,10 +1,16 @@
 import { useEffect, useState } from "react";
+import { translateEvidenceType } from "../../utils/applyOverlays";
 
 export default function IssueCard({
   issue,
   onUpdateIssue,
   onWorkspaceUpdate,
+  evidenceOverlays = [],
+  workItemOverlays = [],
+  onRollbackOverlay,
+  onRemoveWorkItem,
 }) {
+  const totalOverlays = evidenceOverlays.length + workItemOverlays.length;
   const [isEditing, setIsEditing] = useState(false);
   const [draftTitle, setDraftTitle] = useState(issue.title);
   const [draftDescription, setDraftDescription] = useState(issue.description);
@@ -129,6 +135,13 @@ shadow-[0_6px_18px_rgba(15,23,42,0.08)]
           >
             {importanceLabels[issue.importance] || "לא סווג"}
           </span>
+
+          {totalOverlays > 0 && (
+            <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              {totalOverlays} עדכונים שאושרו
+            </span>
+          )}
         </div>
 
         {isEditing ? (
@@ -224,6 +237,12 @@ shadow-[0_6px_18px_rgba(15,23,42,0.08)]
                 title="ראיות קשורות"
                 items={issue.linkedEvidence}
                 limit={4}
+                overlayItems={evidenceOverlays.filter(
+                  (o) =>
+                    o.patch.evidenceType === "new_evidence" ||
+                    o.patch.evidenceType === "document_impact"
+                )}
+                onRollbackOverlay={onRollbackOverlay}
               />
 
               <ExpandableList
@@ -236,9 +255,22 @@ shadow-[0_6px_18px_rgba(15,23,42,0.08)]
                 title="חוסרים ראייתיים"
                 items={issue.missingInfo}
                 limit={3}
+                overlayItems={evidenceOverlays.filter(
+                  (o) =>
+                    o.patch.evidenceType === "missing_evidence" ||
+                    o.patch.evidenceType === "evidence_gap"
+                )}
+                onRollbackOverlay={onRollbackOverlay}
               />
             </SectionCard>
           </div>
+
+          {workItemOverlays.length > 0 && (
+            <ApprovedUpdatesSection
+              workItemOverlays={workItemOverlays}
+              onRemoveWorkItem={onRemoveWorkItem}
+            />
+          )}
 
           <SectionCard title="כיווני פעולה">
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
@@ -336,16 +368,18 @@ function ExpandableList({
   title,
   items,
   limit = 3,
+  overlayItems = [],
+  onRollbackOverlay,
 }) {
   const [isOpen, setIsOpen] = useState(false);
 
-  if (!items?.length) return null;
+  if (!items?.length && !overlayItems.length) return null;
 
   const visibleItems = isOpen
     ? items
-    : items.slice(0, limit);
+    : (items || []).slice(0, limit);
 
-  const hiddenCount = items.length - limit;
+  const hiddenCount = (items?.length || 0) - limit;
 
   return (
     <>
@@ -358,9 +392,28 @@ function ExpandableList({
           {visibleItems.map((item) => (
             <li key={item}>• {item}</li>
           ))}
+          {overlayItems.map((overlay) => (
+            <li key={overlay.id} className="flex items-start justify-between gap-2 pt-0.5">
+              <span className="leading-5">
+                • {overlay.patch.title}
+                {overlay.isNew && (
+                  <span className="mr-1.5 rounded-full bg-emerald-100 px-1.5 py-0.5 text-xs font-semibold text-emerald-700 align-middle">
+                    חדש
+                  </span>
+                )}
+              </span>
+              <button
+                type="button"
+                onClick={() => onRollbackOverlay?.(overlay.id)}
+                className="shrink-0 text-xs text-slate-400 hover:text-red-500 transition"
+              >
+                בטל
+              </button>
+            </li>
+          ))}
         </ul>
 
-        {items.length > limit && (
+        {(items?.length || 0) > limit && (
           <button
             type="button"
             onClick={() => setIsOpen(true)}
@@ -434,6 +487,49 @@ function ExpandableList({
         </div>
       )}
     </>
+  );
+}
+
+function ApprovedUpdatesSection({ workItemOverlays, onRemoveWorkItem }) {
+  return (
+    <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-4">
+      <div className="text-sm font-bold text-blue-900 mb-3">
+        משימות שאושרו
+      </div>
+
+      <div className="space-y-2">
+        {workItemOverlays.map((item) => (
+          <div
+            key={item.id}
+            className="flex items-start justify-between gap-3 rounded-xl border border-blue-100 bg-white px-3 py-2.5"
+          >
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700 shrink-0">
+                  משימה
+                </span>
+                <span className="text-sm font-semibold text-slate-900">
+                  {item.title}
+                </span>
+              </div>
+              {item.description && (
+                <p className="mt-1 text-xs leading-5 text-slate-600">
+                  {item.description}
+                </p>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => onRemoveWorkItem?.(item.id)}
+              className="shrink-0 text-xs text-slate-400 hover:text-red-500 transition"
+            >
+              בטל
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 

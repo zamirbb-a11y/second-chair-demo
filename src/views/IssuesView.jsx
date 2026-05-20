@@ -2,8 +2,19 @@ import { useEffect, useState } from "react";
 
 import IssueCard from "../components/issues/IssueCard";
 import { normalizeIssues } from "../utils/normalizeIssues";
+import {
+  getIssueEvidenceOverlays,
+  getIssueWorkItems,
+} from "../utils/applyOverlays";
 
-export default function IssuesView({ analysis, onWorkspaceUpdate }) {
+export default function IssuesView({
+  analysis,
+  onWorkspaceUpdate,
+  overlays = [],
+  acceptedWorkItems = [],
+  onRollbackOverlay,
+  onRemoveWorkItem,
+}) {
   const [issues, setIssues] = useState([]);
   const [importanceFilter, setImportanceFilter] = useState("all");
   const [showAllIssues, setShowAllIssues] = useState(false);
@@ -222,12 +233,12 @@ export default function IssuesView({ analysis, onWorkspaceUpdate }) {
           <IssueCard
             key={`${caseKey}-${issue.id}-${index}`}
             issue={issue}
-            onUpdateIssue={
-              handleUpdateIssue
-            }
-            onWorkspaceUpdate={
-              onWorkspaceUpdate
-            }
+            onUpdateIssue={handleUpdateIssue}
+            onWorkspaceUpdate={onWorkspaceUpdate}
+            evidenceOverlays={getIssueEvidenceOverlays(overlays, issue.id, issue.title)}
+            workItemOverlays={getIssueWorkItems(acceptedWorkItems, issue.id, issue.title)}
+            onRollbackOverlay={onRollbackOverlay}
+            onRemoveWorkItem={onRemoveWorkItem}
           />
         )
       )}

@@ -19,6 +19,7 @@ export default async function handler(req, res) {
     const {
       previousAnalysis,
       workspaceUpdates = [],
+      allowedIssues = [],
       caseText = "",
       documentText = "",
     } = req.body || {};
@@ -88,6 +89,8 @@ generatedWorkItems: [],
       "type": "new_evidence | missing_evidence | evidence_gap | document_impact",
       "title": "",
       "description": "",
+      "relatedIssueId": "",
+      "relatedIssueTitle": "",
       "relatedUpdateId": ""
     }
   ],
@@ -114,16 +117,8 @@ generatedWorkItems: [],
       "priority": "low | medium | high",
       "relatedUpdateId": ""
     }
-  ]
-    "suggestedActions": [
-  {
-    "title": "",
-    "description": "",
-    "priority": "low | medium | high",
-    "relatedUpdateId": ""
-  }
-],
-"generatedWorkItems": [
+  ],
+  "generatedWorkItems": [
   {
     "type": "client_question | evidence_to_obtain | suggested_action | pleading_gap | legal_research",
     "title": "",
@@ -135,6 +130,17 @@ generatedWorkItems: [],
     "priority": "low | medium | high"
   }
 ]
+}
+
+חוקי מחייבים לשדות relatedIssueId ו-issueId:
+${
+  allowedIssues.length > 0
+    ? `רשימת המחלוקות המורשות (allowedIssues):
+${JSON.stringify(allowedIssues, null, 2)}
+
+IMPORTANT: בכל מקום שאתה ממלא relatedIssueId או issueId, חייב להיות אחד מה-id-ים ברשימה זו.
+אל תמציא id-ים. אל תשנה את הפורמט. אם אין מחלוקת מתאימה ברורה, השאר את השדה ריק.`
+    : "לא סופקה רשימת מחלוקות. השאר relatedIssueId ריק."
 }
 
 ניתוח קודם:

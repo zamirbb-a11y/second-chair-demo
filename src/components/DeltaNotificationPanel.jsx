@@ -5,6 +5,8 @@ export default function DeltaNotificationPanel({
   onClose,
   onAcceptWorkItem,
   onRejectWorkItem,
+  onAcceptEvidenceUpdate,
+  onRejectEvidenceUpdate,
 }) {
   const sections = useMemo(
     () => [
@@ -164,6 +166,26 @@ export default function DeltaNotificationPanel({
                         <button
                           type="button"
                           onClick={() => onRejectWorkItem?.(index)}
+                          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50"
+                        >
+                          דחה
+                        </button>
+                      </div>
+                    )}
+
+                    {activeSection.key === "evidence" && (
+                      <div className="mt-3 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => onAcceptEvidenceUpdate?.(item, index)}
+                          className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800"
+                        >
+                          אשר עדכון
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => onRejectEvidenceUpdate?.(index)}
                           className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50"
                         >
                           דחה
