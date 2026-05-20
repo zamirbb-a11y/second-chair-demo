@@ -48,6 +48,11 @@ export default function FileList({
                       {formatFileSize(
                         file.size
                       )}
+                      {file.needsOcr && (
+  <div className="mt-1 text-[11px] text-amber-700">
+    PDF סרוק / לא חולץ טקסט — נדרש OCR
+  </div>
+)}
                     </div>
                   </div>
                 </div>
@@ -114,7 +119,9 @@ function getStatusStyle(status) {
   if (status === "נטען") {
     return "bg-emerald-100 text-emerald-700";
   }
-
+if (status === "נדרש OCR") {
+  return "bg-amber-100 text-amber-700";
+}
   if (
     status ===
     "הפורמט טרם נתמך"

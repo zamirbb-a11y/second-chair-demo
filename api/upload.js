@@ -32,6 +32,8 @@ export default async function handler(req, res) {
           size: file.size,
           type: getExtension(file.originalFilename),
           status: "שגיאה בקריאת הקובץ",
+          extractionMethod: "failed",
+          needsOcr: false,
           text: "",
           textLength: 0,
           preview: "",
@@ -66,17 +68,28 @@ async function processFile(file) {
 
   let extractedText = "";
   let status = "נטען";
+  let extractionMethod = "none";
+  let needsOcr = false;
 
   if (extension === "docx") {
     const result = await mammoth.extractRawText({ buffer });
     extractedText = result.value || "";
+    extractionMethod = "mammoth";
   } else if (extension === "pdf") {
     const result = await pdfParse(buffer);
     extractedText = result.text || "";
+    extractionMethod = "pdf-parse";
+
+    if (normalizeText(extractedText).length < 300) {
+      needsOcr = true;
+      status = "נדרש OCR";
+    }
   } else if (extension === "txt") {
     extractedText = buffer.toString("utf8");
+    extractionMethod = "plain-text";
   } else if (extension === "eml") {
     const parsed = await simpleParser(buffer);
+    extractionMethod = "mailparser";
 
     extractedText = `
 Subject: ${parsed.subject || ""}
@@ -91,6 +104,7 @@ ${parsed.text || ""}
 `;
   } else {
     status = "הפורמט טרם נתמך";
+    extractionMethod = "unsupported";
   }
 
   const cleanText = normalizeText(extractedText);
@@ -103,6 +117,8 @@ ${parsed.text || ""}
     size: file.size,
     type: extension,
     status,
+    extractionMethod,
+    needsOcr,
     text: cleanText,
     textLength: cleanText.length,
     preview: cleanText.slice(0, 700),
@@ -189,10 +205,7 @@ function inferDocumentRole({ fileName, extension, lower }) {
     return "בדיקת נאותות / DD";
   }
 
-  if (
-    lower.includes("draft") ||
-    lower.includes("טיוטה")
-  ) {
+  if (lower.includes("draft") || lower.includes("טיוטה")) {
     return "טיוטה / גרסה מוקדמת";
   }
 
@@ -323,11 +336,13 @@ function extractDates(text) {
 function extractLikelyPeople(text) {
   const people = new Set();
 
-  const emailMatches = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || [];
+  const emailMatches =
+    text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || [];
   emailMatches.forEach((email) => people.add(email));
 
   const hebrewRoleMatches =
-    text.match(/(?:מנכ"ל|סמנכ"ל|CFO|CEO|מנהל מוצר|דירקטור)[^:\n]{0,40}/g) || [];
+    text.match(/(?:מנכ"ל|סמנכ"ל|CFO|CEO|מנהל מוצר|דירקטור)[^:\n]{0,40}/g) ||
+    [];
   hebrewRoleMatches.forEach((match) => people.add(match.trim()));
 
   return Array.from(people).slice(0, 8);
@@ -338,10 +353,7 @@ function inferEvidenceWeight({ documentRole, lower, status }) {
     return "Unknown";
   }
 
-  if (
-    documentRole.includes("הסכם") ||
-    documentRole.includes("חוזי")
-  ) {
+  if (documentRole.includes("הסכם") || documentRole.includes("חוזי")) {
     return "High";
   }
 
@@ -353,10 +365,7 @@ function inferEvidenceWeight({ documentRole, lower, status }) {
     return "Medium-High";
   }
 
-  if (
-    lower.includes("טיוטה") ||
-    lower.includes("draft")
-  ) {
+  if (lower.includes("טיוטה") || lower.includes("draft")) {
     return "Medium";
   }
 

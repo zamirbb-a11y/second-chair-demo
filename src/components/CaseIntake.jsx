@@ -38,20 +38,23 @@ export default function CaseIntake({
               העלה מסמכי תיק
             </div>
 
-            <div className="text-sm text-slate-500 mt-2 leading-6">
-              אפשר לבחור כמה קבצים יחד.
-              <br />
-              כרגע הדמו קורא בפועל רק קובצי Word.
-            </div>
+     <div className="text-sm text-slate-500 mt-2 leading-6">
+  אפשר לבחור כמה קבצים יחד.
+  <br />
+  הדמו תומך ב־DOCX, TXT, EML ו־PDF קריא.
+  <br />
+  PDF סרוק או תמונתי עדיין דורש OCR.
+</div>
 
-            <div className="mt-4 flex flex-wrap justify-center gap-2 text-xs">
-              <FormatBadge label="DOCX פעיל" active />
-              <FormatBadge label="PDF בקרוב" />
-              <FormatBadge label="TXT בקרוב" />
-              <FormatBadge label="EML בקרוב" />
-              <FormatBadge label="MSG בהמשך" />
-              <FormatBadge label="ZIP בהמשך" />
-            </div>
+         <div className="mt-4 flex flex-wrap justify-center gap-2 text-xs">
+  <FormatBadge label="DOCX פעיל" active />
+  <FormatBadge label="PDF פעיל" active />
+  <FormatBadge label="TXT פעיל" active />
+  <FormatBadge label="EML פעיל" active />
+  <FormatBadge label="MSG בהמשך" />
+  <FormatBadge label="ZIP בהמשך" />
+  <FormatBadge label="OCR בקרוב" />
+</div>
           </div>
 
           <input

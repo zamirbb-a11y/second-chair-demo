@@ -182,10 +182,12 @@ if (!entryMode) {
       setUploadedFiles((prev) => [
         ...prev,
         ...processedFiles.map((file) => ({
-          name: file.name,
-          size: file.size,
-          status: file.status,
-          type: file.type,
+         name: file.name,
+  size: file.size,
+  status: file.status,
+  type: file.type,
+  needsOcr: file.needsOcr,
+  textLength: file.textLength,
         })),
       ]);
 
