@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function IssueCard({
   issue,
@@ -12,6 +12,14 @@ export default function IssueCard({
 
   const [activeAction, setActiveAction] = useState(null);
   const [actionText, setActionText] = useState("");
+  useEffect(() => {
+  setDraftTitle(issue.title || "");
+  setDraftDescription(issue.description || "");
+  setIsEditing(false);
+  setIsExpanded(false);
+  setActiveAction(null);
+  setActionText("");
+}, [issue.id, issue.title, issue.description]);
 
   const importanceClasses = {
     central: "bg-slate-900 text-white",

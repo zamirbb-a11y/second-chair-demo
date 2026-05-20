@@ -74,10 +74,13 @@ export default function CaseIntake({
           <FileList files={uploadedFiles} status={status} />
         </div>
 
-        <div className="mt-3 text-xs text-slate-500 leading-5">
-          בשלב הבא נעביר את עיבוד הקבצים לשרת, ואז נוסיף תמיכה אמיתית ב־PDF,
-          אימיילים, ZIP וקבצים סרוקים.
-        </div>
+<div className="mt-3 text-xs text-slate-500 leading-5">
+  PDF טקסטואלי נתמך כעת.
+  <br />
+  מסמכי PDF סרוקים או תמונתיים עדיין דורשים OCR.
+  <br />
+  מגבלת גודל בגרסת הדמו: עד 4MB לקובץ.
+</div>
       </Card>
     </div>
   );

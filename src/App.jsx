@@ -1,23 +1,36 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 import AnalysisLoadingOverlay from "./components/AnalysisLoadingOverlay";
 import CaseIntake from "./components/CaseIntake";
 import CollapsedCaseHeader from "./components/CollapsedCaseHeader";
 
 import generateAnalysisDiff from "./utils/generateAnalysisDiff";
+
 import WorkspaceSidebar from "./components/layout/WorkspaceSidebar";
 import WorkspaceHeader from "./components/layout/WorkspaceHeader";
+
 import IssuesView from "./views/IssuesView";
 import EvidenceView from "./views/EvidenceView";
 import WitnessesView from "./views/WitnessesView";
+
 import PrecedentBankManager from "./admin/PrecedentBankManager";
+
 import HorizontalTimeline from "./components/HorizontalTimeline";
 import SuccessAssessment from "./components/SuccessAssessment";
+
+import {
+  createCaseId,
+  saveCase,
+  loadCase,
+  listCases,
+  deleteCase,
+} from "./utils/caseStorage";
 
 export default function App() {
   const [caseText, setCaseText] = useState("");
   const [documentText, setDocumentText] = useState("");
   const [caseName, setCaseName] = useState("צד א׳ נ׳ צד ב׳");
+
   const [caseFiles, setCaseFiles] = useState([]);
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [status, setStatus] = useState("");
@@ -32,126 +45,249 @@ export default function App() {
 
   const [workspaceUpdates, setWorkspaceUpdates] = useState([]);
   const [activeView, setActiveView] = useState("case-map");
+
   const [entryMode, setEntryMode] = useState(null);
+  const [savedCases, setSavedCases] = useState([]);
+  const [newCaseName, setNewCaseName] = useState("");
+  const [showNewCaseForm, setShowNewCaseForm] = useState(false);
+  const [currentCaseId, setCurrentCaseId] = useState(null);
+
   const [isAuthorized, setIsAuthorized] = useState(false);
-const [passwordInput, setPasswordInput] = useState("");
-if (!isAuthorized) {
-  return (
-    <div
-      dir="rtl"
-      className="min-h-screen bg-[#eef4fb] flex items-center justify-center p-6"
-    >
-      <div className="w-full max-w-md rounded-3xl bg-white border border-slate-200 shadow-xl p-8 space-y-6">
-        <div className="space-y-2 text-center">
-          <h1 className="text-3xl font-bold text-slate-900">
-            Second Chair
-          </h1>
+  const [passwordInput, setPasswordInput] = useState("");
 
-          <p className="text-sm text-slate-500">
-            סביבת ניסוי פנימית
-          </p>
-        </div>
+  useEffect(() => {
+    setSavedCases(listCases());
+  }, []);
 
-        <div className="space-y-3">
-          <input
-            type="password"
-            value={passwordInput}
-            onChange={(e) =>
-              setPasswordInput(e.target.value)
-            }
-            placeholder="הכנס סיסמה"
-            className="
-              w-full rounded-2xl border border-slate-300
-              px-4 py-3 text-right
-              focus:outline-none focus:ring-2
-              focus:ring-slate-400
-            "
-          />
+  if (!isAuthorized) {
+    return (
+      <div
+        dir="rtl"
+        className="min-h-screen bg-[#eef4fb] flex items-center justify-center p-6"
+      >
+        <div className="w-full max-w-md rounded-3xl bg-white border border-slate-200 shadow-xl p-8 space-y-6">
+          <div className="space-y-2 text-center">
+            <h1 className="text-3xl font-bold text-slate-900">Second Chair</h1>
+            <p className="text-sm text-slate-500">סביבת ניסוי פנימית</p>
+          </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              if (passwordInput === "1984") {
-                setIsAuthorized(true);
-              } else {
-                alert("סיסמה שגויה");
-              }
-            }}
-            className="
-              w-full rounded-2xl bg-slate-900
-              py-3 text-white font-bold
-              hover:bg-slate-800
-            "
-          >
-            כניסה
-          </button>
+          <div className="space-y-3">
+            <input
+              type="password"
+              value={passwordInput}
+              onChange={(e) => setPasswordInput(e.target.value)}
+              placeholder="הכנס סיסמה"
+              className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-right focus:outline-none focus:ring-2 focus:ring-slate-400"
+            />
+
+            <button
+              type="button"
+              onClick={() => {
+                if (passwordInput === "1984") {
+                  setIsAuthorized(true);
+                } else {
+                  alert("סיסמה שגויה");
+                }
+              }}
+              className="w-full rounded-2xl bg-slate-900 py-3 text-white font-bold hover:bg-slate-800"
+            >
+              כניסה
+            </button>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  function buildCurrentCaseState(analysisData = analysis, overrides = {}) {
+    const effectiveCaseName =
+      overrides.caseName || caseName || "תיק ללא שם";
+
+    return {
+      id: currentCaseId || createCaseId(),
+      name: effectiveCaseName,
+      caseName: effectiveCaseName,
+      caseText: overrides.caseText ?? caseText,
+      documentText: overrides.documentText ?? documentText,
+      caseFiles: overrides.caseFiles ?? caseFiles,
+      uploadedFiles: overrides.uploadedFiles ?? uploadedFiles,
+      analysis: analysisData,
+      workspaceUpdates: overrides.workspaceUpdates ?? workspaceUpdates,
+    };
+  }
+
+  function persistCurrentCase(analysisData = analysis, overrides = {}) {
+    const saved = saveCase(buildCurrentCaseState(analysisData, overrides));
+    setCurrentCaseId(saved.id);
+    setSavedCases(listCases());
+  }
+
+  function openSavedCase(caseId) {
+    const loaded = loadCase(caseId);
+    if (!loaded) return;
+
+    setCurrentCaseId(loaded.id);
+    setCaseName(loaded.caseName || loaded.name || "תיק");
+    setCaseText(loaded.caseText || "");
+    setDocumentText(loaded.documentText || "");
+    setCaseFiles(loaded.caseFiles || []);
+    setUploadedFiles(loaded.uploadedFiles || []);
+    setAnalysis(loaded.analysis || null);
+    setWorkspaceUpdates(loaded.workspaceUpdates || []);
+    setEntryMode("existing");
+    setIntakeExpanded(!loaded.analysis);
+    setStatus("");
+    setError("");
+    setShowNewCaseForm(false);
+    setNewCaseName("");
+  }
+
+  function startNewCase() {
+    const initialCaseName = newCaseName.trim() || "תיק ללא שם";
+
+    setCurrentCaseId(createCaseId());
+    setCaseName(initialCaseName);
+    setCaseText("");
+    setDocumentText("");
+    setCaseFiles([]);
+    setUploadedFiles([]);
+    setAnalysis(null);
+    setPreviousAnalysis(null);
+    setAnalysisDiff([]);
+    setWorkspaceUpdates([]);
+    setStatus("");
+    setError("");
+    setIntakeExpanded(true);
+    setEntryMode("new");
+    setShowNewCaseForm(false);
+    setNewCaseName("");
+  }
+
+ function removeSavedCase(caseId) {
+  if (!caseId) return;
+  if (!confirm("למחוק את התיק השמור?")) return;
+
+  deleteCase(caseId);
+
+  const remainingCases = listCases();
+  setSavedCases(remainingCases);
+
+  if (caseId === currentCaseId) {
+    const nextCase = remainingCases[0];
+
+    if (nextCase) {
+      openSavedCase(nextCase.id);
+    } else {
+      setCurrentCaseId(null);
+      setEntryMode(null);
+      setAnalysis(null);
+      setCaseText("");
+      setDocumentText("");
+      setCaseFiles([]);
+      setUploadedFiles([]);
+      setWorkspaceUpdates([]);
+    }
+  }
 }
-if (!entryMode) {
-  return (
-    <div
-      dir="rtl"
-      className="min-h-screen bg-[#eef4fb] flex items-center justify-center p-6"
-    >
-      <div className="w-full max-w-xl rounded-3xl bg-white shadow-xl border border-slate-200 p-10 space-y-8 text-center">
-        <div className="space-y-3">
-          <h1 className="text-4xl font-bold text-slate-900">
-            Second Chair
-          </h1>
 
-          <p className="text-slate-500 text-sm">
-            Litigation Intelligence Workspace
-          </p>
-        </div>
+  if (!entryMode) {
+    return (
+      <div
+        dir="rtl"
+        className="min-h-screen bg-[#eef4fb] flex items-center justify-center p-6"
+      >
+        <div className="w-full max-w-2xl rounded-3xl bg-white shadow-xl border border-slate-200 p-10 space-y-8">
+          <div className="space-y-3 text-center">
+            <h1 className="text-4xl font-bold text-slate-900">Second Chair</h1>
+            <p className="text-slate-500 text-sm">
+              Litigation Intelligence Workspace
+            </p>
+          </div>
 
-        <div className="grid gap-4">
-          <button
-            onClick={() => setEntryMode("new")}
-            className="
-              rounded-2xl
-              bg-slate-900
-              text-white
-              py-4
-              text-lg
-              font-medium
-              hover:bg-slate-800
-              transition
-            "
-          >
-            תיק חדש
-          </button>
+          <div className="space-y-4">
+            <div className="text-sm font-semibold text-slate-500">
+              תיקים שמורים
+            </div>
 
-          <button
-            disabled
-            className="
-              rounded-2xl
-              border
-              border-slate-200
-              bg-slate-100
-              text-slate-400
-              py-4
-              text-lg
-              font-medium
-              cursor-not-allowed
-            "
-          >
-            תיק קיים (בקרוב)
-          </button>
+            {savedCases.length > 0 ? (
+              <div className="space-y-2">
+                {savedCases.map((item) => (
+                  <div key={item.id} className="flex gap-2">
+                    <button
+                      onClick={() => openSavedCase(item.id)}
+                      className="flex-1 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 p-4 text-right transition"
+                    >
+                      <div className="font-semibold">{item.name}</div>
+                      <div className="mt-1 text-xs text-slate-500">
+                        {item.documentsCount || 0} מסמכים
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => removeSavedCase(item.id)}
+                      className="rounded-2xl border border-red-200 bg-red-50 px-4 text-sm text-red-700 hover:bg-red-100"
+                    >
+                      מחק
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">
+                אין עדיין תיקים שמורים.
+              </div>
+            )}
+          </div>
+
+          <div className="border-t border-slate-200 pt-5 space-y-3">
+            {!showNewCaseForm ? (
+              <button
+                onClick={() => setShowNewCaseForm(true)}
+                className="w-full rounded-2xl border border-slate-200 bg-white text-slate-700 py-3 text-base font-medium hover:bg-slate-50 transition"
+              >
+                + תיק חדש
+              </button>
+            ) : (
+              <div className="space-y-3">
+                <input
+                  value={newCaseName}
+                  onChange={(e) => setNewCaseName(e.target.value)}
+                  placeholder="שם התיק החדש"
+                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-right focus:outline-none focus:ring-2 focus:ring-slate-300"
+                />
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={startNewCase}
+                    className="rounded-2xl bg-slate-900 text-white py-3 font-medium hover:bg-slate-800 transition"
+                  >
+                    צור תיק
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowNewCaseForm(false);
+                      setNewCaseName("");
+                    }}
+                    className="rounded-2xl border border-slate-200 bg-white text-slate-600 py-3 font-medium hover:bg-slate-50 transition"
+                  >
+                    ביטול
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
+
   if (window.location.pathname === "/precedents") {
     return <PrecedentBankManager />;
   }
 
   async function handleWordUpload(event) {
     const files = Array.from(event.target.files || []);
-
     if (!files.length) return;
 
     setStatus("מעלה ומעבד את הקבצים...");
@@ -174,57 +310,52 @@ if (!entryMode) {
       }
 
       const data = await response.json();
-      console.log("ANALYSIS DATA:", data);
       const processedFiles = data.files || [];
 
-      setCaseFiles((prev) => [...prev, ...processedFiles]);
+      const nextCaseFiles = [...caseFiles, ...processedFiles];
 
-      setUploadedFiles((prev) => [
-        ...prev,
+      const nextUploadedFiles = [
+        ...uploadedFiles,
         ...processedFiles.map((file) => ({
-         name: file.name,
-  size: file.size,
-  status: file.status,
-  type: file.type,
-  needsOcr: file.needsOcr,
-  textLength: file.textLength,
+          name: file.name,
+          size: file.size,
+          status: file.status,
+          type: file.type,
+          needsOcr: file.needsOcr,
+          textLength: file.textLength,
         })),
-      ]);
+      ];
 
       const extractedTexts = processedFiles
         .filter((file) => file.text?.trim())
         .map((file) => `--- ${file.name} ---\n${file.text}`);
 
-      if (extractedTexts.length) {
-        setDocumentText((prev) =>
-          [prev, ...extractedTexts].filter(Boolean).join("\n\n")
-        );
-      }
+      const nextDocumentText = extractedTexts.length
+        ? [documentText, ...extractedTexts].filter(Boolean).join("\n\n")
+        : documentText;
+
+      setCaseFiles(nextCaseFiles);
+      setUploadedFiles(nextUploadedFiles);
+      setDocumentText(nextDocumentText);
 
       const loadedCount = processedFiles.filter(
         (file) => file.status === "נטען"
       ).length;
 
-      const unsupportedCount = processedFiles.filter(
-        (file) => file.status === "הפורמט טרם נתמך"
-      ).length;
-
-      const failedCount = processedFiles.filter(
-        (file) => file.status === "שגיאה בקריאת הקובץ"
-      ).length;
-
-      if (loadedCount > 0 && (unsupportedCount > 0 || failedCount > 0)) {
-        setStatus(
-          `נטענו ${loadedCount} קבצים. ${unsupportedCount} קבצים בפורמט שעדיין לא נתמך. ${failedCount} קבצים נכשלו בקריאה.`
-        );
-      } else if (loadedCount > 0) {
+      if (loadedCount > 0) {
         setStatus(`נטענו ${loadedCount} קבצים בהצלחה.`);
       } else {
         setStatus("הקבצים נוספו, אך לא חולץ מהם טקסט לניתוח.");
       }
+
+      persistCurrentCase(analysis, {
+        caseFiles: nextCaseFiles,
+        uploadedFiles: nextUploadedFiles,
+        documentText: nextDocumentText,
+      });
     } catch (err) {
       console.error(err);
-      setStatus("לא הצלחתי להעלות או לקרוא את הקבצים. בדוק את ה־Vercel Logs.");
+      setStatus("לא הצלחתי להעלות או לקרוא את הקבצים.");
     } finally {
       event.target.value = "";
     }
@@ -236,9 +367,15 @@ if (!entryMode) {
       createdAt: new Date().toISOString(),
     };
 
-    setWorkspaceUpdates((prev) => [enrichedUpdate, ...prev]);
+    const nextUpdates = [enrichedUpdate, ...workspaceUpdates];
+
+    setWorkspaceUpdates(nextUpdates);
     setError("");
     setStatus("נוסף מידע חדש לתיק. ניתן להריץ ניתוח מחדש.");
+
+    persistCurrentCase(analysis, {
+      workspaceUpdates: nextUpdates,
+    });
   }
 
   function buildCaseTextForAnalysis() {
@@ -268,37 +405,7 @@ ${caseText}
 ${updatesText}
 `;
   }
-function inferCaseName(text = "") {
-  if (!text.trim()) {
-    return "צד פלוני נ' צד אלמוני";
-  }
 
-  const patterns = [
-    /חברת\s+["״]?([^"\n]+)["״]?/g,
-    /([A-Z][A-Za-z0-9&.\s]+(?:Ltd|Inc|LLC))/g,
-    /["״]([^"\n]+)["״]/g,
-  ];
-
-  const matches = [];
-
-  for (const pattern of patterns) {
-    const found = [...text.matchAll(pattern)];
-
-    for (const item of found) {
-      if (item?.[1]) {
-        matches.push(item[1].trim());
-      }
-    }
-  }
-
-  const unique = [...new Set(matches)].filter(Boolean);
-
-  if (unique.length >= 2) {
-    return `${unique[0]} נ' ${unique[1]}`;
-  }
-
-  return "צד פלוני נ' צד אלמוני";
-}
   async function runAnalysis() {
     setLoading(true);
     setError("");
@@ -325,14 +432,13 @@ function inferCaseName(text = "") {
       }
 
       const data = await response.json();
-      const parties =
-  data?.executiveView?.caseSnapshot?.parties || [];
 
-if (parties.length >= 2) {
-  setCaseName(`${parties[0]} נ' ${parties[1]}`);
-} else {
-  setCaseName("צד פלוני נ' צד אלמוני");
-}
+      const parties = data?.executiveView?.caseSnapshot?.parties || [];
+
+      const nextCaseName =
+        parties.length >= 2 ? `${parties[0]} נ' ${parties[1]}` : caseName;
+
+      setCaseName(nextCaseName);
 
       if (analysis) {
         const diff = generateAnalysisDiff(analysis, data);
@@ -341,6 +447,10 @@ if (parties.length >= 2) {
 
       setAnalysis(data);
       setIntakeExpanded(false);
+
+      persistCurrentCase(data, {
+        caseName: nextCaseName,
+      });
 
       setTimeout(() => {
         document.getElementById("results")?.scrollIntoView({
@@ -358,10 +468,7 @@ if (parties.length >= 2) {
   function handleAddInfo() {
     setIntakeExpanded(true);
     setError("");
-
-    setStatus(
-      "אפשר להוסיף קבצים או לעדכן את תיאור המקרה ואז להריץ ניתוח מחדש."
-    );
+    setStatus("אפשר להוסיף קבצים או לעדכן את תיאור המקרה ואז להריץ ניתוח מחדש.");
   }
 
   function renderWorkspaceView() {
@@ -378,16 +485,16 @@ if (parties.length >= 2) {
       case "summaries":
         return <WitnessesView />;
 
-        case "timeline":
-  return (
-    <div className="rounded-2xl bg-white border border-slate-200 p-6 shadow-sm">
-      <h2 className="mb-4 text-xl font-bold">ציר זמן</h2>
+      case "timeline":
+        return (
+          <div className="rounded-2xl bg-white border border-slate-200 p-6 shadow-sm">
+            <h2 className="mb-4 text-xl font-bold">ציר זמן</h2>
 
-      <HorizontalTimeline
-        items={analysis?.evidenceAndGaps?.timeline || []}
-      />
-    </div>
-  );
+            <HorizontalTimeline
+              items={analysis?.evidenceAndGaps?.timeline || []}
+            />
+          </div>
+        );
 
       case "case-map":
       default:
@@ -403,11 +510,7 @@ if (parties.length >= 2) {
   return (
     <div
       dir="rtl"
-      className="
-        min-h-screen
-        bg-[#eef4fb]
-        text-slate-900
-      "
+      className="min-h-screen bg-[#eef4fb] text-slate-900"
     >
       {loading && <AnalysisLoadingOverlay />}
 
@@ -419,7 +522,33 @@ if (parties.length >= 2) {
 
         <div className="flex-1 p-6 bg-[#f4f8fd]">
           <div className="max-w-[1500px] mx-auto space-y-4">
-            <div className="flex justify-end">
+            <div className="flex justify-between items-center gap-3">
+              <div className="flex items-center gap-2">
+                <select
+                  value={currentCaseId || ""}
+                  onChange={(e) => openSavedCase(e.target.value)}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm"
+                >
+                  <option value="" disabled>
+                    מעבר בין תיקים
+                  </option>
+
+                  {savedCases.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+
+
+                <button
+                  onClick={() => removeSavedCase(currentCaseId)}
+                  className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 shadow-sm hover:bg-red-100"
+                >
+                  מחק תיק
+                </button>
+              </div>
+
               <a
                 href="/precedents"
                 className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 shadow-sm hover:bg-slate-50"
@@ -458,16 +587,16 @@ if (parties.length >= 2) {
               </div>
             )}
 
-  <main id="results" className="space-y-4 min-w-0">
- {activeView === "case-map" &&
-  analysis?.executiveView?.successAssessment && (
-    <SuccessAssessment
-      assessment={analysis.executiveView.successAssessment}
-    />
-)}
+            <main id="results" className="space-y-4 min-w-0">
+              {activeView === "case-map" &&
+                analysis?.executiveView?.successAssessment && (
+                  <SuccessAssessment
+                    assessment={analysis.executiveView.successAssessment}
+                  />
+                )}
 
-  {renderWorkspaceView()}
-</main>
+              {renderWorkspaceView()}
+            </main>
           </div>
         </div>
       </div>

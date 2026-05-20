@@ -18,7 +18,12 @@ export default function IssuesView({ analysis, onWorkspaceUpdate }) {
 
     if (normalizedIssues.length > 0) {
       setIssues(normalizedIssues);
+    } else {
+      setIssues([]);
     }
+
+    setShowAllIssues(false);
+    setImportanceFilter("all");
   }, [analysis]);
 
   function handleUpdateIssue(updatedIssue) {
@@ -44,36 +49,62 @@ export default function IssuesView({ analysis, onWorkspaceUpdate }) {
   const filteredIssues =
     importanceFilter === "all"
       ? issues
-      : issues.filter((issue) => issue.importance === importanceFilter);
+      : issues.filter(
+          (issue) =>
+            issue.importance === importanceFilter
+        );
 
   const visibleIssues = showAllIssues
     ? filteredIssues
     : filteredIssues.filter((issue, index) => {
-        if (importanceFilter !== "all") return index < 5;
+        if (importanceFilter !== "all") {
+          return index < 5;
+        }
 
-        const centralVisible = filteredIssues.filter(
-          (item) => item.importance === "central"
-        );
+        const centralVisible =
+          filteredIssues.filter(
+            (item) =>
+              item.importance === "central"
+          );
 
-        const secondaryVisible = filteredIssues.filter(
-          (item) => item.importance === "secondary"
-        );
+        const secondaryVisible =
+          filteredIssues.filter(
+            (item) =>
+              item.importance === "secondary"
+          );
 
-        const peripheralVisible = filteredIssues.filter(
-          (item) => item.importance === "peripheral"
-        );
+        const peripheralVisible =
+          filteredIssues.filter(
+            (item) =>
+              item.importance === "peripheral"
+          );
 
         return (
-          centralVisible.slice(0, 3).includes(issue) ||
-          secondaryVisible.slice(0, 3).includes(issue) ||
-          peripheralVisible.slice(0, 2).includes(issue)
+          centralVisible
+            .slice(0, 3)
+            .includes(issue) ||
+          secondaryVisible
+            .slice(0, 3)
+            .includes(issue) ||
+          peripheralVisible
+            .slice(0, 2)
+            .includes(issue)
         );
       });
 
-  const hiddenCount = filteredIssues.length - visibleIssues.length;
+  const hiddenCount =
+    filteredIssues.length - visibleIssues.length;
+
+  const caseKey =
+    analysis?.executiveView?.caseSnapshot?.parties?.join(
+      "-"
+    ) || "case";
 
   return (
-    <div id="evidence-gaps" className="space-y-4">
+    <div
+      id="evidence-gaps"
+      className="space-y-4"
+    >
       <div className="bg-white/90 border border-blue-100 rounded-2xl px-5 py-3 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -85,13 +116,16 @@ export default function IssuesView({ analysis, onWorkspaceUpdate }) {
               <button
                 type="button"
                 onClick={() => {
-                  setImportanceFilter("central");
+                  setImportanceFilter(
+                    "central"
+                  );
                   setShowAllIssues(false);
                 }}
                 className={`
                   rounded-full px-2 py-1 transition
                   ${
-                    importanceFilter === "central"
+                    importanceFilter ===
+                    "central"
                       ? "bg-blue-900 text-white"
                       : "text-slate-600 hover:bg-blue-50"
                   }
@@ -103,13 +137,16 @@ export default function IssuesView({ analysis, onWorkspaceUpdate }) {
               <button
                 type="button"
                 onClick={() => {
-                  setImportanceFilter("secondary");
+                  setImportanceFilter(
+                    "secondary"
+                  );
                   setShowAllIssues(false);
                 }}
                 className={`
                   rounded-full px-2 py-1 transition
                   ${
-                    importanceFilter === "secondary"
+                    importanceFilter ===
+                    "secondary"
                       ? "bg-blue-200 text-blue-900"
                       : "text-slate-600 hover:bg-blue-50"
                   }
@@ -121,13 +158,16 @@ export default function IssuesView({ analysis, onWorkspaceUpdate }) {
               <button
                 type="button"
                 onClick={() => {
-                  setImportanceFilter("peripheral");
+                  setImportanceFilter(
+                    "peripheral"
+                  );
                   setShowAllIssues(false);
                 }}
                 className={`
                   rounded-full px-2 py-1 transition
                   ${
-                    importanceFilter === "peripheral"
+                    importanceFilter ===
+                    "peripheral"
                       ? "bg-slate-300 text-slate-900"
                       : "text-slate-600 hover:bg-blue-50"
                   }
@@ -136,11 +176,14 @@ export default function IssuesView({ analysis, onWorkspaceUpdate }) {
                 שוליות: {peripheralIssues}
               </button>
 
-              {importanceFilter !== "all" && (
+              {importanceFilter !==
+                "all" && (
                 <button
                   type="button"
                   onClick={() => {
-                    setImportanceFilter("all");
+                    setImportanceFilter(
+                      "all"
+                    );
                     setShowAllIssues(false);
                   }}
                   className="
@@ -169,24 +212,33 @@ export default function IssuesView({ analysis, onWorkspaceUpdate }) {
 
       {filteredIssues.length === 0 && (
         <div className="bg-white/90 border border-blue-100 rounded-2xl p-6 text-sm text-slate-600 shadow-sm">
-          לאחר ניתוח התיק, יופיעו כאן המחלוקות המרכזיות שזוהו.
+          לאחר ניתוח התיק, יופיעו כאן
+          המחלוקות המרכזיות שזוהו.
         </div>
       )}
 
-      {visibleIssues.map((issue) => (
-        <IssueCard
-          key={issue.id}
-          issue={issue}
-          onUpdateIssue={handleUpdateIssue}
-          onWorkspaceUpdate={onWorkspaceUpdate}
-        />
-      ))}
+      {visibleIssues.map(
+        (issue, index) => (
+          <IssueCard
+            key={`${caseKey}-${issue.id}-${index}`}
+            issue={issue}
+            onUpdateIssue={
+              handleUpdateIssue
+            }
+            onWorkspaceUpdate={
+              onWorkspaceUpdate
+            }
+          />
+        )
+      )}
 
       {hiddenCount > 0 && (
         <div className="flex justify-center">
           <button
             type="button"
-            onClick={() => setShowAllIssues(true)}
+            onClick={() =>
+              setShowAllIssues(true)
+            }
             className="
               rounded-xl border border-slate-200 bg-white
               px-5 py-2 text-sm font-bold text-slate-700
@@ -198,17 +250,21 @@ export default function IssuesView({ analysis, onWorkspaceUpdate }) {
         </div>
       )}
 
-      {showAllIssues && filteredIssues.length > visibleIssues.length && (
-        <div className="flex justify-center">
-          <button
-            type="button"
-            onClick={() => setShowAllIssues(false)}
-            className="text-sm text-slate-500 hover:text-slate-900"
-          >
-            צמצם תצוגה
-          </button>
-        </div>
-      )}
+      {showAllIssues &&
+        filteredIssues.length >
+          visibleIssues.length && (
+          <div className="flex justify-center">
+            <button
+              type="button"
+              onClick={() =>
+                setShowAllIssues(false)
+              }
+              className="text-sm text-slate-500 hover:text-slate-900"
+            >
+              צמצם תצוגה
+            </button>
+          </div>
+        )}
     </div>
   );
 }
