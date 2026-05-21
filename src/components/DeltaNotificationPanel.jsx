@@ -7,6 +7,8 @@ export default function DeltaNotificationPanel({
   onRejectWorkItem,
   onAcceptEvidenceUpdate,
   onRejectEvidenceUpdate,
+  onAcceptTimelineUpdate,
+  onRejectTimelineUpdate,
 }) {
   const sections = useMemo(
     () => [
@@ -43,6 +45,17 @@ export default function DeltaNotificationPanel({
         render: (item) => ({
           title: item.title || "עדכון ראייתי",
           description: item.description || "",
+        }),
+      },
+      {
+        key: "timeline",
+        title: "ציר זמן",
+        icon: "⏱",
+        items: delta?.timelineUpdates || [],
+        render: (item) => ({
+          title: item.event || "אירוע",
+          description: item.significance || "",
+          badge: item.date || null,
         }),
       },
       {
@@ -92,7 +105,7 @@ export default function DeltaNotificationPanel({
         </button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 bg-white/60 border-b border-amber-100">
+      <div className="grid grid-cols-3 md:grid-cols-5 bg-white/60 border-b border-amber-100">
         {sections.map((section) => {
           const isActive = section.key === activeKey;
           const count = section.items.length;
@@ -186,6 +199,26 @@ export default function DeltaNotificationPanel({
                         <button
                           type="button"
                           onClick={() => onRejectEvidenceUpdate?.(index)}
+                          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50"
+                        >
+                          דחה
+                        </button>
+                      </div>
+                    )}
+
+                    {activeSection.key === "timeline" && (
+                      <div className="mt-3 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => onAcceptTimelineUpdate?.(item, index)}
+                          className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-700"
+                        >
+                          הוסף לציר הזמן
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => onRejectTimelineUpdate?.(index)}
                           className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50"
                         >
                           דחה

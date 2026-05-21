@@ -33,6 +33,7 @@ import {
   getUnscopedWorkItems,
 } from "./utils/applyOverlays";
 import { normalizeIssues } from "./utils/normalizeIssues";
+import { normalizeTimelineDate } from "./utils/normalizeTimelineDate";
 import { normalizeDeltaIssueLinks } from "./utils/normalizeDeltaIssueLinks";
 
 export default function App() {
@@ -805,6 +806,89 @@ function removeAcceptedWorkItem(itemId) {
     setLatestDelta({ ...latestDelta, evidenceUpdates: nextEvidenceUpdates });
   }
 
+  function acceptTimelineUpdate(item, index) {
+    const normalized = normalizeTimelineDate(item.date);
+    const overlay = {
+      id: `overlay-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      createdAt: new Date().toISOString(),
+      type: "timeline",
+      isNew: true,
+      patch: {
+        action: "add_timeline_event",
+        event: item.event || "",
+        significance: item.significance || null,
+        relatedUpdateId: item.relatedUpdateId || null,
+        rawDate: item.date || null,
+        displayDate: normalized.displayDate,
+        sortDate: normalized.sortDate,
+        datePrecision: normalized.datePrecision,
+        isApproximate: normalized.isApproximate,
+      },
+    };
+    const nextOverlays = [...overlays, overlay];
+    const nextTimelineUpdates =
+      latestDelta?.timelineUpdates?.filter((_, i) => i !== index) || [];
+    setOverlays(nextOverlays);
+    setLatestDelta({ ...latestDelta, timelineUpdates: nextTimelineUpdates });
+    persistCurrentCase(analysis, { overlays: nextOverlays });
+  }
+
+  function addTimelineEvent(eventData) {
+    const overlay = {
+      id: `overlay-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      createdAt: new Date().toISOString(),
+      type: "timeline",
+      isNew: true,
+      patch: { action: "add_event", ...eventData },
+    };
+    const nextOverlays = [...overlays, overlay];
+    setOverlays(nextOverlays);
+    persistCurrentCase(analysis, { overlays: nextOverlays });
+  }
+
+  function editTimelineEvent(targetId, eventData) {
+    // Overlay item: update in-place
+    const existing = overlays.find((o) => o.id === targetId);
+    if (existing) {
+      const nextOverlays = overlays.map((o) =>
+        o.id === targetId ? { ...o, patch: { ...o.patch, ...eventData } } : o
+      );
+      setOverlays(nextOverlays);
+      persistCurrentCase(analysis, { overlays: nextOverlays });
+      return;
+    }
+    // Base item: create edit_event overlay
+    const overlay = {
+      id: `overlay-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      createdAt: new Date().toISOString(),
+      type: "timeline",
+      isNew: false,
+      patch: { action: "edit_event", targetId, ...eventData },
+    };
+    const nextOverlays = [...overlays, overlay];
+    setOverlays(nextOverlays);
+    persistCurrentCase(analysis, { overlays: nextOverlays });
+  }
+
+  function hideTimelineEvent(targetId) {
+    const overlay = {
+      id: `overlay-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      createdAt: new Date().toISOString(),
+      type: "timeline",
+      isNew: false,
+      patch: { action: "hide_event", targetId },
+    };
+    const nextOverlays = [...overlays, overlay];
+    setOverlays(nextOverlays);
+    persistCurrentCase(analysis, { overlays: nextOverlays });
+  }
+
+  function rejectTimelineUpdate(index) {
+    const nextTimelineUpdates =
+      latestDelta?.timelineUpdates?.filter((_, i) => i !== index) || [];
+    setLatestDelta({ ...latestDelta, timelineUpdates: nextTimelineUpdates });
+  }
+
   function rollbackOverlay(overlayId) {
     const nextOverlays = overlays.filter((o) => o.id !== overlayId);
     setOverlays(nextOverlays);
@@ -827,12 +911,21 @@ function removeAcceptedWorkItem(itemId) {
 
       case "timeline":
         return (
-          <div className="rounded-2xl bg-white border border-slate-200 p-6 shadow-sm">
-            <h2 className="mb-4 text-xl font-bold">ציר זמן</h2>
+          <div className="rounded-2xl bg-white border border-slate-200 shadow-sm w-full">
+            <div className="p-6 pb-3">
+              <h2 className="text-xl font-bold">ציר זמן</h2>
+            </div>
 
-            <HorizontalTimeline
-              items={analysis?.evidenceAndGaps?.timeline || []}
-            />
+            <div className="w-full overflow-x-auto overscroll-x-contain px-6 pb-6">
+              <HorizontalTimeline
+                items={analysis?.evidenceAndGaps?.timeline || []}
+                overlayItems={overlays.filter((o) => o.type === "timeline")}
+                onRollback={rollbackOverlay}
+                onAddEvent={addTimelineEvent}
+                onEditEvent={editTimelineEvent}
+                onHideEvent={hideTimelineEvent}
+              />
+            </div>
           </div>
         );
 case "case-map":
@@ -872,7 +965,7 @@ default:
           onChangeView={setActiveView}
         />
 
-        <div className="flex-1 p-6 bg-[#f4f8fd]">
+        <div className="flex-1 min-w-0 p-6 bg-[#f4f8fd]">
           <div className="max-w-[1500px] mx-auto space-y-4">
             <div className="flex justify-between items-center gap-3">
               <div className="flex items-center gap-2">
@@ -955,7 +1048,7 @@ runAnalysis={analysis ? handleCaseTextUpdateAndReanalyze : runAnalysis}
               </div>
             )}
 
-{latestDelta && showDeltaPanel && (
+{latestDelta && showDeltaPanel && activeView === "case-map" && (
 <DeltaNotificationPanel
   delta={latestDelta}
   onClose={() => setShowDeltaPanel(false)}
@@ -963,6 +1056,8 @@ runAnalysis={analysis ? handleCaseTextUpdateAndReanalyze : runAnalysis}
   onRejectWorkItem={rejectGeneratedWorkItem}
   onAcceptEvidenceUpdate={acceptEvidenceUpdate}
   onRejectEvidenceUpdate={rejectEvidenceUpdate}
+  onAcceptTimelineUpdate={acceptTimelineUpdate}
+  onRejectTimelineUpdate={rejectTimelineUpdate}
 />
 )}
             <main id="results" className="space-y-4 min-w-0">
