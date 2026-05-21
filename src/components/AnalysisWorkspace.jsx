@@ -390,6 +390,18 @@ function TimelineDetails({ eg }) {
   );
 }
 
+function getPrecedentDisplayName(p) {
+  const num =
+    p.caseNumber || p.procedureNumber || p.citation || p.legalCitation || "";
+  const label = p.shortName || p.caseName || p.name || p.title || "פסק דין";
+  if (num) return `${num} ${label}`;
+  return label;
+}
+
+function getPrecedentNumber(p) {
+  return p.caseNumber || p.procedureNumber || p.citation || p.legalCitation || null;
+}
+
 function CasesDetails({ caseLaw, retrievedPrecedents }) {
   const precedents =
     retrievedPrecedents?.length
@@ -413,12 +425,16 @@ function CasesDetails({ caseLaw, retrievedPrecedents }) {
         >
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-1">
-              <div className="text-xs text-slate-500">
-                {String(p.title || "ללא מספר הליך")}
+              <div className="text-xs text-slate-500 font-mono">
+                {getPrecedentNumber(p) ? (
+                  getPrecedentNumber(p)
+                ) : (
+                  <span className="text-red-400">מספר הליך חסר</span>
+                )}
               </div>
 
               <div className="font-semibold text-sm">
-                {String(p.shortName || p.name || "פסק דין")}
+                {String(p.shortName || p.caseName || p.name || p.title || "פסק דין")}
               </div>
             </div>
 

@@ -166,6 +166,8 @@ export default function App() {
     setCaseFiles(loaded.caseFiles || []);
     setUploadedFiles(loaded.uploadedFiles || []);
     setAnalysis(loaded.analysis || null);
+    setPreviousAnalysis(null);
+    setAnalysisDiff([]);
     const loadedUpdates = (loaded.workspaceUpdates || []).map((u) =>
       loaded.analysis && u.status === "pending_analysis"
         ? { ...u, status: "analyzed" }
@@ -174,6 +176,8 @@ export default function App() {
     setWorkspaceUpdates(loadedUpdates);
     setAcceptedWorkItems(loaded.acceptedWorkItems || []);
     setOverlays(loaded.overlays || []);
+    setLatestDelta(null);
+    setShowDeltaPanel(false);
     setLastAnalyzedCaseText(loaded.lastAnalyzedCaseText || "");
     setEntryMode("existing");
     setIntakeExpanded(!loaded.analysis);
@@ -204,6 +208,31 @@ export default function App() {
     setShowNewCaseForm(false);
     setNewCaseName("");
     setLastAnalyzedCaseText("");
+  }
+
+  function handleOpenNewCase() {
+    setCurrentCaseId(null);
+    setCaseName("תיק ללא שם");
+    setCaseText("");
+    setDocumentText("");
+    setCaseFiles([]);
+    setUploadedFiles([]);
+    setAnalysis(null);
+    setPreviousAnalysis(null);
+    setAnalysisDiff([]);
+    setWorkspaceUpdates([]);
+    setAcceptedWorkItems([]);
+    setOverlays([]);
+    setLatestDelta(null);
+    setShowDeltaPanel(false);
+    setLastAnalyzedCaseText("");
+    setStatus("");
+    setError("");
+    setIntakeExpanded(true);
+    setActiveView("case-map");
+    setShowNewCaseForm(false);
+    setNewCaseName("");
+    setEntryMode(null);
   }
 
  function removeSavedCase(caseId) {
@@ -992,6 +1021,14 @@ default:
                 >
                   מחק תיק
                 </button>
+
+                <button
+                  onClick={handleOpenNewCase}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm hover:bg-slate-50"
+                >
+                  פתח תיק חדש
+                </button>
+
                {latestDelta && (
   <button
     type="button"
@@ -1060,7 +1097,7 @@ runAnalysis={analysis ? handleCaseTextUpdateAndReanalyze : runAnalysis}
   onRejectTimelineUpdate={rejectTimelineUpdate}
 />
 )}
-            <main id="results" className="space-y-4 min-w-0">
+            <main key={currentCaseId} id="results" className="space-y-4 min-w-0">
               {activeView === "case-map" &&
                 analysis?.executiveView?.successAssessment && (
                   <SuccessAssessment
