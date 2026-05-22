@@ -31,6 +31,7 @@ import {
   translateEvidenceType,
   getUnscopedEvidenceOverlays,
   getUnscopedWorkItems,
+  getUnscopedContradictionOverlays,
 } from "./utils/applyOverlays";
 import { normalizeIssues } from "./utils/normalizeIssues";
 import { normalizeTimelineDate } from "./utils/normalizeTimelineDate";
@@ -918,6 +919,40 @@ function removeAcceptedWorkItem(itemId) {
     setLatestDelta({ ...latestDelta, timelineUpdates: nextTimelineUpdates });
   }
 
+  function acceptContradiction(item, index) {
+    const overlay = {
+      id: `overlay-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      createdAt: new Date().toISOString(),
+      type: "contradiction",
+      isNew: true,
+      sourceDeltaItem: item,
+      patch: {
+        action: "add_contradiction",
+        title: item.title,
+        description: item.description,
+        severity: item.severity || "medium",
+        direction: item.direction || "unclear",
+        relatedIssueId: item.relatedIssueId || null,
+        relatedIssueTitle: item.relatedIssueTitle || null,
+        relatedUpdateId: item.relatedUpdateId || null,
+        targetType: item.targetType || "unknown",
+        targetId: item.targetId || null,
+      },
+    };
+    const nextOverlays = [...overlays, overlay];
+    const nextContradictions =
+      latestDelta?.contradictions?.filter((_, i) => i !== index) || [];
+    setOverlays(nextOverlays);
+    setLatestDelta({ ...latestDelta, contradictions: nextContradictions });
+    persistCurrentCase(analysis, { overlays: nextOverlays });
+  }
+
+  function rejectContradiction(index) {
+    const nextContradictions =
+      latestDelta?.contradictions?.filter((_, i) => i !== index) || [];
+    setLatestDelta({ ...latestDelta, contradictions: nextContradictions });
+  }
+
   function rollbackOverlay(overlayId) {
     const nextOverlays = overlays.filter((o) => o.id !== overlayId);
     setOverlays(nextOverlays);
@@ -973,6 +1008,7 @@ default:
       <UnscopedFallback
         evidenceOverlays={getUnscopedEvidenceOverlays(overlays, normalizeIssues(analysis))}
         workItems={getUnscopedWorkItems(acceptedWorkItems)}
+        contradictionOverlays={getUnscopedContradictionOverlays(overlays, normalizeIssues(analysis))}
         onRollbackOverlay={rollbackOverlay}
         onRemoveWorkItem={removeAcceptedWorkItem}
       />
@@ -1095,6 +1131,8 @@ runAnalysis={analysis ? handleCaseTextUpdateAndReanalyze : runAnalysis}
   onRejectEvidenceUpdate={rejectEvidenceUpdate}
   onAcceptTimelineUpdate={acceptTimelineUpdate}
   onRejectTimelineUpdate={rejectTimelineUpdate}
+  onAcceptContradiction={acceptContradiction}
+  onRejectContradiction={rejectContradiction}
 />
 )}
             <main key={currentCaseId} id="results" className="space-y-4 min-w-0">
@@ -1142,10 +1180,11 @@ function translateWorkItemType(type) {
 function UnscopedFallback({
   evidenceOverlays,
   workItems,
+  contradictionOverlays = [],
   onRollbackOverlay,
   onRemoveWorkItem,
 }) {
-  if (!evidenceOverlays.length && !workItems.length) return null;
+  if (!evidenceOverlays.length && !workItems.length && !contradictionOverlays.length) return null;
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -1200,6 +1239,34 @@ function UnscopedFallback({
               className="shrink-0 text-xs text-slate-400 hover:text-red-500"
             >
               מחק
+            </button>
+          </div>
+        ))}
+
+        {contradictionOverlays.map((overlay) => (
+          <div
+            key={overlay.id}
+            className="flex items-start justify-between gap-3 rounded-xl border border-red-100 bg-red-50/40 px-3 py-2.5"
+          >
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">
+                  סתירות שלא שויכו למחלוקת
+                </span>
+                <span className="text-sm font-semibold text-slate-900">
+                  {overlay.patch.title}
+                </span>
+              </div>
+              {overlay.patch.description && (
+                <p className="mt-1 text-xs leading-5 text-slate-600">{overlay.patch.description}</p>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => onRollbackOverlay?.(overlay.id)}
+              className="shrink-0 text-xs text-slate-400 hover:text-red-500"
+            >
+              בטל
             </button>
           </div>
         ))}

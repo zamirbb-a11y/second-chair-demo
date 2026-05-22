@@ -56,6 +56,34 @@ export function getUnscopedWorkItems(workItems = []) {
   );
 }
 
+export function getIssueContradictionOverlays(overlays = [], issueId, issueTitle) {
+  return overlays.filter((o) => {
+    if (o.type !== "contradiction") return false;
+    if (issueId && o.patch.relatedIssueId === issueId) return true;
+    if (
+      issueTitle &&
+      o.patch.relatedIssueTitle &&
+      o.patch.relatedIssueTitle.toLowerCase() === issueTitle.toLowerCase()
+    )
+      return true;
+    return false;
+  });
+}
+
+export function getUnscopedContradictionOverlays(overlays = [], issues = []) {
+  if (issues.length === 0) {
+    return overlays.filter(
+      (o) => o.type === "contradiction" && !o.patch.relatedIssueId && !o.patch.relatedIssueTitle
+    );
+  }
+  const matchedIds = new Set(
+    issues.flatMap((issue) =>
+      getIssueContradictionOverlays(overlays, issue.id, issue.title).map((o) => o.id)
+    )
+  );
+  return overlays.filter((o) => o.type === "contradiction" && !matchedIds.has(o.id));
+}
+
 export function translateEvidenceType(type) {
   switch (type) {
     case "new_evidence":

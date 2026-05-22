@@ -107,7 +107,12 @@ generatedWorkItems: [],
       "title": "",
       "description": "",
       "severity": "low | medium | high",
-      "relatedUpdateId": ""
+      "direction": "hurts_us | hurts_them | unclear",
+      "relatedIssueId": "",
+      "relatedIssueTitle": "",
+      "relatedUpdateId": "",
+      "targetType": "issue | evidence | timeline | claim | document_vs_claim | admission_against_interest | behavior_vs_claim | unknown",
+      "targetId": ""
     }
   ],
   "suggestedActions": [
@@ -131,6 +136,17 @@ generatedWorkItems: [],
   }
 ]
 }
+
+כללים לשדה contradictions:
+- כלול סתירה רק כאשר קיימת מתח ליטיגטורי ממשי, כגון:
+  מסמך מתנגש עם גרסת צד, עדכון חדש מתנגש עם ניתוח קודם,
+  תאריך מתנגש עם ציר הזמן, התנהגות מתנגשת עם עמדה מוצהרת,
+  הודאה מחלישה טענה קודמת, גרסה מאוחרת סותרת גרסה מוקדמת.
+- לא כל ראיה חדשה היא סתירה. אל תמציא סתירות.
+- אם לא ברור — השאר contradictions ריק.
+- direction: hurts_us אם הסתירה מחלישה את עמדתנו, hurts_them אם מחלישה את הצד השני.
+- relatedIssueId חייב להיות מתוך allowedIssues בלבד. אם אין התאמה ברורה — השאר ריק.
+- targetType: השתמש ב-document_vs_claim כאשר מסמך סותר גרסת צד, admission_against_interest כאשר יש הודאה בעלת ערך ראייתי, behavior_vs_claim כאשר התנהגות בפועל סותרת עמדה מוצהרת.
 
 חוקי מחייבים לשדות relatedIssueId ו-issueId:
 ${

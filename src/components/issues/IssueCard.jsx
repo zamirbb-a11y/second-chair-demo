@@ -7,10 +7,11 @@ export default function IssueCard({
   onWorkspaceUpdate,
   evidenceOverlays = [],
   workItemOverlays = [],
+  contradictionOverlays = [],
   onRollbackOverlay,
   onRemoveWorkItem,
 }) {
-  const totalOverlays = evidenceOverlays.length + workItemOverlays.length;
+  const totalOverlays = evidenceOverlays.length + workItemOverlays.length + contradictionOverlays.length;
   const [isEditing, setIsEditing] = useState(false);
   const [draftTitle, setDraftTitle] = useState(issue.title);
   const [draftDescription, setDraftDescription] = useState(issue.description);
@@ -214,6 +215,16 @@ shadow-[0_6px_18px_rgba(15,23,42,0.08)]
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
             <SectionCard title="עמדת התובע">
               <InfoBlock text={issue.partyPositions?.claimant} />
+              {contradictionOverlays
+                .filter((o) => POSITION_SURFACE_TYPES.includes(o.patch.targetType))
+                .map((o) => (
+                  <ContradictionSignal
+                    key={o.id}
+                    overlay={o}
+                    framing="position"
+                    onRollback={onRollbackOverlay}
+                  />
+                ))}
             </SectionCard>
 
             <SectionCard title="עמדת הנתבע">
@@ -230,6 +241,17 @@ shadow-[0_6px_18px_rgba(15,23,42,0.08)]
                 items={issue.legalAssessment?.relevantLaw}
                 limit={3}
               />
+
+              {contradictionOverlays
+                .filter((o) => !EVIDENCE_SURFACE_TYPES.includes(o.patch.targetType) && !POSITION_SURFACE_TYPES.includes(o.patch.targetType))
+                .map((o) => (
+                  <ContradictionSignal
+                    key={o.id}
+                    overlay={o}
+                    framing="legal"
+                    onRollback={onRollbackOverlay}
+                  />
+                ))}
             </SectionCard>
 
             <SectionCard title="מצב ראייתי">
@@ -262,6 +284,17 @@ shadow-[0_6px_18px_rgba(15,23,42,0.08)]
                 )}
                 onRollbackOverlay={onRollbackOverlay}
               />
+
+              {contradictionOverlays
+                .filter((o) => EVIDENCE_SURFACE_TYPES.includes(o.patch.targetType))
+                .map((o) => (
+                  <ContradictionSignal
+                    key={o.id}
+                    overlay={o}
+                    framing="evidence"
+                    onRollback={onRollbackOverlay}
+                  />
+                ))}
             </SectionCard>
           </div>
 
@@ -529,6 +562,66 @@ function ApprovedUpdatesSection({ workItemOverlays, onRemoveWorkItem }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+const EVIDENCE_SURFACE_TYPES = [
+  "evidence",
+  "document_vs_claim",
+  "admission_against_interest",
+  "behavior_vs_claim",
+];
+
+const POSITION_SURFACE_TYPES = [
+  "claim",
+  "document_vs_claim",
+  "admission_against_interest",
+  "behavior_vs_claim",
+];
+
+const CONTRADICTION_FRAMING = {
+  evidence: {
+    hurts_us:   { badge: "bg-red-100 text-red-700",     border: "border-red-200",   bg: "bg-red-50/50",     label: "ראיה מחלישה" },
+    hurts_them: { badge: "bg-emerald-100 text-emerald-700", border: "border-emerald-200", bg: "bg-emerald-50/40", label: "ראיה מחזקת" },
+    unclear:    { badge: "bg-amber-100 text-amber-700",  border: "border-amber-200", bg: "bg-amber-50/40",   label: "אי-עקביות ראייתית" },
+  },
+  position: {
+    hurts_us:   { badge: "bg-red-100 text-red-700",     border: "border-red-200",   bg: "bg-red-50/50",     label: "סתירת גרסה" },
+    hurts_them: { badge: "bg-emerald-100 text-emerald-700", border: "border-emerald-200", bg: "bg-emerald-50/40", label: "גרסה משתנה" },
+    unclear:    { badge: "bg-amber-100 text-amber-700",  border: "border-amber-200", bg: "bg-amber-50/40",   label: "אי-עקביות בעמדה" },
+  },
+  legal: {
+    hurts_us:   { badge: "bg-red-100 text-red-700",     border: "border-red-200",   bg: "bg-red-50/50",     label: "סיכון ליטיגטורי" },
+    hurts_them: { badge: "bg-emerald-100 text-emerald-700", border: "border-emerald-200", bg: "bg-emerald-50/40", label: "הזדמנות ליטיגטורית" },
+    unclear:    { badge: "bg-amber-100 text-amber-700",  border: "border-amber-200", bg: "bg-amber-50/40",   label: "השלכה משפטית" },
+  },
+};
+
+function ContradictionSignal({ overlay, framing, onRollback }) {
+  const direction = overlay.patch.direction || "unclear";
+  const style = CONTRADICTION_FRAMING[framing]?.[direction] ?? CONTRADICTION_FRAMING.legal.unclear;
+
+  return (
+    <div className={`flex items-start justify-between gap-2 rounded-xl border ${style.border} ${style.bg} px-3 py-2`}>
+      <div className="min-w-0">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold shrink-0 ${style.badge}`}>
+            {style.label}
+          </span>
+          <span className="text-xs font-semibold text-slate-800">{overlay.patch.title}</span>
+        </div>
+        {overlay.patch.description && (
+          <p className="mt-0.5 text-xs leading-5 text-slate-600">{overlay.patch.description}</p>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={() => onRollback?.(overlay.id)}
+        className="shrink-0 text-[11px] text-slate-400 hover:text-red-500 transition mt-0.5"
+      >
+        בטל
+      </button>
     </div>
   );
 }

@@ -9,6 +9,8 @@ export default function DeltaNotificationPanel({
   onRejectEvidenceUpdate,
   onAcceptTimelineUpdate,
   onRejectTimelineUpdate,
+  onAcceptContradiction,
+  onRejectContradiction,
 }) {
   const sections = useMemo(
     () => [
@@ -67,6 +69,18 @@ export default function DeltaNotificationPanel({
           title: item.title || "משימה",
           description: item.description || item.reason || "",
           badge: translateWorkItemType(item.type),
+        }),
+      },
+      {
+        key: "contradictions",
+        title: "סתירות",
+        icon: "⚠",
+        items: delta?.contradictions || [],
+        render: (item) => ({
+          title: item.title || "סתירה",
+          description: item.description || "",
+          badge: translateDirection(item.direction),
+          severity: item.severity,
         }),
       },
     ],
@@ -225,6 +239,26 @@ export default function DeltaNotificationPanel({
                         </button>
                       </div>
                     )}
+
+                    {activeSection.key === "contradictions" && (
+                      <div className="mt-3 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => onAcceptContradiction?.(item, index)}
+                          className="rounded-lg bg-red-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-800"
+                        >
+                          סמן כסתירה
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => onRejectContradiction?.(index)}
+                          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50"
+                        >
+                          דחה
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -238,6 +272,19 @@ export default function DeltaNotificationPanel({
       )}
     </div>
   );
+}
+
+function translateDirection(direction) {
+  switch (direction) {
+    case "hurts_us":
+      return "מחליש אותנו";
+    case "hurts_them":
+      return "מחליש אותם";
+    case "unclear":
+      return "לא ברור";
+    default:
+      return null;
+  }
 }
 
 function translateWorkItemType(type) {
