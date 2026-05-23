@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 import AnalysisLoadingOverlay from "./components/AnalysisLoadingOverlay";
 import CaseIntake from "./components/CaseIntake";
@@ -34,6 +34,7 @@ import {
   getUnscopedContradictionOverlays,
 } from "./utils/applyOverlays";
 import { normalizeIssues } from "./utils/normalizeIssues";
+import { createEvent, hasIntakeEvent, computeCaseState } from "./lib/caseEvents";
 import { normalizeTimelineDate } from "./utils/normalizeTimelineDate";
 import { normalizeDeltaIssueLinks } from "./utils/normalizeDeltaIssueLinks";
 
@@ -53,6 +54,7 @@ export default function App() {
   const [latestDelta, setLatestDelta] = useState(null);
   const [acceptedWorkItems, setAcceptedWorkItems] = useState([]);
   const [overlays, setOverlays] = useState([]);
+  const [caseEvents, setCaseEvents] = useState([]);
   const [lastAnalyzedCaseText, setLastAnalyzedCaseText] = useState("");
   const [showDeltaPanel, setShowDeltaPanel] = useState(false);
 
@@ -71,6 +73,13 @@ export default function App() {
 
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
+
+  // Phase A: computed but not yet read by UI. Infrastructure for Phase B.
+  // eslint-disable-next-line no-unused-vars
+  const caseState = useMemo(
+    () => computeCaseState(analysis, caseEvents),
+    [analysis, caseEvents]
+  );
 
   useEffect(() => {
     setSavedCases(listCases());
@@ -145,6 +154,7 @@ export default function App() {
       workspaceUpdates: overrides.workspaceUpdates ?? workspaceUpdates,
       acceptedWorkItems: overrides.acceptedWorkItems ?? acceptedWorkItems,
       overlays: overrides.overlays ?? overlays,
+      caseEvents: overrides.caseEvents ?? caseEvents,
       lastAnalyzedCaseText:
   overrides.lastAnalyzedCaseText ?? lastAnalyzedCaseText,
     };
@@ -177,6 +187,7 @@ export default function App() {
     setWorkspaceUpdates(loadedUpdates);
     setAcceptedWorkItems(loaded.acceptedWorkItems || []);
     setOverlays(loaded.overlays || []);
+    setCaseEvents(loaded.caseEvents || []);
     setLatestDelta(null);
     setShowDeltaPanel(false);
     setLastAnalyzedCaseText(loaded.lastAnalyzedCaseText || "");
@@ -202,6 +213,7 @@ export default function App() {
     setAnalysisDiff([]);
     setWorkspaceUpdates([]);
     setAcceptedWorkItems([]);
+    setCaseEvents([]);
     setStatus("");
     setError("");
     setIntakeExpanded(true);
@@ -224,6 +236,7 @@ export default function App() {
     setWorkspaceUpdates([]);
     setAcceptedWorkItems([]);
     setOverlays([]);
+    setCaseEvents([]);
     setLatestDelta(null);
     setShowDeltaPanel(false);
     setLastAnalyzedCaseText("");
@@ -579,9 +592,21 @@ ${updatesText}
       );
       setWorkspaceUpdates(analyzedUpdates);
 
+      // Create intake event only once — guard against re-analysis overwriting it.
+      let nextCaseEvents = caseEvents;
+      if (!hasIntakeEvent(caseEvents)) {
+        const intakeEvent = createEvent("intake", "ai_analysis", null, null, {
+          summary: "ניתוח ראשוני של התיק",
+        });
+        intakeEvent.status = "accepted";
+        nextCaseEvents = [intakeEvent];
+        setCaseEvents(nextCaseEvents);
+      }
+
       persistCurrentCase(data, {
         caseName: nextCaseName,
         workspaceUpdates: analyzedUpdates,
+        caseEvents: nextCaseEvents,
       });
 
       setTimeout(() => {
@@ -771,11 +796,23 @@ function acceptGeneratedWorkItem(item, index) {
     generatedWorkItems: nextGeneratedWorkItems,
   };
 
+  const workItemEvent = createEvent(
+    "work_item_created",
+    "ai_delta",
+    { issueId: item.relatedIssueId || null, field: null },
+    { op: "add", path: "workItems", value: item.title },
+    { summary: item.title, changed: "משימות", reason: item.description || item.reason || "", groundedIn: [] }
+  );
+  workItemEvent.status = "accepted";
+  const nextCaseEvents = [...caseEvents, workItemEvent];
+
   setAcceptedWorkItems(nextAcceptedWorkItems);
+  setCaseEvents(nextCaseEvents);
   setLatestDelta(nextDelta);
 
   persistCurrentCase(analysis, {
     acceptedWorkItems: nextAcceptedWorkItems,
+    caseEvents: nextCaseEvents,
   });
 }
 
@@ -825,9 +862,24 @@ function removeAcceptedWorkItem(itemId) {
     const nextEvidenceUpdates =
       latestDelta?.evidenceUpdates?.filter((_, i) => i !== index) || [];
 
+    const evidenceEventType =
+      item.type === "missing_evidence" || item.type === "evidence_gap"
+        ? "evidence_gap_noted"
+        : "evidence_added";
+    const evidenceEvent = createEvent(
+      evidenceEventType,
+      "ai_delta",
+      { issueId: item.relatedIssueId || null, field: "linkedEvidence" },
+      { op: "add", path: "linkedEvidence", value: item.title },
+      { summary: item.title, changed: "ראיות", reason: item.description || "", groundedIn: [] }
+    );
+    evidenceEvent.status = "accepted";
+    const nextCaseEvents = [...caseEvents, evidenceEvent];
+
     setOverlays(nextOverlays);
+    setCaseEvents(nextCaseEvents);
     setLatestDelta({ ...latestDelta, evidenceUpdates: nextEvidenceUpdates });
-    persistCurrentCase(analysis, { overlays: nextOverlays });
+    persistCurrentCase(analysis, { overlays: nextOverlays, caseEvents: nextCaseEvents });
   }
 
   function rejectEvidenceUpdate(index) {
@@ -858,9 +910,21 @@ function removeAcceptedWorkItem(itemId) {
     const nextOverlays = [...overlays, overlay];
     const nextTimelineUpdates =
       latestDelta?.timelineUpdates?.filter((_, i) => i !== index) || [];
+
+    const timelineEvent = createEvent(
+      "timeline_event_added",
+      "ai_delta",
+      { issueId: null, field: "timeline" },
+      { op: "add", path: "timeline", value: item.event },
+      { summary: item.event || "", changed: "ציר זמן", reason: item.significance || "", groundedIn: [] }
+    );
+    timelineEvent.status = "accepted";
+    const nextCaseEvents = [...caseEvents, timelineEvent];
+
     setOverlays(nextOverlays);
+    setCaseEvents(nextCaseEvents);
     setLatestDelta({ ...latestDelta, timelineUpdates: nextTimelineUpdates });
-    persistCurrentCase(analysis, { overlays: nextOverlays });
+    persistCurrentCase(analysis, { overlays: nextOverlays, caseEvents: nextCaseEvents });
   }
 
   function addTimelineEvent(eventData) {
@@ -942,9 +1006,21 @@ function removeAcceptedWorkItem(itemId) {
     const nextOverlays = [...overlays, overlay];
     const nextContradictions =
       latestDelta?.contradictions?.filter((_, i) => i !== index) || [];
+
+    const contradictionEvent = createEvent(
+      "contradiction_noted",
+      "ai_delta",
+      { issueId: item.relatedIssueId || null, field: "annotations.contradictions" },
+      { op: "add", path: "annotations.contradictions", value: item.title },
+      { summary: item.title, changed: "סתירות", reason: item.description || "", groundedIn: [] }
+    );
+    contradictionEvent.status = "accepted";
+    const nextCaseEvents = [...caseEvents, contradictionEvent];
+
     setOverlays(nextOverlays);
+    setCaseEvents(nextCaseEvents);
     setLatestDelta({ ...latestDelta, contradictions: nextContradictions });
-    persistCurrentCase(analysis, { overlays: nextOverlays });
+    persistCurrentCase(analysis, { overlays: nextOverlays, caseEvents: nextCaseEvents });
   }
 
   function rejectContradiction(index) {
