@@ -35,6 +35,13 @@ function normalizeCriticalIssue(issue, index) {
       missingEvidence: issue.missingEvidence || [],
       suggestedActions: issue.suggestedActions || [],
     },
+
+    // Phase A placeholder — "intake" should eventually resolve to the actual intake event id.
+    meta: {
+      version: 1,
+      createdByEvent: "intake",
+      lastUpdatedByEvent: "intake",
+    },
   };
 }
 
@@ -103,6 +110,12 @@ export function normalizeIssues(analysis) {
           issue.actionItems?.suggestedActions ||
           issue.suggestedActions ||
           [],
+      },
+
+      meta: issue.meta ?? {
+        version: 1,
+        createdByEvent: "intake",
+        lastUpdatedByEvent: "intake",
       },
     };
   });
