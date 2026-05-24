@@ -1084,6 +1084,44 @@ function removeAcceptedWorkItem(itemId) {
     setLatestDelta({ ...latestDelta, changedAssessments: nextChangedAssessments });
   }
 
+  function acceptCaseAssessmentChange(item) {
+    const overlay = {
+      id: `overlay-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      createdAt: new Date().toISOString(),
+      type: "case_assessment",
+      isNew: true,
+      patch: {
+        previousLevel: item.previousLevel || null,
+        newLevel: item.newLevel || null,
+        previousSummary: item.previousSummary || null,
+        newSummary: item.newSummary || null,
+        reason: item.reason || null,
+        overridingFactor: item.overridingFactor || null,
+      },
+    };
+
+    const caseAssessmentEvent = createEvent(
+      "case_assessment_changed",
+      "ai_delta",
+      {},
+      { op: "replace", path: "successAssessment.level", value: item.newLevel || null, previousValue: item.previousLevel || null },
+      { summary: `${item.previousLevel ?? "?"} → ${item.newLevel ?? "?"}`, changed: "הערכת סיכויים", reason: item.reason || "", groundedIn: [] }
+    );
+    caseAssessmentEvent.status = "accepted";
+
+    const nextOverlays = [...overlays, overlay];
+    const nextCaseEvents = [...caseEvents, caseAssessmentEvent];
+
+    setOverlays(nextOverlays);
+    setCaseEvents(nextCaseEvents);
+    setLatestDelta({ ...latestDelta, caseAssessmentChange: null });
+    persistCurrentCase(analysis, { overlays: nextOverlays, caseEvents: nextCaseEvents });
+  }
+
+  function rejectCaseAssessmentChange() {
+    setLatestDelta({ ...latestDelta, caseAssessmentChange: null });
+  }
+
   function rollbackOverlay(overlayId) {
     const nextOverlays = overlays.filter((o) => o.id !== overlayId);
     setOverlays(nextOverlays);
@@ -1266,6 +1304,8 @@ runAnalysis={analysis ? handleCaseTextUpdateAndReanalyze : runAnalysis}
   onRejectContradiction={rejectContradiction}
   onAcceptAssessmentChange={acceptAssessmentChange}
   onRejectAssessmentChange={rejectAssessmentChange}
+  onAcceptCaseAssessmentChange={acceptCaseAssessmentChange}
+  onRejectCaseAssessmentChange={rejectCaseAssessmentChange}
 />
 )}
             <main key={currentCaseId} id="results" className="space-y-4 min-w-0">
@@ -1273,6 +1313,8 @@ runAnalysis={analysis ? handleCaseTextUpdateAndReanalyze : runAnalysis}
                 analysis?.executiveView?.successAssessment && (
                   <SuccessAssessment
                     assessment={analysis.executiveView.successAssessment}
+                    overlays={overlays}
+                    onRollbackOverlay={rollbackOverlay}
                   />
                 )}
 

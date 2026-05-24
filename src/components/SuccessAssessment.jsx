@@ -1,5 +1,18 @@
-export default function SuccessAssessment({ assessment }) {
+export default function SuccessAssessment({ assessment, overlays = [], onRollbackOverlay }) {
   if (!assessment) return null;
+
+  const caseAssessmentOverlays = overlays.filter((o) => o.type === "case_assessment");
+  const latestOverlay = caseAssessmentOverlays.at(-1) ?? null;
+
+  const effectiveAssessment = latestOverlay
+    ? {
+        ...assessment,
+        level: latestOverlay.patch.newLevel ?? assessment.level,
+        summary: latestOverlay.patch.newSummary || assessment.summary,
+      }
+    : assessment;
+
+  const isUpdated = latestOverlay !== null;
 
   return (
     <details
@@ -33,7 +46,7 @@ export default function SuccessAssessment({ assessment }) {
                   text-sm font-bold text-slate-800
                 "
               >
-                {assessment.level}
+                {effectiveAssessment.level}
 
                 <span
                   className="
@@ -45,7 +58,35 @@ export default function SuccessAssessment({ assessment }) {
                   ⌄
                 </span>
               </div>
+
+              {isUpdated && (
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                  עודכן
+                </span>
+              )}
             </div>
+
+            {isUpdated && latestOverlay.patch.previousLevel && (
+              <div className="flex items-center gap-2 flex-wrap text-xs text-slate-500">
+                <span>היה: {latestOverlay.patch.previousLevel}</span>
+                {latestOverlay.patch.reason && (
+                  <>
+                    <span>·</span>
+                    <span>סיבת העדכון: {latestOverlay.patch.reason}</span>
+                  </>
+                )}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onRollbackOverlay?.(latestOverlay.id);
+                  }}
+                  className="text-slate-400 hover:text-red-500 transition"
+                >
+                  בטל
+                </button>
+              </div>
+            )}
 
             <p className="text-sm text-slate-500">
               על בסיס החומר שהועלה למערכת בשלב זה
@@ -63,9 +104,9 @@ export default function SuccessAssessment({ assessment }) {
               </div>
             )}
 
-            {assessment.summary && (
+            {effectiveAssessment.summary && (
               <p className="text-[15px] leading-7 text-slate-700">
-                {assessment.summary}
+                {effectiveAssessment.summary}
               </p>
             )}
           </div>

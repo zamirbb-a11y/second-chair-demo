@@ -13,6 +13,8 @@ export default function DeltaNotificationPanel({
   onRejectContradiction,
   onAcceptAssessmentChange,
   onRejectAssessmentChange,
+  onAcceptCaseAssessmentChange,
+  onRejectCaseAssessmentChange,
 }) {
   const sections = useMemo(
     () => [
@@ -120,6 +122,50 @@ export default function DeltaNotificationPanel({
           סגור
         </button>
       </div>
+
+      {delta?.caseAssessmentChange && (
+        <div className="border-b border-amber-100 bg-white/80 p-4">
+          <div className="text-xs font-bold text-slate-500 mb-2">הערכת סיכויים כוללת</div>
+          <div className="rounded-xl border border-slate-200 bg-white p-3 text-sm space-y-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                {delta.caseAssessmentChange.previousLevel || "—"}
+              </span>
+              <span className="text-slate-400 text-xs">→</span>
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                {delta.caseAssessmentChange.newLevel}
+              </span>
+              {delta.caseAssessmentChange.overridingFactor && delta.caseAssessmentChange.overridingFactor !== "null" && (
+                <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">
+                  {translateOverridingFactor(delta.caseAssessmentChange.overridingFactor)}
+                </span>
+              )}
+            </div>
+            {delta.caseAssessmentChange.reason && (
+              <div className="text-xs text-slate-600 leading-5">{delta.caseAssessmentChange.reason}</div>
+            )}
+            {delta.caseAssessmentChange.newSummary && (
+              <div className="text-xs text-slate-500 leading-5 italic">{delta.caseAssessmentChange.newSummary}</div>
+            )}
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => onAcceptCaseAssessmentChange?.(delta.caseAssessmentChange)}
+                className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800"
+              >
+                אשר עדכון הערכה
+              </button>
+              <button
+                type="button"
+                onClick={() => onRejectCaseAssessmentChange?.()}
+                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50"
+              >
+                דחה
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-3 md:grid-cols-5 bg-white/60 border-b border-amber-100">
         {sections.map((section) => {
@@ -306,6 +352,18 @@ function translateDirection(direction) {
       return "לא ברור";
     default:
       return null;
+  }
+}
+
+function translateOverridingFactor(factor) {
+  switch (factor) {
+    case "limitation":          return "התיישנות";
+    case "procedural_bar":      return "מחסום דיוני";
+    case "admissibility":       return "בעיית קבילות";
+    case "damages_weakness":    return "חולשת נזק";
+    case "causation_gap":       return "פער סיבתיות";
+    case "remedy_concern":      return "בעיית סעד/אכיפה";
+    default:                    return factor;
   }
 }
 

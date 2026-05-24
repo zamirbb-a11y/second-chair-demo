@@ -8,6 +8,7 @@ export default function IssueCard({
   evidenceOverlays = [],
   workItemOverlays = [],
   contradictionOverlays = [],
+  assessmentOverlays = [],
   onRollbackOverlay,
   onRemoveWorkItem,
 }) {
@@ -111,6 +112,29 @@ export default function IssueCard({
 
     setActionText("");
   }
+
+  const effectiveLegal = { ...issue.legalAssessment };
+  const updatedLegalFields = new Set();
+  for (const o of assessmentOverlays) {
+    if (o.patch.field === "legalAssessment.summary" && o.patch.newValue != null) {
+      effectiveLegal.summary = o.patch.newValue;
+      updatedLegalFields.add("summary");
+    }
+    if (o.patch.field === "legalAssessment.strength" && o.patch.newValue != null) {
+      effectiveLegal.strength = o.patch.newValue;
+      updatedLegalFields.add("strength");
+    }
+  }
+
+  const existingLaw = issue.legalAssessment?.relevantLaw || [];
+  const newPrecedents = (precedentSuggestions || []).filter((p) => {
+    const name = (p.shortName || "").toLowerCase();
+    const num = (p.caseNumber || "").toLowerCase();
+    return !existingLaw.some((e) => {
+      const entry = e.toLowerCase();
+      return (name && entry.includes(name)) || (num && entry.includes(num));
+    });
+  });
 
   return (
     <div
@@ -265,13 +289,47 @@ shadow-[0_6px_18px_rgba(15,23,42,0.08)]
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
             <SectionCard title="הערכה משפטית">
-              <InfoBlock text={issue.legalAssessment?.summary} />
+              <AssessmentSummaryBlock
+                summary={effectiveLegal.summary}
+                strength={effectiveLegal.strength}
+                updatedFields={updatedLegalFields}
+                assessmentOverlays={assessmentOverlays}
+                onRollbackOverlay={onRollbackOverlay}
+              />
 
               <ExpandableList
                 title="חקיקה ופסיקה"
                 items={issue.legalAssessment?.relevantLaw}
                 limit={3}
+                suggestedItems={newPrecedents}
               />
+
+              {precedentSuggestions !== null && newPrecedents.length > 0 && (
+                <div className="text-xs text-slate-500">
+                  התווספו {newPrecedents.length} פסקי דין לבדיקה
+                </div>
+              )}
+
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={checkIssuePrecedents}
+                  disabled={isPrecedentLoading}
+                  className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition"
+                >
+                  {isPrecedentLoading ? "מחפש פסיקה..." : "בדוק פסיקה למחלוקת זו"}
+                </button>
+
+                {precedentSuggestions !== null && (
+                  <button
+                    type="button"
+                    onClick={() => setPrecedentSuggestions(null)}
+                    className="text-xs text-slate-400 hover:text-slate-700 transition"
+                  >
+                    נקה תוצאות
+                  </button>
+                )}
+              </div>
 
               {contradictionOverlays
                 .filter((o) => !EVIDENCE_SURFACE_TYPES.includes(o.patch.targetType) && !POSITION_SURFACE_TYPES.includes(o.patch.targetType))
@@ -329,38 +387,6 @@ shadow-[0_6px_18px_rgba(15,23,42,0.08)]
             </SectionCard>
           </div>
 
-          {workItemOverlays.length > 0 && (
-            <ApprovedUpdatesSection
-              workItemOverlays={workItemOverlays}
-              onRemoveWorkItem={onRemoveWorkItem}
-            />
-          )}
-
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={checkIssuePrecedents}
-              disabled={isPrecedentLoading}
-              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition"
-            >
-              {isPrecedentLoading ? "מחפש פסיקה..." : "בדוק פסיקה למחלוקת זו"}
-            </button>
-
-            {precedentSuggestions !== null && (
-              <button
-                type="button"
-                onClick={() => setPrecedentSuggestions(null)}
-                className="text-xs text-slate-400 hover:text-slate-700 transition"
-              >
-                נקה תוצאות
-              </button>
-            )}
-          </div>
-
-          {precedentSuggestions !== null && (
-            <IssuePrecedentResults precedents={precedentSuggestions} />
-          )}
-
           <SectionCard title="כיווני פעולה">
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
               <ActionList
@@ -376,6 +402,8 @@ shadow-[0_6px_18px_rgba(15,23,42,0.08)]
                   setActiveAction(null);
                   setActionText("");
                 }}
+                overlayItems={workItemOverlays.filter((i) => i.type === "client_question")}
+                onRemoveWorkItem={onRemoveWorkItem}
               />
 
               <ActionList
@@ -391,6 +419,8 @@ shadow-[0_6px_18px_rgba(15,23,42,0.08)]
                   setActiveAction(null);
                   setActionText("");
                 }}
+                overlayItems={workItemOverlays.filter((i) => i.type === "evidence_to_obtain")}
+                onRemoveWorkItem={onRemoveWorkItem}
               />
 
               <ActionList
@@ -406,6 +436,8 @@ shadow-[0_6px_18px_rgba(15,23,42,0.08)]
                   setActiveAction(null);
                   setActionText("");
                 }}
+                overlayItems={workItemOverlays.filter((i) => !["client_question", "evidence_to_obtain"].includes(i.type))}
+                onRemoveWorkItem={onRemoveWorkItem}
               />
             </div>
 
@@ -453,16 +485,113 @@ function InfoBlock({ text }) {
   );
 }
 
+const STRENGTH_LABEL = {
+  very_strong:   "חוזק: גבוה מאוד",
+  strong:        "חוזק: גבוה",
+  medium_strong: "חוזק: בינוני-גבוה",
+  medium:        "חוזק: בינוני",
+  medium_weak:   "חוזק: בינוני-נמוך",
+  weak:          "חוזק: נמוך",
+  very_weak:     "חוזק: נמוך מאוד",
+  unclear:       "חוזק: לא ברור",
+};
+
+const STRENGTH_COLOR = {
+  very_strong:   "bg-emerald-100 text-emerald-800",
+  strong:        "bg-emerald-100 text-emerald-700",
+  medium_strong: "bg-blue-100 text-blue-700",
+  medium:        "bg-slate-100 text-slate-600",
+  medium_weak:   "bg-amber-100 text-amber-700",
+  weak:          "bg-orange-100 text-orange-700",
+  very_weak:     "bg-red-100 text-red-700",
+  unclear:       "bg-slate-100 text-slate-500",
+};
+
+function AssessmentSummaryBlock({ summary, strength, updatedFields, assessmentOverlays, onRollbackOverlay }) {
+  const summaryUpdated = updatedFields.has("summary");
+  const strengthUpdated = updatedFields.has("strength");
+
+  const summaryOverlay = summaryUpdated
+    ? [...assessmentOverlays].reverse().find((o) => o.patch.field === "legalAssessment.summary")
+    : null;
+  const strengthOverlay = strengthUpdated
+    ? [...assessmentOverlays].reverse().find((o) => o.patch.field === "legalAssessment.strength")
+    : null;
+
+  return (
+    <div className="space-y-2">
+      {summary && (
+        <div className="text-sm leading-6 text-slate-700">
+          {summary}
+          {summaryUpdated && (
+            <span className="inline-flex items-center gap-1 mr-1.5 align-middle">
+              <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-700">
+                עודכן
+              </span>
+              {summaryOverlay && (
+                <button
+                  type="button"
+                  onClick={() => onRollbackOverlay?.(summaryOverlay.id)}
+                  className="text-xs text-slate-400 hover:text-red-500 transition"
+                >
+                  בטל
+                </button>
+              )}
+            </span>
+          )}
+        </div>
+      )}
+
+      {strength && STRENGTH_LABEL[strength] && (
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STRENGTH_COLOR[strength] ?? "bg-slate-100 text-slate-600"}`}>
+              {STRENGTH_LABEL[strength]}
+            </span>
+            {strengthUpdated && (
+              <>
+                <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-700">
+                  עודכן
+                </span>
+                {strengthOverlay?.patch.previousValue && (
+                  <span className="text-xs text-slate-400">
+                    (היה: {STRENGTH_LABEL[strengthOverlay.patch.previousValue] ?? strengthOverlay.patch.previousValue})
+                  </span>
+                )}
+                {strengthOverlay && (
+                  <button
+                    type="button"
+                    onClick={() => onRollbackOverlay?.(strengthOverlay.id)}
+                    className="text-xs text-slate-400 hover:text-red-500 transition"
+                  >
+                    בטל
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+          {strengthUpdated && strengthOverlay?.patch.reason && (
+            <div className="text-xs text-slate-500 leading-5">
+              סיבת העדכון: {strengthOverlay.patch.reason}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ExpandableList({
   title,
   items,
   limit = 3,
   overlayItems = [],
   onRollbackOverlay,
+  suggestedItems = [],
 }) {
   const [isOpen, setIsOpen] = useState(false);
 
-  if (!items?.length && !overlayItems.length) return null;
+  if (!items?.length && !overlayItems.length && !suggestedItems.length) return null;
 
   const visibleItems = isOpen
     ? items
@@ -498,6 +627,16 @@ function ExpandableList({
               >
                 בטל
               </button>
+            </li>
+          ))}
+          {suggestedItems.map((p) => (
+            <li key={p.id} className="flex items-start gap-1.5 pt-0.5">
+              <span className="leading-5 text-slate-700">
+                • {p.caseNumber ? `${p.caseNumber} ${p.shortName || ""}`.trim() : (p.shortName || p.id)}
+              </span>
+              <span className="mr-1 shrink-0 rounded-full bg-emerald-100 px-1.5 py-0.5 text-xs font-semibold text-emerald-700 align-middle">
+                חדש
+              </span>
             </li>
           ))}
         </ul>
@@ -579,48 +718,6 @@ function ExpandableList({
   );
 }
 
-function ApprovedUpdatesSection({ workItemOverlays, onRemoveWorkItem }) {
-  return (
-    <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-4">
-      <div className="text-sm font-bold text-blue-900 mb-3">
-        משימות שאושרו
-      </div>
-
-      <div className="space-y-2">
-        {workItemOverlays.map((item) => (
-          <div
-            key={item.id}
-            className="flex items-start justify-between gap-3 rounded-xl border border-blue-100 bg-white px-3 py-2.5"
-          >
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700 shrink-0">
-                  משימה
-                </span>
-                <span className="text-sm font-semibold text-slate-900">
-                  {item.title}
-                </span>
-              </div>
-              {item.description && (
-                <p className="mt-1 text-xs leading-5 text-slate-600">
-                  {item.description}
-                </p>
-              )}
-            </div>
-
-            <button
-              type="button"
-              onClick={() => onRemoveWorkItem?.(item.id)}
-              className="shrink-0 text-xs text-slate-400 hover:text-red-500 transition"
-            >
-              בטל
-            </button>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 const EVIDENCE_SURFACE_TYPES = [
   "evidence",
@@ -682,72 +779,6 @@ function ContradictionSignal({ overlay, framing, onRollback }) {
   );
 }
 
-const HELPS_STYLE = {
-  Claimant: "bg-emerald-100 text-emerald-700",
-  Defense:  "bg-red-100 text-red-700",
-  Mixed:    "bg-amber-100 text-amber-700",
-};
-
-const HELPS_LABEL = {
-  Claimant: "מחזק תובע",
-  Defense:  "מחזק נתבע",
-  Mixed:    "מעורב",
-};
-
-function IssuePrecedentResults({ precedents }) {
-  if (precedents.length === 0) {
-    return (
-      <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
-        לא נמצאה פסיקה רלוונטית למחלוקת זו.
-      </div>
-    );
-  }
-
-  return (
-    <div className="rounded-2xl border border-blue-100 bg-[#f8fbff] p-4 shadow-[0_2px_8px_rgba(15,23,42,0.04)]">
-      <div className="text-sm font-bold text-slate-900 mb-3">
-        פסיקה רלוונטית למחלוקת זו
-      </div>
-
-      <div className="space-y-2">
-        {precedents.map((p) => (
-          <div
-            key={p.id}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2.5"
-          >
-            <div className="flex items-center gap-2 flex-wrap">
-              {p.helps && (
-                <span className={`rounded-full px-2 py-0.5 text-xs font-semibold shrink-0 ${HELPS_STYLE[p.helps] ?? "bg-slate-100 text-slate-600"}`}>
-                  {HELPS_LABEL[p.helps] ?? p.helps}
-                </span>
-              )}
-              <span className="text-sm font-semibold text-slate-900">
-                {p.caseNumber ? `${p.caseNumber} ` : ""}{p.shortName}
-              </span>
-            </div>
-
-            {p.miniRatio && (
-              <p className="mt-1 text-xs leading-5 text-slate-600 line-clamp-2">
-                {p.miniRatio}
-              </p>
-            )}
-
-            {p.retrievalReasons?.length > 0 && (
-              <div className="mt-1.5 flex flex-wrap gap-1">
-                {p.retrievalReasons.slice(0, 2).map((r, i) => (
-                  <span key={i} className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">
-                    {r}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function ActionList({
   title,
   items,
@@ -758,8 +789,10 @@ function ActionList({
   onSelectAction,
   onSaveActionNote,
   onCloseAction,
+  overlayItems = [],
+  onRemoveWorkItem,
 }) {
-  if (!items?.length) return null;
+  if (!items?.length && !overlayItems.length) return null;
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-3">
@@ -768,7 +801,7 @@ function ActionList({
       </div>
 
       <div className="space-y-2">
-        {items.map((item) => {
+        {(items || []).map((item) => {
           const isActive =
             activeAction?.type === actionType &&
             activeAction?.title === item;
@@ -870,6 +903,24 @@ function ActionList({
             </div>
           );
         })}
+
+        {overlayItems.map((item) => (
+          <div key={item.id} className="flex items-start justify-between gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm">
+            <span className="leading-5 text-slate-700">
+              • {item.title}
+              <span className="mr-1.5 rounded-full bg-emerald-100 px-1.5 py-0.5 text-xs font-semibold text-emerald-700 align-middle">
+                חדש
+              </span>
+            </span>
+            <button
+              type="button"
+              onClick={() => onRemoveWorkItem?.(item.id)}
+              className="shrink-0 text-xs text-slate-400 hover:text-red-500 transition"
+            >
+              בטל
+            </button>
+          </div>
+        ))}
       </div>
     </div>
   );

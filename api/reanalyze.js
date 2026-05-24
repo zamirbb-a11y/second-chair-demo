@@ -43,7 +43,8 @@ return res.status(200).json({
   timelineUpdates: [],
   contradictions: [],
   suggestedActions: [],
-generatedWorkItems: [],
+  generatedWorkItems: [],
+  caseAssessmentChange: null,
 });
     }
 
@@ -136,8 +137,23 @@ generatedWorkItems: [],
     "sourceUpdateId": "",
     "priority": "low | medium | high"
   }
-]
+],
+  "caseAssessmentChange": {
+    "previousLevel": "",
+    "newLevel": "",
+    "previousSummary": "",
+    "newSummary": "",
+    "reason": "",
+    "overridingFactor": "limitation | procedural_bar | admissibility | damages_weakness | causation_gap | remedy_concern | null"
+  }
 }
+
+כללים לשדה caseAssessmentChange:
+- כלול רק כאשר המידע החדש משנה מהותית את הערכת סיכויי התיק הכוללת.
+- חייב לציין במפורש אילו מחלוקות, ראיות, או סתירות מניעות את השינוי.
+- newLevel חייב להיות אחד מ: "גבוה מאוד", "גבוה", "בינוני-גבוה", "בינוני", "בינוני-נמוך", "נמוך", "נמוך מאוד".
+- אם הערכת הסיכויים הכוללת אינה עולה בקנה אחד עם עוצמת המחלוקות הפרטניות — יש לציין overridingFactor.
+- אם אין שינוי מהותי — השאר caseAssessmentChange כ-null.
 
 כללים לשדה changedAssessments:
 - דווח רק על שינויי הערכה ממשיים שנגרמו מהעדכונים החדשים.

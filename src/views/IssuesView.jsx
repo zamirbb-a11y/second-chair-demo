@@ -6,6 +6,7 @@ import {
   getIssueEvidenceOverlays,
   getIssueWorkItems,
   getIssueContradictionOverlays,
+  getIssueAssessmentOverlays,
 } from "../utils/applyOverlays";
 
 export default function IssuesView({
@@ -239,6 +240,7 @@ export default function IssuesView({
             evidenceOverlays={getIssueEvidenceOverlays(overlays, issue.id, issue.title)}
             workItemOverlays={getIssueWorkItems(acceptedWorkItems, issue.id, issue.title)}
             contradictionOverlays={getIssueContradictionOverlays(overlays, issue.id, issue.title)}
+            assessmentOverlays={getIssueAssessmentOverlays(overlays, issue.id, issue.title)}
             onRollbackOverlay={onRollbackOverlay}
             onRemoveWorkItem={onRemoveWorkItem}
           />
