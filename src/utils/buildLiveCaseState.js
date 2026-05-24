@@ -31,19 +31,19 @@ export function buildLiveCaseState({
   const allIssues = [...aiIssues, ...userIssues];
 
   const issues = allIssues.map((issue) => {
-    // Apply latest issue_updated overlay (user edits). Latest wins.
+    // Apply all issue_updated overlays in order; each patches only the fields it contains.
     const issueEditOverlays = overlays.filter(
       (o) => o.type === "issue_updated" && o.patch.issueId === issue.id
     );
-    const latestEdit = issueEditOverlays.at(-1);
-    const baseIssue = latestEdit
-      ? {
-          ...issue,
-          title: latestEdit.patch.title ?? issue.title,
-          description: latestEdit.patch.description ?? issue.description,
-          importance: latestEdit.patch.importance ?? issue.importance,
-        }
-      : issue;
+    const baseIssue = issueEditOverlays.reduce((acc, o) => ({
+      ...acc,
+      ...(o.patch.title !== undefined ? { title: o.patch.title } : {}),
+      ...(o.patch.description !== undefined ? { description: o.patch.description } : {}),
+      ...(o.patch.importance !== undefined ? { importance: o.patch.importance } : {}),
+      ...(o.patch.partyPositions
+        ? { partyPositions: { ...acc.partyPositions, ...o.patch.partyPositions } }
+        : {}),
+    }), issue);
 
     const assessmentOverlays = getIssueAssessmentOverlays(overlays, baseIssue.id, baseIssue.title);
     const evidenceOverlays = getIssueEvidenceOverlays(overlays, baseIssue.id, baseIssue.title);

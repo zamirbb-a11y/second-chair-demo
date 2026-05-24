@@ -39,6 +39,167 @@ import { createEvent, hasIntakeEvent, computeCaseState } from "./lib/caseEvents"
 import { normalizeTimelineDate } from "./utils/normalizeTimelineDate";
 import { normalizeDeltaIssueLinks } from "./utils/normalizeDeltaIssueLinks";
 
+function buildIssueAnalysisResult(issueId, issueTitle, result) {
+  const id = () => `overlay-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const now = new Date().toISOString();
+  const overlays = [];
+  const events = [];
+  const workItems = [];
+
+  if (result.claimantPosition || result.defendantPosition) {
+    overlays.push({
+      id: id(),
+      createdAt: now,
+      type: "issue_updated",
+      isNew: false,
+      patch: {
+        issueId,
+        partyPositions: {
+          claimant: result.claimantPosition || "",
+          defendant: result.defendantPosition || "",
+        },
+      },
+    });
+  }
+
+  if (result.legalAssessment?.summary) {
+    overlays.push({
+      id: id(),
+      createdAt: now,
+      type: "assessment",
+      isNew: true,
+      patch: {
+        action: "update_assessment",
+        issueId,
+        issueTitle,
+        field: "legalAssessment.summary",
+        previousValue: null,
+        newValue: result.legalAssessment.summary,
+        reason: "ניתוח AI ממוקד מחלוקת",
+      },
+    });
+    const e = createEvent(
+      "assessment_changed", "ai_delta",
+      { issueId, field: "legalAssessment.summary" },
+      { op: "replace", path: "legalAssessment.summary", value: result.legalAssessment.summary, previousValue: null },
+      { summary: "עדכון סיכום הערכה", changed: "הערכה", reason: "ניתוח AI ממוקד מחלוקת", groundedIn: [] }
+    );
+    e.status = "accepted";
+    events.push(e);
+  }
+
+  if (result.legalAssessment?.strength && result.legalAssessment.strength !== "unclear") {
+    overlays.push({
+      id: id(),
+      createdAt: now,
+      type: "assessment",
+      isNew: true,
+      patch: {
+        action: "update_assessment",
+        issueId,
+        issueTitle,
+        field: "legalAssessment.strength",
+        previousValue: "unclear",
+        newValue: result.legalAssessment.strength,
+        reason: "ניתוח AI ממוקד מחלוקת",
+      },
+    });
+    const e = createEvent(
+      "assessment_changed", "ai_delta",
+      { issueId, field: "legalAssessment.strength" },
+      { op: "replace", path: "legalAssessment.strength", value: result.legalAssessment.strength, previousValue: "unclear" },
+      { summary: `חוזק: ${result.legalAssessment.strength}`, changed: "הערכה", reason: "ניתוח AI ממוקד מחלוקת", groundedIn: [] }
+    );
+    e.status = "accepted";
+    events.push(e);
+  }
+
+  for (const item of result.evidenceUpdates || []) {
+    overlays.push({
+      id: id(),
+      createdAt: now,
+      type: "evidence",
+      isNew: true,
+      patch: {
+        action: "add_evidence_update",
+        evidenceType: item.type,
+        title: item.title,
+        description: item.description,
+        relatedIssueId: issueId,
+        relatedIssueTitle: issueTitle,
+        relatedUpdateId: null,
+      },
+    });
+    const evType = item.type === "missing_evidence" || item.type === "evidence_gap"
+      ? "evidence_gap_noted"
+      : "evidence_added";
+    const e = createEvent(evType, "ai_delta", { issueId, field: "linkedEvidence" }, { op: "add", path: "linkedEvidence", value: item.title }, { summary: item.title, changed: "ראיות", reason: item.description || "", groundedIn: [] });
+    e.status = "accepted";
+    events.push(e);
+  }
+
+  for (const item of result.missingEvidence || []) {
+    overlays.push({
+      id: id(),
+      createdAt: now,
+      type: "evidence",
+      isNew: true,
+      patch: {
+        action: "add_evidence_update",
+        evidenceType: "missing_evidence",
+        title: item.title,
+        description: item.description,
+        relatedIssueId: issueId,
+        relatedIssueTitle: issueTitle,
+        relatedUpdateId: null,
+      },
+    });
+    const e = createEvent("evidence_gap_noted", "ai_delta", { issueId, field: "linkedEvidence" }, { op: "add", path: "linkedEvidence", value: item.title }, { summary: item.title, changed: "ראיות", reason: item.description || "", groundedIn: [] });
+    e.status = "accepted";
+    events.push(e);
+  }
+
+  for (const item of result.contradictions || []) {
+    overlays.push({
+      id: id(),
+      createdAt: now,
+      type: "contradiction",
+      isNew: true,
+      patch: {
+        action: "add_contradiction",
+        title: item.title,
+        description: item.description,
+        severity: item.severity || "medium",
+        direction: item.direction || "unclear",
+        relatedIssueId: issueId,
+        relatedIssueTitle: issueTitle,
+        relatedUpdateId: null,
+        targetType: item.targetType || "unknown",
+        targetId: null,
+      },
+    });
+    const e = createEvent("contradiction_noted", "ai_delta", { issueId, field: "annotations.contradictions" }, { op: "add", path: "annotations.contradictions", value: item.title }, { summary: item.title, changed: "סתירות", reason: item.description || "", groundedIn: [] });
+    e.status = "accepted";
+    events.push(e);
+  }
+
+  for (const item of result.generatedWorkItems || []) {
+    workItems.push({
+      ...item,
+      id: id(),
+      status: "accepted",
+      acceptedAt: now,
+      relatedIssueId: issueId,
+      relatedIssueTitle: issueTitle,
+    });
+    const e = createEvent("work_item_created", "ai_delta", { issueId, field: null }, { op: "add", path: "workItems", value: item.title }, { summary: item.title, changed: "משימות", reason: item.description || item.reason || "", groundedIn: [] });
+    e.status = "accepted";
+    events.push(e);
+  }
+
+  return { overlays, events, workItems };
+}
+
 export default function App() {
   const [caseText, setCaseText] = useState("");
   const [additionalInfoText, setAdditionalInfoText] = useState("");
@@ -1165,6 +1326,27 @@ function removeAcceptedWorkItem(itemId) {
     setUserIssues(nextUserIssues);
     setCaseEvents(nextCaseEvents);
     persistCurrentCase(analysis, { userIssues: nextUserIssues, caseEvents: nextCaseEvents });
+
+    triggerIssueAnalysis(issueId, title, description || "");
+  }
+
+  async function triggerIssueAnalysis(issueId, issueTitle, issueDescription) {
+    try {
+      const res = await fetch("/api/analyze-issue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          issue: { id: issueId, title: issueTitle, description: issueDescription },
+          liveCaseState,
+          caseText: caseText.slice(0, 4000),
+          documentText: documentText.slice(0, 3000),
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) handleIssueAnalysisResult(issueId, issueTitle, data);
+    } catch {
+      // Silent fail — issue is visible without analysis
+    }
   }
 
   function updateIssue(updatedIssue) {
@@ -1211,6 +1393,22 @@ function removeAcceptedWorkItem(itemId) {
     const nextOverlays = overlays.filter((o) => o.id !== overlayId);
     setOverlays(nextOverlays);
     persistCurrentCase(analysis, { overlays: nextOverlays });
+  }
+
+  function handleIssueAnalysisResult(issueId, issueTitle, result) {
+    const { overlays: newOverlays, events: newEvents, workItems: newWorkItems } =
+      buildIssueAnalysisResult(issueId, issueTitle, result);
+    const nextOverlays = [...overlays, ...newOverlays];
+    const nextCaseEvents = [...caseEvents, ...newEvents];
+    const nextAcceptedWorkItems = [...acceptedWorkItems, ...newWorkItems];
+    setOverlays(nextOverlays);
+    setCaseEvents(nextCaseEvents);
+    setAcceptedWorkItems(nextAcceptedWorkItems);
+    persistCurrentCase(analysis, {
+      overlays: nextOverlays,
+      caseEvents: nextCaseEvents,
+      acceptedWorkItems: nextAcceptedWorkItems,
+    });
   }
 
   function renderWorkspaceView() {
