@@ -5,13 +5,14 @@ export default function IssueCard({
   issue,
   onUpdateIssue,
   onWorkspaceUpdate,
-  evidenceOverlays = [],
-  workItemOverlays = [],
-  contradictionOverlays = [],
-  assessmentOverlays = [],
   onRollbackOverlay,
   onRemoveWorkItem,
 }) {
+  const evidenceOverlays = issue.overlays?.evidence ?? [];
+  const workItemOverlays = issue.overlays?.workItems ?? [];
+  const contradictionOverlays = issue.overlays?.contradictions ?? [];
+  const assessmentOverlays = issue.overlays?.assessmentChanges ?? [];
+
   const totalOverlays = evidenceOverlays.length + workItemOverlays.length + contradictionOverlays.length;
   const [isEditing, setIsEditing] = useState(false);
   const [draftTitle, setDraftTitle] = useState(issue.title);
@@ -115,18 +116,8 @@ export default function IssueCard({
 
   const isUserIssue = issue.meta?.source === "user";
 
-  const effectiveLegal = { ...issue.legalAssessment };
-  const updatedLegalFields = new Set();
-  for (const o of assessmentOverlays) {
-    if (o.patch.field === "legalAssessment.summary" && o.patch.newValue != null) {
-      effectiveLegal.summary = o.patch.newValue;
-      updatedLegalFields.add("summary");
-    }
-    if (o.patch.field === "legalAssessment.strength" && o.patch.newValue != null) {
-      effectiveLegal.strength = o.patch.newValue;
-      updatedLegalFields.add("strength");
-    }
-  }
+  const effectiveLegal = issue.effectiveLegal ?? { ...issue.legalAssessment };
+  const updatedLegalFields = new Set(issue.updatedLegalFields ?? []);
 
   const existingLaw = issue.legalAssessment?.relevantLaw || [];
   const newPrecedents = (precedentSuggestions || []).filter((p) => {

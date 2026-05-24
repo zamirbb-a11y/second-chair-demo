@@ -1453,8 +1453,6 @@ default:
         issues={liveCaseState?.issues ?? null}
         onUpdateIssue={updateIssue}
         onWorkspaceUpdate={handleWorkspaceUpdate}
-        overlays={overlays}
-        acceptedWorkItems={acceptedWorkItems}
         userIssues={userIssues}
         onAddUserIssue={addUserIssue}
         onRollbackOverlay={rollbackOverlay}

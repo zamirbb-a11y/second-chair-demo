@@ -2,20 +2,12 @@ import { useEffect, useState } from "react";
 
 import IssueCard from "../components/issues/IssueCard";
 import { normalizeIssues } from "../utils/normalizeIssues";
-import {
-  getIssueEvidenceOverlays,
-  getIssueWorkItems,
-  getIssueContradictionOverlays,
-  getIssueAssessmentOverlays,
-} from "../utils/applyOverlays";
 
 export default function IssuesView({
   analysis,
   issues: issuesProp = null,
   onUpdateIssue,
   onWorkspaceUpdate,
-  overlays = [],
-  acceptedWorkItems = [],
   userIssues = [],
   onAddUserIssue,
   onRollbackOverlay,
@@ -282,10 +274,6 @@ export default function IssuesView({
             issue={issue}
             onUpdateIssue={handleUpdateIssue}
             onWorkspaceUpdate={onWorkspaceUpdate}
-            evidenceOverlays={getIssueEvidenceOverlays(overlays, issue.id, issue.title)}
-            workItemOverlays={getIssueWorkItems(acceptedWorkItems, issue.id, issue.title)}
-            contradictionOverlays={getIssueContradictionOverlays(overlays, issue.id, issue.title)}
-            assessmentOverlays={getIssueAssessmentOverlays(overlays, issue.id, issue.title)}
             onRollbackOverlay={onRollbackOverlay}
             onRemoveWorkItem={onRemoveWorkItem}
           />
