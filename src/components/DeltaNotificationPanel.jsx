@@ -11,6 +11,8 @@ export default function DeltaNotificationPanel({
   onRejectTimelineUpdate,
   onAcceptContradiction,
   onRejectContradiction,
+  onAcceptAssessmentChange,
+  onRejectAssessmentChange,
 }) {
   const sections = useMemo(
     () => [
@@ -233,6 +235,26 @@ export default function DeltaNotificationPanel({
                         <button
                           type="button"
                           onClick={() => onRejectTimelineUpdate?.(index)}
+                          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50"
+                        >
+                          דחה
+                        </button>
+                      </div>
+                    )}
+
+                    {activeSection.key === "assessments" && (
+                      <div className="mt-3 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => onAcceptAssessmentChange?.(item, index)}
+                          className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800"
+                        >
+                          אשר שינוי הערכה
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => onRejectAssessmentChange?.(index)}
                           className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50"
                         >
                           דחה

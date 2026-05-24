@@ -19,14 +19,45 @@ export default function IssueCard({
 
   const [activeAction, setActiveAction] = useState(null);
   const [actionText, setActionText] = useState("");
+  const [precedentSuggestions, setPrecedentSuggestions] = useState(null);
+  const [isPrecedentLoading, setIsPrecedentLoading] = useState(false);
+
   useEffect(() => {
-  setDraftTitle(issue.title || "");
-  setDraftDescription(issue.description || "");
-  setIsEditing(false);
-  setIsExpanded(false);
-  setActiveAction(null);
-  setActionText("");
-}, [issue.id, issue.title, issue.description]);
+    setDraftTitle(issue.title || "");
+    setDraftDescription(issue.description || "");
+    setIsEditing(false);
+    setIsExpanded(false);
+    setActiveAction(null);
+    setActionText("");
+    setPrecedentSuggestions(null);
+  }, [issue.id, issue.title, issue.description]);
+
+  async function checkIssuePrecedents() {
+    setIsPrecedentLoading(true);
+    setPrecedentSuggestions(null);
+
+    const issueText = [
+      issue.title,
+      issue.description,
+      issue.legalAssessment?.summary,
+      issue.partyPositions?.coreDispute,
+      ...(issue.legalAssessment?.relevantLaw || []),
+    ].filter(Boolean).join("\n");
+
+    try {
+      const res = await fetch("/api/retrieve-precedents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ issueId: issue.id, issueText, maxResults: 5 }),
+      });
+      const data = await res.json();
+      setPrecedentSuggestions(data.precedents || []);
+    } catch {
+      setPrecedentSuggestions([]);
+    } finally {
+      setIsPrecedentLoading(false);
+    }
+  }
 
   const importanceClasses = {
     central: "bg-slate-900 text-white",
@@ -303,6 +334,31 @@ shadow-[0_6px_18px_rgba(15,23,42,0.08)]
               workItemOverlays={workItemOverlays}
               onRemoveWorkItem={onRemoveWorkItem}
             />
+          )}
+
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={checkIssuePrecedents}
+              disabled={isPrecedentLoading}
+              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition"
+            >
+              {isPrecedentLoading ? "מחפש פסיקה..." : "בדוק פסיקה למחלוקת זו"}
+            </button>
+
+            {precedentSuggestions !== null && (
+              <button
+                type="button"
+                onClick={() => setPrecedentSuggestions(null)}
+                className="text-xs text-slate-400 hover:text-slate-700 transition"
+              >
+                נקה תוצאות
+              </button>
+            )}
+          </div>
+
+          {precedentSuggestions !== null && (
+            <IssuePrecedentResults precedents={precedentSuggestions} />
           )}
 
           <SectionCard title="כיווני פעולה">
@@ -622,6 +678,72 @@ function ContradictionSignal({ overlay, framing, onRollback }) {
       >
         בטל
       </button>
+    </div>
+  );
+}
+
+const HELPS_STYLE = {
+  Claimant: "bg-emerald-100 text-emerald-700",
+  Defense:  "bg-red-100 text-red-700",
+  Mixed:    "bg-amber-100 text-amber-700",
+};
+
+const HELPS_LABEL = {
+  Claimant: "מחזק תובע",
+  Defense:  "מחזק נתבע",
+  Mixed:    "מעורב",
+};
+
+function IssuePrecedentResults({ precedents }) {
+  if (precedents.length === 0) {
+    return (
+      <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
+        לא נמצאה פסיקה רלוונטית למחלוקת זו.
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl border border-blue-100 bg-[#f8fbff] p-4 shadow-[0_2px_8px_rgba(15,23,42,0.04)]">
+      <div className="text-sm font-bold text-slate-900 mb-3">
+        פסיקה רלוונטית למחלוקת זו
+      </div>
+
+      <div className="space-y-2">
+        {precedents.map((p) => (
+          <div
+            key={p.id}
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2.5"
+          >
+            <div className="flex items-center gap-2 flex-wrap">
+              {p.helps && (
+                <span className={`rounded-full px-2 py-0.5 text-xs font-semibold shrink-0 ${HELPS_STYLE[p.helps] ?? "bg-slate-100 text-slate-600"}`}>
+                  {HELPS_LABEL[p.helps] ?? p.helps}
+                </span>
+              )}
+              <span className="text-sm font-semibold text-slate-900">
+                {p.caseNumber ? `${p.caseNumber} ` : ""}{p.shortName}
+              </span>
+            </div>
+
+            {p.miniRatio && (
+              <p className="mt-1 text-xs leading-5 text-slate-600 line-clamp-2">
+                {p.miniRatio}
+              </p>
+            )}
+
+            {p.retrievalReasons?.length > 0 && (
+              <div className="mt-1.5 flex flex-wrap gap-1">
+                {p.retrievalReasons.slice(0, 2).map((r, i) => (
+                  <span key={i} className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">
+                    {r}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

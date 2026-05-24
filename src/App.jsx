@@ -1029,6 +1029,61 @@ function removeAcceptedWorkItem(itemId) {
     setLatestDelta({ ...latestDelta, contradictions: nextContradictions });
   }
 
+  const SUPPORTED_ASSESSMENT_FIELDS = new Set([
+    "legalAssessment.summary",
+    "legalAssessment.strength",
+  ]);
+
+  function acceptAssessmentChange(item, index) {
+    const nextChangedAssessments =
+      latestDelta?.changedAssessments?.filter((_, i) => i !== index) || [];
+
+    if (!item.field || !SUPPORTED_ASSESSMENT_FIELDS.has(item.field)) {
+      setLatestDelta({ ...latestDelta, changedAssessments: nextChangedAssessments });
+      return;
+    }
+
+    const overlay = {
+      id: `overlay-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      createdAt: new Date().toISOString(),
+      type: "assessment",
+      isNew: true,
+      sourceDeltaItem: item,
+      patch: {
+        action: "update_assessment",
+        issueId: item.issueId || null,
+        issueTitle: item.issueTitle || null,
+        field: item.field,
+        previousValue: item.previousValue || null,
+        newValue: item.newValue || null,
+        reason: item.reason || null,
+      },
+    };
+
+    const assessmentEvent = createEvent(
+      "assessment_changed",
+      "ai_delta",
+      { issueId: item.issueId || null, field: item.field },
+      { op: "replace", path: item.field, value: item.newValue || null, previousValue: item.previousValue || null },
+      { summary: `${item.field}: ${item.previousValue ?? "?"} → ${item.newValue ?? "?"}`, changed: "הערכה", reason: item.reason || "", groundedIn: [] }
+    );
+    assessmentEvent.status = "accepted";
+
+    const nextOverlays = [...overlays, overlay];
+    const nextCaseEvents = [...caseEvents, assessmentEvent];
+
+    setOverlays(nextOverlays);
+    setCaseEvents(nextCaseEvents);
+    setLatestDelta({ ...latestDelta, changedAssessments: nextChangedAssessments });
+    persistCurrentCase(analysis, { overlays: nextOverlays, caseEvents: nextCaseEvents });
+  }
+
+  function rejectAssessmentChange(index) {
+    const nextChangedAssessments =
+      latestDelta?.changedAssessments?.filter((_, i) => i !== index) || [];
+    setLatestDelta({ ...latestDelta, changedAssessments: nextChangedAssessments });
+  }
+
   function rollbackOverlay(overlayId) {
     const nextOverlays = overlays.filter((o) => o.id !== overlayId);
     setOverlays(nextOverlays);
@@ -1209,6 +1264,8 @@ runAnalysis={analysis ? handleCaseTextUpdateAndReanalyze : runAnalysis}
   onRejectTimelineUpdate={rejectTimelineUpdate}
   onAcceptContradiction={acceptContradiction}
   onRejectContradiction={rejectContradiction}
+  onAcceptAssessmentChange={acceptAssessmentChange}
+  onRejectAssessmentChange={rejectAssessmentChange}
 />
 )}
             <main key={currentCaseId} id="results" className="space-y-4 min-w-0">
