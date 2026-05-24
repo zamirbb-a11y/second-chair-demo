@@ -30,7 +30,7 @@ export default function DeltaNotificationPanel({
         icon: "↗",
         items: delta?.changedAssessments || [],
         render: (item) => ({
-          title: item.area || item.title || "שינוי הערכה",
+          title: item.issueTitle || item.area || item.title || "שינוי הערכה",
           description:
             item.reason ||
             item.description ||

@@ -78,9 +78,11 @@ generatedWorkItems: [],
   ],
   "changedAssessments": [
     {
-      "area": "",
-      "previousAssessment": "",
-      "newAssessment": "",
+      "issueId": "",
+      "issueTitle": "",
+      "field": "legalAssessment.summary | legalAssessment.strength | importance | status",
+      "previousValue": "",
+      "newValue": "",
       "reason": ""
     }
   ],
@@ -136,6 +138,13 @@ generatedWorkItems: [],
   }
 ]
 }
+
+כללים לשדה changedAssessments:
+- דווח רק על שינויי הערכה ממשיים שנגרמו מהעדכונים החדשים.
+- issueId חייב להיות מתוך allowedIssues. אם אין התאמה ברורה — השאר ריק.
+- field: השתמש ב-legalAssessment.strength כאשר העדכון משנה את עוצמת המחלוקת. השתמש ב-legalAssessment.summary כאשר מדובר בשינוי נרטיבי. השתמש ב-importance כאשר משקל המחלוקת עצמה השתנה.
+- עבור legalAssessment.strength, previousValue ו-newValue חייבים להיות מתוך: very_strong / strong / medium_strong / medium / medium_weak / weak / very_weak / unclear / null.
+- אל תמציא שינויים. אם אין שינוי ממשי — השאר changedAssessments ריק.
 
 כללים לשדה contradictions:
 - כלול סתירה רק כאשר קיימת מתח ליטיגטורי ממשי, כגון:

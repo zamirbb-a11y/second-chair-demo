@@ -292,6 +292,7 @@ ${successAssessmentPrompt}
 - שאלות ללקוח
 - צעדים ליטיגטוריים ממוקדים
 
+לשדה legalAssessment.strength: השתמש בסקלה: very_strong / strong / medium_strong / medium / medium_weak / weak / very_weak / unclear. השאר null אם אין מספיק מידע להערכה.
 אין ליצור issues כפולים.
 החזר JSON בלבד, בלי Markdown, בדיוק במבנה הבא:
 
@@ -314,6 +315,7 @@ ${successAssessmentPrompt}
 
     "legalAssessment": {
       "summary": "",
+      "strength": "very_strong | strong | medium_strong | medium | medium_weak | weak | very_weak | unclear | null",
       "relevantLaw": []
     },
 

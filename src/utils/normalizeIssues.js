@@ -23,6 +23,7 @@ function normalizeCriticalIssue(issue, index) {
 
     legalAssessment: {
       summary: issue.analysis || "",
+      strength: null,
       relevantLaw: issue.legalBasis || issue.relevantLaw || [],
     },
 
@@ -87,6 +88,7 @@ export function normalizeIssues(analysis) {
           issue.legalAssessment?.summary ||
           issue.legalAssessment ||
           "",
+        strength: issue.legalAssessment?.strength ?? null,
         relevantLaw:
           issue.legalAssessment?.relevantLaw ||
           issue.relevantLaw ||
