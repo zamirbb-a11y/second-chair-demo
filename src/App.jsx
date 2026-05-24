@@ -1167,6 +1167,46 @@ function removeAcceptedWorkItem(itemId) {
     persistCurrentCase(analysis, { userIssues: nextUserIssues, caseEvents: nextCaseEvents });
   }
 
+  function updateIssue(updatedIssue) {
+    const changedFields = [];
+    if (updatedIssue.title !== undefined) changedFields.push("title");
+    if (updatedIssue.description !== undefined) changedFields.push("description");
+    if (updatedIssue.importance !== undefined) changedFields.push("importance");
+
+    const overlay = {
+      id: `overlay-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      createdAt: new Date().toISOString(),
+      type: "issue_updated",
+      isNew: false,
+      patch: {
+        issueId: updatedIssue.id,
+        title: updatedIssue.title,
+        description: updatedIssue.description,
+        importance: updatedIssue.importance,
+      },
+    };
+
+    const event = createEvent(
+      "issue_updated",
+      "user",
+      { issueId: updatedIssue.id },
+      { op: "replace", path: "issues", value: { id: updatedIssue.id } },
+      {
+        summary: `User updated issue: ${updatedIssue.title}`,
+        changed: changedFields.join(", "),
+        reason: "עריכה ידנית על ידי עורך הדין",
+        groundedIn: [],
+      }
+    );
+    event.status = "accepted";
+
+    const nextOverlays = [...overlays, overlay];
+    const nextCaseEvents = [...caseEvents, event];
+    setOverlays(nextOverlays);
+    setCaseEvents(nextCaseEvents);
+    persistCurrentCase(analysis, { overlays: nextOverlays, caseEvents: nextCaseEvents });
+  }
+
   function rollbackOverlay(overlayId) {
     const nextOverlays = overlays.filter((o) => o.id !== overlayId);
     setOverlays(nextOverlays);
@@ -1212,6 +1252,8 @@ default:
     <div className="space-y-4">
       <IssuesView
         analysis={analysis}
+        issues={liveCaseState?.issues ?? null}
+        onUpdateIssue={updateIssue}
         onWorkspaceUpdate={handleWorkspaceUpdate}
         overlays={overlays}
         acceptedWorkItems={acceptedWorkItems}

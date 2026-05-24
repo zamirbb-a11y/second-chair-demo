@@ -11,6 +11,8 @@ import {
 
 export default function IssuesView({
   analysis,
+  issues: issuesProp = null,
+  onUpdateIssue,
   onWorkspaceUpdate,
   overlays = [],
   acceptedWorkItems = [],
@@ -46,6 +48,8 @@ export default function IssuesView({
   }, [analysis]);
 
   function handleUpdateIssue(updatedIssue) {
+    onUpdateIssue?.(updatedIssue);
+    // Keep local state in sync for the fallback path (issuesProp === null).
     setIssues((prevIssues) =>
       prevIssues.map((issue) =>
         issue.id === updatedIssue.id ? updatedIssue : issue
@@ -53,7 +57,7 @@ export default function IssuesView({
     );
   }
 
-  const allIssues = [...issues, ...userIssues];
+  const allIssues = issuesProp ?? [...issues, ...userIssues];
 
   const centralIssues = allIssues.filter(
     (issue) => issue.importance === "central"

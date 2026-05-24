@@ -31,12 +31,26 @@ export function buildLiveCaseState({
   const allIssues = [...aiIssues, ...userIssues];
 
   const issues = allIssues.map((issue) => {
-    const assessmentOverlays = getIssueAssessmentOverlays(overlays, issue.id, issue.title);
-    const evidenceOverlays = getIssueEvidenceOverlays(overlays, issue.id, issue.title);
-    const contradictionOverlays = getIssueContradictionOverlays(overlays, issue.id, issue.title);
-    const workItems = getIssueWorkItems(acceptedWorkItems, issue.id, issue.title);
+    // Apply latest issue_updated overlay (user edits). Latest wins.
+    const issueEditOverlays = overlays.filter(
+      (o) => o.type === "issue_updated" && o.patch.issueId === issue.id
+    );
+    const latestEdit = issueEditOverlays.at(-1);
+    const baseIssue = latestEdit
+      ? {
+          ...issue,
+          title: latestEdit.patch.title ?? issue.title,
+          description: latestEdit.patch.description ?? issue.description,
+          importance: latestEdit.patch.importance ?? issue.importance,
+        }
+      : issue;
 
-    const effectiveLegal = { ...issue.legalAssessment };
+    const assessmentOverlays = getIssueAssessmentOverlays(overlays, baseIssue.id, baseIssue.title);
+    const evidenceOverlays = getIssueEvidenceOverlays(overlays, baseIssue.id, baseIssue.title);
+    const contradictionOverlays = getIssueContradictionOverlays(overlays, baseIssue.id, baseIssue.title);
+    const workItems = getIssueWorkItems(acceptedWorkItems, baseIssue.id, baseIssue.title);
+
+    const effectiveLegal = { ...baseIssue.legalAssessment };
     const updatedLegalFields = [];
 
     for (const o of assessmentOverlays) {
@@ -51,7 +65,7 @@ export function buildLiveCaseState({
     }
 
     return {
-      ...issue,
+      ...baseIssue,
       effectiveLegal,
       updatedLegalFields,
       overlays: {
