@@ -34,6 +34,7 @@ import {
   getUnscopedContradictionOverlays,
 } from "./utils/applyOverlays";
 import { normalizeIssues } from "./utils/normalizeIssues";
+import { buildLiveCaseState } from "./utils/buildLiveCaseState";
 import { createEvent, hasIntakeEvent, computeCaseState } from "./lib/caseEvents";
 import { normalizeTimelineDate } from "./utils/normalizeTimelineDate";
 import { normalizeDeltaIssueLinks } from "./utils/normalizeDeltaIssueLinks";
@@ -53,6 +54,7 @@ export default function App() {
   const [analysisDiff, setAnalysisDiff] = useState([]);
   const [latestDelta, setLatestDelta] = useState(null);
   const [acceptedWorkItems, setAcceptedWorkItems] = useState([]);
+  const [userIssues, setUserIssues] = useState([]);
   const [overlays, setOverlays] = useState([]);
   const [caseEvents, setCaseEvents] = useState([]);
   const [lastAnalyzedCaseText, setLastAnalyzedCaseText] = useState("");
@@ -79,6 +81,14 @@ export default function App() {
   const caseState = useMemo(
     () => computeCaseState(analysis, caseEvents),
     [analysis, caseEvents]
+  );
+
+  // Phase 1 read model: centralized derived state for rendering.
+  // Not yet consumed by UI — Phase 2 will migrate IssuesView first.
+  // eslint-disable-next-line no-unused-vars
+  const liveCaseState = useMemo(
+    () => buildLiveCaseState({ analysis, overlays, userIssues, acceptedWorkItems }),
+    [analysis, overlays, userIssues, acceptedWorkItems]
   );
 
   useEffect(() => {
@@ -153,6 +163,7 @@ export default function App() {
       analysis: analysisData,
       workspaceUpdates: overrides.workspaceUpdates ?? workspaceUpdates,
       acceptedWorkItems: overrides.acceptedWorkItems ?? acceptedWorkItems,
+      userIssues: overrides.userIssues ?? userIssues,
       overlays: overrides.overlays ?? overlays,
       caseEvents: overrides.caseEvents ?? caseEvents,
       lastAnalyzedCaseText:
@@ -186,6 +197,7 @@ export default function App() {
     );
     setWorkspaceUpdates(loadedUpdates);
     setAcceptedWorkItems(loaded.acceptedWorkItems || []);
+    setUserIssues(loaded.userIssues || []);
     setOverlays(loaded.overlays || []);
     setCaseEvents(loaded.caseEvents || []);
     setLatestDelta(null);
@@ -1122,6 +1134,39 @@ function removeAcceptedWorkItem(itemId) {
     setLatestDelta({ ...latestDelta, caseAssessmentChange: null });
   }
 
+  function addUserIssue({ title, description, importance }) {
+    const issueId = `user-issue-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const event = createEvent(
+      "issue_created",
+      "user",
+      { issueId },
+      { op: "add", path: "issues", value: { id: issueId, title } },
+      { summary: title, changed: "מחלוקת חדשה", reason: "נוספה ידנית על ידי עורך הדין", groundedIn: [] }
+    );
+    event.status = "accepted";
+
+    const newIssue = {
+      id: issueId,
+      title,
+      description: description || "",
+      importance: importance || "secondary",
+      status: "דורש בחינה",
+      partyPositions: { claimant: "", defendant: "", coreDispute: "" },
+      legalAssessment: { summary: "", strength: "unclear", relevantLaw: [] },
+      linkedEvidence: [],
+      linkedWitnesses: [],
+      missingInfo: [],
+      actionItems: { clientQuestions: [], missingEvidence: [], suggestedActions: [] },
+      meta: { version: 1, source: "user", createdByEvent: event.id, lastUpdatedByEvent: event.id },
+    };
+
+    const nextUserIssues = [...userIssues, newIssue];
+    const nextCaseEvents = [...caseEvents, event];
+    setUserIssues(nextUserIssues);
+    setCaseEvents(nextCaseEvents);
+    persistCurrentCase(analysis, { userIssues: nextUserIssues, caseEvents: nextCaseEvents });
+  }
+
   function rollbackOverlay(overlayId) {
     const nextOverlays = overlays.filter((o) => o.id !== overlayId);
     setOverlays(nextOverlays);
@@ -1170,6 +1215,8 @@ default:
         onWorkspaceUpdate={handleWorkspaceUpdate}
         overlays={overlays}
         acceptedWorkItems={acceptedWorkItems}
+        userIssues={userIssues}
+        onAddUserIssue={addUserIssue}
         onRollbackOverlay={rollbackOverlay}
         onRemoveWorkItem={removeAcceptedWorkItem}
       />

@@ -14,12 +14,18 @@ export default function IssuesView({
   onWorkspaceUpdate,
   overlays = [],
   acceptedWorkItems = [],
+  userIssues = [],
+  onAddUserIssue,
   onRollbackOverlay,
   onRemoveWorkItem,
 }) {
   const [issues, setIssues] = useState([]);
   const [importanceFilter, setImportanceFilter] = useState("all");
   const [showAllIssues, setShowAllIssues] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [addTitle, setAddTitle] = useState("");
+  const [addDescription, setAddDescription] = useState("");
+  const [addImportance, setAddImportance] = useState("secondary");
 
   useEffect(() => {
     if (!analysis) {
@@ -47,22 +53,24 @@ export default function IssuesView({
     );
   }
 
-  const centralIssues = issues.filter(
+  const allIssues = [...issues, ...userIssues];
+
+  const centralIssues = allIssues.filter(
     (issue) => issue.importance === "central"
   ).length;
 
-  const secondaryIssues = issues.filter(
+  const secondaryIssues = allIssues.filter(
     (issue) => issue.importance === "secondary"
   ).length;
 
-  const peripheralIssues = issues.filter(
+  const peripheralIssues = allIssues.filter(
     (issue) => issue.importance === "peripheral"
   ).length;
 
   const filteredIssues =
     importanceFilter === "all"
-      ? issues
-      : issues.filter(
+      ? allIssues
+      : allIssues.filter(
           (issue) =>
             issue.importance === importanceFilter
         );
@@ -212,6 +220,7 @@ export default function IssuesView({
 
           <button
             type="button"
+            onClick={() => setShowAddForm((v) => !v)}
             className="
               rounded-xl bg-slate-900
               px-4 py-2 text-sm font-bold text-white
@@ -222,6 +231,59 @@ export default function IssuesView({
           </button>
         </div>
       </div>
+
+      {showAddForm && (
+        <div className="bg-white/95 border border-blue-100 rounded-2xl p-4 shadow-sm space-y-3">
+          <div className="text-sm font-bold text-slate-900">מחלוקת חדשה</div>
+          <input
+            type="text"
+            placeholder="כותרת המחלוקת (חובה)"
+            value={addTitle}
+            onChange={(e) => setAddTitle(e.target.value)}
+            className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+            autoFocus
+          />
+          <textarea
+            placeholder="תיאור קצר (אופציונלי)"
+            value={addDescription}
+            onChange={(e) => setAddDescription(e.target.value)}
+            rows={2}
+            className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm leading-6 resize-none"
+          />
+          <div className="flex items-center gap-3">
+            <select
+              value={addImportance}
+              onChange={(e) => setAddImportance(e.target.value)}
+              className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+            >
+              <option value="central">מרכזית</option>
+              <option value="secondary">משנית</option>
+              <option value="peripheral">שולית</option>
+            </select>
+            <button
+              type="button"
+              disabled={!addTitle.trim()}
+              onClick={() => {
+                onAddUserIssue({ title: addTitle.trim(), description: addDescription.trim(), importance: addImportance });
+                setAddTitle("");
+                setAddDescription("");
+                setAddImportance("secondary");
+                setShowAddForm(false);
+              }}
+              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800 disabled:opacity-40"
+            >
+              הוסף
+            </button>
+            <button
+              type="button"
+              onClick={() => { setShowAddForm(false); setAddTitle(""); setAddDescription(""); setAddImportance("secondary"); }}
+              className="text-sm text-slate-500 hover:text-slate-800"
+            >
+              ביטול
+            </button>
+          </div>
+        </div>
+      )}
 
       {filteredIssues.length === 0 && (
         <div className="bg-white/90 border border-blue-100 rounded-2xl p-6 text-sm text-slate-600 shadow-sm">

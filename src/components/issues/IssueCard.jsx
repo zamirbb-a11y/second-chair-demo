@@ -113,6 +113,8 @@ export default function IssueCard({
     setActionText("");
   }
 
+  const isUserIssue = issue.meta?.source === "user";
+
   const effectiveLegal = { ...issue.legalAssessment };
   const updatedLegalFields = new Set();
   for (const o of assessmentOverlays) {
@@ -192,6 +194,12 @@ shadow-[0_6px_18px_rgba(15,23,42,0.08)]
             {importanceLabels[issue.importance] || "לא סווג"}
           </span>
 
+          {issue.meta?.source === "user" && (
+            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">
+              ידנית
+            </span>
+          )}
+
           {totalOverlays > 0 && (
             <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
@@ -245,7 +253,7 @@ shadow-[0_6px_18px_rgba(15,23,42,0.08)]
               {draftDescription}
             </p>
 
-            {issue.partyPositions?.coreDispute && (
+            {(issue.partyPositions?.coreDispute || isUserIssue) && (
               <div
                 className="
                   rounded-2xl border border-slate-200
@@ -257,7 +265,7 @@ shadow-[0_6px_18px_rgba(15,23,42,0.08)]
                 </div>
 
                 <div className="text-sm leading-6 text-slate-800 font-medium">
-                  {issue.partyPositions.coreDispute}
+                  {issue.partyPositions?.coreDispute || issue.description || "טרם הוגדרה ליבת המחלוקת"}
                 </div>
               </div>
             )}
@@ -269,7 +277,11 @@ shadow-[0_6px_18px_rgba(15,23,42,0.08)]
         <div className="space-y-4 mt-5">
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
             <SectionCard title="עמדת התובע">
-              <InfoBlock text={issue.partyPositions?.claimant} />
+              {issue.partyPositions?.claimant ? (
+                <InfoBlock text={issue.partyPositions.claimant} />
+              ) : (
+                <div className="text-sm text-slate-400 leading-6">טרם הוגדרה עמדת התובע</div>
+              )}
               {contradictionOverlays
                 .filter((o) => POSITION_SURFACE_TYPES.includes(o.patch.targetType))
                 .map((o) => (
@@ -283,14 +295,18 @@ shadow-[0_6px_18px_rgba(15,23,42,0.08)]
             </SectionCard>
 
             <SectionCard title="עמדת הנתבע">
-              <InfoBlock text={issue.partyPositions?.defendant} />
+              {issue.partyPositions?.defendant ? (
+                <InfoBlock text={issue.partyPositions.defendant} />
+              ) : (
+                <div className="text-sm text-slate-400 leading-6">טרם הוגדרה עמדת הנתבע</div>
+              )}
             </SectionCard>
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
             <SectionCard title="הערכה משפטית">
               <AssessmentSummaryBlock
-                summary={effectiveLegal.summary}
+                summary={effectiveLegal.summary || (isUserIssue ? "המחלוקת נוספה ידנית וטרם נותחה מול חומר התיק." : "")}
                 strength={effectiveLegal.strength}
                 updatedFields={updatedLegalFields}
                 assessmentOverlays={assessmentOverlays}
@@ -344,35 +360,41 @@ shadow-[0_6px_18px_rgba(15,23,42,0.08)]
             </SectionCard>
 
             <SectionCard title="מצב ראייתי">
-              <ExpandableList
-                title="ראיות קשורות"
-                items={issue.linkedEvidence}
-                limit={4}
-                overlayItems={evidenceOverlays.filter(
-                  (o) =>
-                    o.patch.evidenceType === "new_evidence" ||
-                    o.patch.evidenceType === "document_impact"
-                )}
-                onRollbackOverlay={onRollbackOverlay}
-              />
+              {isUserIssue && !issue.linkedEvidence?.length && !issue.linkedWitnesses?.length && !evidenceOverlays.length ? (
+                <div className="text-sm text-slate-400 leading-6">טרם קושרו ראיות למחלוקת זו.</div>
+              ) : (
+                <>
+                  <ExpandableList
+                    title="ראיות קשורות"
+                    items={issue.linkedEvidence}
+                    limit={4}
+                    overlayItems={evidenceOverlays.filter(
+                      (o) =>
+                        o.patch.evidenceType === "new_evidence" ||
+                        o.patch.evidenceType === "document_impact"
+                    )}
+                    onRollbackOverlay={onRollbackOverlay}
+                  />
 
-              <ExpandableList
-                title="עדים קשורים"
-                items={issue.linkedWitnesses}
-                limit={3}
-              />
+                  <ExpandableList
+                    title="עדים קשורים"
+                    items={issue.linkedWitnesses}
+                    limit={3}
+                  />
 
-              <ExpandableList
-                title="חוסרים ראייתיים"
-                items={issue.missingInfo}
-                limit={3}
-                overlayItems={evidenceOverlays.filter(
-                  (o) =>
-                    o.patch.evidenceType === "missing_evidence" ||
-                    o.patch.evidenceType === "evidence_gap"
-                )}
-                onRollbackOverlay={onRollbackOverlay}
-              />
+                  <ExpandableList
+                    title="חוסרים ראייתיים"
+                    items={issue.missingInfo}
+                    limit={3}
+                    overlayItems={evidenceOverlays.filter(
+                      (o) =>
+                        o.patch.evidenceType === "missing_evidence" ||
+                        o.patch.evidenceType === "evidence_gap"
+                    )}
+                    onRollbackOverlay={onRollbackOverlay}
+                  />
+                </>
+              )}
 
               {contradictionOverlays
                 .filter((o) => EVIDENCE_SURFACE_TYPES.includes(o.patch.targetType))
@@ -440,6 +462,18 @@ shadow-[0_6px_18px_rgba(15,23,42,0.08)]
                 onRemoveWorkItem={onRemoveWorkItem}
               />
             </div>
+
+            {isUserIssue &&
+              !workItemOverlays.length &&
+              !issue.actionItems?.clientQuestions?.length &&
+              !issue.actionItems?.missingEvidence?.length &&
+              !issue.actionItems?.suggestedActions?.length && (
+                <div className="rounded-xl border border-dashed border-slate-200 bg-white p-3 text-sm text-slate-400 space-y-1">
+                  <div>• קשר ראיות רלוונטיות למחלוקת</div>
+                  <div>• בדוק פסיקה למחלוקת זו</div>
+                  <div>• עדכן את התיק לאחר הוספת מידע</div>
+                </div>
+              )}
 
             {(issue.actionNotes || []).length > 0 && (
               <div className="mt-4 text-xs text-slate-500">
