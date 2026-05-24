@@ -79,46 +79,25 @@ export default function IssuesView({
             issue.importance === importanceFilter
         );
 
-  const visibleIssues = showAllIssues
-    ? filteredIssues
-    : filteredIssues.filter((issue, index) => {
-        if (importanceFilter !== "all") {
-          return index < 5;
-        }
+  const alwaysVisible = filteredIssues.filter(
+    (issue) =>
+      issue.importance === "central" ||
+      issue.meta?.source === "user"
+  );
 
-        const centralVisible =
-          filteredIssues.filter(
-            (item) =>
-              item.importance === "central"
-          );
+  const collapsible = filteredIssues.filter(
+    (issue) =>
+      issue.importance !== "central" &&
+      issue.meta?.source !== "user"
+  );
 
-        const secondaryVisible =
-          filteredIssues.filter(
-            (item) =>
-              item.importance === "secondary"
-          );
+  const INITIAL_COLLAPSIBLE = 3;
+  const visibleCollapsible = showAllIssues
+    ? collapsible
+    : collapsible.slice(0, INITIAL_COLLAPSIBLE);
 
-        const peripheralVisible =
-          filteredIssues.filter(
-            (item) =>
-              item.importance === "peripheral"
-          );
-
-        return (
-          centralVisible
-            .slice(0, 3)
-            .includes(issue) ||
-          secondaryVisible
-            .slice(0, 3)
-            .includes(issue) ||
-          peripheralVisible
-            .slice(0, 2)
-            .includes(issue)
-        );
-      });
-
-  const hiddenCount =
-    filteredIssues.length - visibleIssues.length;
+  const visibleIssues = [...alwaysVisible, ...visibleCollapsible];
+  const hiddenCount = collapsible.length - visibleCollapsible.length;
 
   const caseKey =
     analysis?.executiveView?.caseSnapshot?.parties?.join(
