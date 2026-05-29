@@ -1501,7 +1501,7 @@ default:
         )}
 
         {/* Main content column */}
-        <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+        <div className="flex-1 min-w-0 flex flex-col overflow-hidden relative">
 
           {/* Top bar */}
           <div className="bg-white border-b border-slate-200 px-5 py-2 flex items-center justify-between flex-shrink-0 gap-3">

@@ -62,7 +62,7 @@ function IssueNavItem({ issue, selected, onSelect, delta }) {
         />
         <span
           className={[
-            "text-[12.5px] font-semibold truncate flex-1 leading-snug",
+            "text-[12.5px] font-semibold flex-1 leading-snug",
             selected ? "text-blue-700" : "text-slate-800",
           ].join(" ")}
         >
@@ -131,7 +131,7 @@ export default function DisputeNavigator({
   }
 
   return (
-    <div className="w-[280px] bg-white border-l border-slate-200 flex flex-col flex-shrink-0 h-full">
+    <div className="w-[320px] bg-white border-l border-slate-200 flex flex-col flex-shrink-0 h-full">
       {/* Header */}
       <div className="px-4 py-3.5 border-b border-slate-100 flex-shrink-0">
         {caseName && (
