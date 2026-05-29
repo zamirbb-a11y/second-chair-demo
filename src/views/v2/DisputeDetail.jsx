@@ -71,7 +71,6 @@ function HoverItem({ chipConfig, text, tooltip, isNew }) {
   return (
     <div className="py-2 border-b border-slate-100 last:border-0">
       <div className="flex items-start gap-1.5">
-        {isNew && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0 mt-[5px]" />}
         {chipConfig && (
           <span className={`text-[9px] font-bold px-1.5 py-[3px] rounded flex-shrink-0 mt-0.5 leading-none ${chipConfig.bg} ${chipConfig.text}`}>
             {chipConfig.name}
@@ -87,6 +86,9 @@ function HoverItem({ chipConfig, text, tooltip, isNew }) {
           onMouseMove={tooltip ? (e) => setTipPos({ x: e.clientX, y: e.clientY }) : undefined}
         >
           {text}
+          {isNew && (
+            <span className="inline-block mr-1.5 text-[9px] font-bold px-1.5 py-[2px] rounded bg-amber-100 text-amber-700 border border-amber-200 leading-none align-middle">חדש</span>
+          )}
         </p>
       </div>
       {tipPos && tooltip && (
@@ -402,7 +404,12 @@ export default function DisputeDetail({
         />
 
         {synthesis && (
-          <p className="text-[15.5px] text-slate-800 leading-[1.8] font-normal mt-3 mb-5">{synthesis}</p>
+          <p className="text-[15.5px] text-slate-800 leading-[1.8] font-normal mt-3 mb-5">
+            {synthesis}
+            {isUpdated && (
+              <span className="inline-block mr-2 text-[9px] font-bold px-1.5 py-[2px] rounded bg-amber-100 text-amber-700 border border-amber-200 leading-none align-middle">עודכן</span>
+            )}
+          </p>
         )}
 
         {/* Three columns */}
