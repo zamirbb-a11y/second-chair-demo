@@ -404,12 +404,26 @@ export default function DisputeDetail({
         />
 
         {synthesis && (
-          <p className="text-[15.5px] text-slate-800 leading-[1.8] font-normal mt-3 mb-5">
-            {synthesis}
-            {isUpdated && (
-              <span className="inline-block mr-2 text-[9px] font-bold px-1.5 py-[2px] rounded bg-amber-100 text-amber-700 border border-amber-200 leading-none align-middle">עודכן</span>
-            )}
-          </p>
+          <div className="mt-3 mb-5">
+            <p className="text-[15.5px] text-slate-800 leading-[1.8] font-normal">
+              {synthesis}
+              {isUpdated && (
+                <span className="inline-block mr-2 text-[9px] font-bold px-1.5 py-[2px] rounded bg-amber-100 text-amber-700 border border-amber-200 leading-none align-middle">עודכן</span>
+              )}
+            </p>
+            {(issue.overlays?.assessmentChanges ?? [])
+              .filter(o => o.patch?.field === "legalAssessment.summary" && o.patch?.previousValue)
+              .map((o, i) => (
+                <div key={i} className="mt-2 border-r-2 border-amber-300 pr-3 py-1">
+                  <div className="text-[9px] font-bold text-amber-600 tracking-[0.07em] uppercase mb-0.5">הסיכום הקודם</div>
+                  <p className="text-[12.5px] text-slate-400 leading-[1.7] line-through">{o.patch.previousValue}</p>
+                  {o.patch.reason && (
+                    <p className="text-[11px] text-amber-600 mt-0.5">סיבה: {o.patch.reason}</p>
+                  )}
+                </div>
+              ))
+            }
+          </div>
         )}
 
         {/* Three columns */}
