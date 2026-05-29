@@ -9,6 +9,12 @@ import generateAnalysisDiff from "./utils/generateAnalysisDiff";
 import WorkspaceSidebar from "./components/layout/WorkspaceSidebar";
 import WorkspaceHeader from "./components/layout/WorkspaceHeader";
 
+// v2 layout components
+import AppNav from "./components/v2/AppNav";
+import DisputeNavigator from "./components/v2/DisputeNavigator";
+import CaseOverview from "./views/v2/CaseOverview";
+import DisputeDetail from "./views/v2/DisputeDetail";
+
 import IssuesView from "./views/IssuesView";
 import EvidenceView from "./views/EvidenceView";
 import WitnessesView from "./views/WitnessesView";
@@ -236,6 +242,9 @@ export default function App() {
 
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
+
+  // v2: selected dispute (null = overview)
+  const [selectedIssueId, setSelectedIssueId] = useState(null);
 
   // Phase A: computed but not yet read by UI. Infrastructure for Phase B.
   // eslint-disable-next-line no-unused-vars
@@ -1472,140 +1481,171 @@ default:
   }
 
   return (
-    <div
-      dir="rtl"
-      className="min-h-screen bg-[#eef4fb] text-slate-900"
-    >
+    <div dir="rtl" className="h-screen bg-[#f5f7fa] text-slate-900 flex flex-col overflow-hidden">
       {loading && <AnalysisLoadingOverlay />}
 
-      <div className="flex min-h-screen">
-        <WorkspaceSidebar
-          activeView={activeView}
-          onChangeView={setActiveView}
-        />
+      <div className="flex flex-1 overflow-hidden">
+        {/* RTL: first in DOM = rightmost on screen */}
+        <AppNav activeView={activeView} onChangeView={setActiveView} />
 
-        <div className="flex-1 min-w-0 p-6 bg-[#f4f8fd]">
-          <div className="max-w-[1500px] mx-auto space-y-4">
-            <div className="flex justify-between items-center gap-3">
-              <div className="flex items-center gap-2">
-                <select
-                  value={currentCaseId || ""}
-                  onChange={(e) => openSavedCase(e.target.value)}
-                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm"
-                >
-                  <option value="" disabled>
-                    מעבר בין תיקים
-                  </option>
+        {/* Dispute navigator — only in case-map view */}
+        {activeView === "case-map" && (
+          <DisputeNavigator
+            issues={liveCaseState?.issues ?? []}
+            selectedIssueId={selectedIssueId}
+            onSelectIssue={setSelectedIssueId}
+            latestDelta={latestDelta}
+            onAddUserIssue={addUserIssue}
+            caseName={caseName}
+          />
+        )}
 
-                  {savedCases.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                    </option>
-                  ))}
-                </select>
+        {/* Main content column */}
+        <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
 
-
-                <button
-                  onClick={() => removeSavedCase(currentCaseId)}
-                  className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 shadow-sm hover:bg-red-100"
-                >
-                  מחק תיק
-                </button>
-
-                <button
-                  onClick={handleOpenNewCase}
-                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm hover:bg-slate-50"
-                >
-                  פתח תיק חדש
-                </button>
-
-               {latestDelta && (
-  <button
-    type="button"
-    onClick={() => {
-      console.log("BELL CLICKED");
-      setShowDeltaPanel((prev) => !prev);
-    }}
-    className="relative rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm hover:bg-slate-50"
-  >
-    🔔 עדכונים
-
-    <span className="absolute -top-2 -left-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[11px] font-bold text-white">
-      {latestDelta.generatedWorkItems?.length || 1}
-    </span>
-  </button>
-)}
-              </div>
-
-              <a
-                href="/precedents"
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 shadow-sm hover:bg-slate-50"
+          {/* Top bar */}
+          <div className="bg-white border-b border-slate-200 px-5 py-2 flex items-center justify-between flex-shrink-0 gap-3">
+            <div className="flex items-center gap-2">
+              <select
+                value={currentCaseId || ""}
+                onChange={(e) => openSavedCase(e.target.value)}
+                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-700"
               >
-                Admin · מאגר פסיקה
+                <option value="" disabled>מעבר בין תיקים</option>
+                {savedCases.map((item) => (
+                  <option key={item.id} value={item.id}>{item.name}</option>
+                ))}
+              </select>
+              <button
+                onClick={() => removeSavedCase(currentCaseId)}
+                className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-sm text-red-700 hover:bg-red-100"
+              >
+                מחק תיק
+              </button>
+              <button
+                onClick={handleOpenNewCase}
+                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+              >
+                תיק חדש
+              </button>
+            </div>
+            <div className="flex items-center gap-3">
+              {caseName && (
+                <span className="text-[13px] font-semibold text-slate-700">{caseName}</span>
+              )}
+              {analysis && (
+                <button
+                  onClick={() => setIntakeExpanded((v) => !v)}
+                  className={[
+                    "rounded-lg px-3 py-1.5 text-sm font-semibold border-0 cursor-pointer transition-colors",
+                    intakeExpanded
+                      ? "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                      : "bg-slate-900 text-white hover:bg-slate-800",
+                  ].join(" ")}
+                >
+                  {intakeExpanded ? "סגור ×" : "+ הוסף מידע לתיק"}
+                </button>
+              )}
+              <a href="/precedents" className="text-[12px] text-slate-400 hover:text-slate-600">
+                Admin
               </a>
             </div>
+          </div>
 
-            {intakeExpanded || !analysis ? (
-<CaseIntake
-  caseText={analysis ? additionalInfoText : caseText}
-  setCaseText={analysis ? setAdditionalInfoText : setCaseText}
-  handleWordUpload={handleWordUpload}
-  uploadedFiles={uploadedFiles}
-  status={status}
-runAnalysis={analysis ? handleCaseTextUpdateAndReanalyze : runAnalysis}
-  loading={loading}
-  hasAnalysis={!!analysis}
-/>
+          {/* Add info panel */}
+          {analysis && intakeExpanded && (
+            <div className="bg-slate-50 border-b border-slate-200 px-5 py-4 flex-shrink-0">
+              <div className="max-w-[760px]">
+                <div className="text-[11px] font-bold text-slate-400 tracking-[0.07em] uppercase mb-2">
+                  הוספת מידע חדש לתיק
+                </div>
+                <textarea
+                  value={additionalInfoText}
+                  onChange={(e) => setAdditionalInfoText(e.target.value)}
+                  placeholder="הוסף מסמך, עדות, עדכון עובדתי, או כל מידע רלבנטי חדש…"
+                  rows={4}
+                  className="w-full text-[13px] border border-slate-300 rounded-xl px-4 py-3 outline-none focus:border-blue-400 bg-white resize-none leading-relaxed"
+                />
+                <div className="flex items-center gap-3 mt-2">
+                  <button
+                    onClick={handleCaseTextUpdateAndReanalyze}
+                    disabled={loading || !additionalInfoText.trim()}
+                    className="rounded-lg bg-slate-900 text-white px-4 py-2 text-[13px] font-semibold disabled:opacity-40 hover:bg-slate-800 border-0 cursor-pointer"
+                  >
+                    {loading ? "מנתח…" : "⟳ עדכן ניתוח"}
+                  </button>
+                  <label className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-[13px] text-slate-600 hover:bg-slate-50 cursor-pointer">
+                    + העלה קובץ
+                    <input type="file" accept=".docx,.txt,.pdf" className="hidden" onChange={handleWordUpload} />
+                  </label>
+                  {uploadedFiles.length > 0 && (
+                    <span className="text-[12px] text-slate-400">
+                      {uploadedFiles.length} קבצים מצורפים
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Error banner */}
+          {error && (
+            <div className="mx-5 mt-3 bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 text-sm flex-shrink-0">
+              {error}
+            </div>
+          )}
+
+          {/* Scrollable content */}
+          <div className="flex-1 overflow-y-auto">
+            {!analysis ? (
+              <div className="p-6">
+                <CaseIntake
+                  caseText={caseText}
+                  setCaseText={setCaseText}
+                  handleWordUpload={handleWordUpload}
+                  uploadedFiles={uploadedFiles}
+                  status={status}
+                  runAnalysis={runAnalysis}
+                  loading={loading}
+                  hasAnalysis={false}
+                />
+              </div>
+            ) : activeView === "case-map" ? (
+              selectedIssueId === null ? (
+                <CaseOverview
+                  liveCaseState={liveCaseState}
+                  analysis={analysis}
+                  latestDelta={latestDelta}
+                  onSelectIssue={setSelectedIssueId}
+                  onAcceptCaseAssessmentChange={acceptCaseAssessmentChange}
+                  onRejectCaseAssessmentChange={rejectCaseAssessmentChange}
+                />
+              ) : (
+                <DisputeDetail
+                  issue={liveCaseState?.issues?.find((i) => i.id === selectedIssueId)}
+                  latestDelta={latestDelta}
+                  onUpdateIssue={updateIssue}
+                  onAcceptAssessmentChange={acceptAssessmentChange}
+                  onRejectAssessmentChange={rejectAssessmentChange}
+                  onAcceptEvidenceUpdate={acceptEvidenceUpdate}
+                  onRejectEvidenceUpdate={rejectEvidenceUpdate}
+                  onAcceptContradiction={acceptContradiction}
+                  onRejectContradiction={rejectContradiction}
+                  onAcceptWorkItem={acceptGeneratedWorkItem}
+                  onRejectWorkItem={rejectGeneratedWorkItem}
+                  onWorkspaceUpdate={handleWorkspaceUpdate}
+                  ourSideLabel={analysis?.executiveView?.caseSnapshot?.parties?.[0]}
+                  opposingSideLabel={analysis?.executiveView?.caseSnapshot?.parties?.[1]}
+                  retrievedPrecedents={analysis?.retrievedPrecedents}
+                />
+              )
             ) : (
-      <CollapsedCaseHeader
-  caseName={caseName}
-  caseText={caseText}
-  uploadedFiles={uploadedFiles}
-  onAddInfo={handleAddInfo}
-  onReanalyze={() => runIncrementalAnalysis()}
-  loading={loading}
-/>
-            )}
-
-            <WorkspaceHeader activeView={activeView} />
-
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 rounded-2xl p-4 text-sm">
-                {error}
+              <div className="p-6">
+                {renderWorkspaceView()}
               </div>
             )}
-
-{latestDelta && showDeltaPanel && activeView === "case-map" && (
-<DeltaNotificationPanel
-  delta={latestDelta}
-  onClose={() => setShowDeltaPanel(false)}
-  onAcceptWorkItem={acceptGeneratedWorkItem}
-  onRejectWorkItem={rejectGeneratedWorkItem}
-  onAcceptEvidenceUpdate={acceptEvidenceUpdate}
-  onRejectEvidenceUpdate={rejectEvidenceUpdate}
-  onAcceptTimelineUpdate={acceptTimelineUpdate}
-  onRejectTimelineUpdate={rejectTimelineUpdate}
-  onAcceptContradiction={acceptContradiction}
-  onRejectContradiction={rejectContradiction}
-  onAcceptAssessmentChange={acceptAssessmentChange}
-  onRejectAssessmentChange={rejectAssessmentChange}
-  onAcceptCaseAssessmentChange={acceptCaseAssessmentChange}
-  onRejectCaseAssessmentChange={rejectCaseAssessmentChange}
-/>
-)}
-            <main key={currentCaseId} id="results" className="space-y-4 min-w-0">
-              {activeView === "case-map" &&
-                analysis?.executiveView?.successAssessment && (
-                  <SuccessAssessment
-                    assessment={analysis.executiveView.successAssessment}
-                    overlays={overlays}
-                    onRollbackOverlay={rollbackOverlay}
-                  />
-                )}
-
-              {renderWorkspaceView()}
-            </main>
           </div>
+
         </div>
       </div>
     </div>
