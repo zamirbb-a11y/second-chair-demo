@@ -1496,6 +1496,7 @@ default:
             onSelectIssue={setSelectedIssueId}
             latestDelta={latestDelta}
             onAddUserIssue={addUserIssue}
+            onUploadFile={handleWordUpload}
             caseName={caseName}
           />
         )}

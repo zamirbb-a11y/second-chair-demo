@@ -112,21 +112,35 @@ export default function DisputeNavigator({
   onSelectIssue,
   latestDelta,
   onAddUserIssue,
+  onUploadFile,
   caseName,
 }) {
   const [showForm, setShowForm] = useState(false);
   const [formTitle, setFormTitle] = useState("");
+  const [formDescription, setFormDescription] = useState("");
   const [formImportance, setFormImportance] = useState("secondary");
+  const [uploadedFileName, setUploadedFileName] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
   const central    = issues.filter((i) => i.importance === "central");
   const secondary  = issues.filter((i) => i.importance === "secondary");
   const peripheral = issues.filter((i) => i.importance === "peripheral");
 
+  async function handleFileChange(e) {
+    if (!e.target.files?.length || !onUploadFile) return;
+    setUploading(true);
+    setUploadedFileName(e.target.files[0].name);
+    await onUploadFile(e);
+    setUploading(false);
+  }
+
   function handleAdd() {
     if (!formTitle.trim()) return;
-    onAddUserIssue?.({ title: formTitle.trim(), description: "", importance: formImportance });
+    onAddUserIssue?.({ title: formTitle.trim(), description: formDescription.trim(), importance: formImportance });
     setFormTitle("");
+    setFormDescription("");
     setFormImportance("secondary");
+    setUploadedFileName(null);
     setShowForm(false);
   }
 
@@ -200,9 +214,16 @@ export default function DisputeNavigator({
               type="text"
               value={formTitle}
               onChange={(e) => setFormTitle(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); if (e.key === "Escape") setShowForm(false); }}
+              onKeyDown={(e) => { if (e.key === "Escape") setShowForm(false); }}
               placeholder="כותרת המחלוקת"
               className="w-full text-[12px] border border-slate-300 rounded-lg px-3 py-1.5 outline-none focus:border-blue-400"
+            />
+            <textarea
+              value={formDescription}
+              onChange={(e) => setFormDescription(e.target.value)}
+              placeholder="פרט את המחלוקת (אופציונלי)…"
+              rows={3}
+              className="w-full text-[12px] border border-slate-300 rounded-lg px-3 py-1.5 outline-none focus:border-blue-400 resize-none leading-relaxed"
             />
             <select
               value={formImportance}
@@ -213,16 +234,35 @@ export default function DisputeNavigator({
               <option value="secondary">משנית</option>
               <option value="peripheral">שולית</option>
             </select>
+            {onUploadFile && (
+              <label className={[
+                "flex items-center gap-2 px-3 py-1.5 border rounded-lg cursor-pointer transition-colors text-[11.5px]",
+                uploading
+                  ? "border-slate-200 bg-slate-50 text-slate-400"
+                  : uploadedFileName
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  : "border-dashed border-slate-300 text-slate-400 hover:border-slate-400 hover:text-slate-600",
+              ].join(" ")}>
+                <span>{uploading ? "מעלה…" : uploadedFileName ? `✓ ${uploadedFileName}` : "+ צרף קובץ"}</span>
+                <input
+                  type="file"
+                  accept=".docx,.txt,.pdf"
+                  className="hidden"
+                  disabled={uploading}
+                  onChange={handleFileChange}
+                />
+              </label>
+            )}
             <div className="flex gap-2">
               <button
                 onClick={handleAdd}
-                disabled={!formTitle.trim()}
+                disabled={!formTitle.trim() || uploading}
                 className="flex-1 py-1.5 bg-slate-900 text-white rounded-lg text-[11.5px] font-bold disabled:opacity-40 cursor-pointer border-0"
               >
                 הוסף
               </button>
               <button
-                onClick={() => { setShowForm(false); setFormTitle(""); }}
+                onClick={() => { setShowForm(false); setFormTitle(""); setFormDescription(""); setUploadedFileName(null); }}
                 className="flex-1 py-1.5 border border-slate-200 rounded-lg text-[11.5px] text-slate-500 cursor-pointer bg-white"
               >
                 ביטול
