@@ -9,7 +9,8 @@ const steps = [
   "בונה תיאוריות תיק",
 ];
 
-export default function AnalysisLoadingOverlay() {
+export default function AnalysisLoadingOverlay({ mode = "initial" }) {
+  const isUpdate = mode === "update";
   const [stepIndex, setStepIndex] = useState(0);
 
   useEffect(() => {
@@ -28,11 +29,13 @@ export default function AnalysisLoadingOverlay() {
 
           <div className="flex-1 min-w-0">
             <h2 className="text-lg font-bold text-slate-900">
-              מנתח את התיק
+              {isUpdate ? "מעדכן ניתוח" : "מנתח את התיק"}
             </h2>
 
             <p className="mt-1 text-sm text-slate-500 leading-6">
-              Second Chair בוחנת את העובדות, המסמכים והסיכונים הליטיגטוריים.
+              {isUpdate
+                ? "Second Chair משלבת את המידע החדש ומעדכנת את הניתוח הקיים."
+                : "Second Chair בוחנת את העובדות, המסמכים והסיכונים הליטיגטוריים."}
             </p>
 
             <div className="mt-4 rounded-xl bg-slate-50 border px-4 py-3">

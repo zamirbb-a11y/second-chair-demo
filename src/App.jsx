@@ -228,6 +228,7 @@ export default function App() {
   const [showDeltaPanel, setShowDeltaPanel] = useState(false);
 
   const [loading, setLoading] = useState(false);
+  const [loadingMode, setLoadingMode] = useState("initial"); // "initial" | "update"
   const [error, setError] = useState("");
   const [intakeExpanded, setIntakeExpanded] = useState(true);
 
@@ -657,6 +658,60 @@ persistCurrentCase(analysis, {
     }
   }
 
+async function handleInfoAndReanalyze(update) {
+  const enrichedUpdate = {
+    id: `update-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    type: update.type || "case_text_update",
+    targetType: update.targetType || "issue",
+    targetId: update.targetId || null,
+    title: update.title || "מידע חדש",
+    text: update.text || "",
+    createdAt: new Date().toISOString(),
+    status: "pending_analysis",
+  };
+  const nextUpdates = [enrichedUpdate, ...workspaceUpdates];
+  setWorkspaceUpdates(nextUpdates);
+  persistCurrentCase(analysis, { workspaceUpdates: nextUpdates });
+  await runIncrementalAnalysis(nextUpdates);
+}
+
+async function handleIssueFileUpload(file, issueId, contextTitle) {
+  setLoading(true);
+  setLoadingMode("update");
+  setError("");
+  try {
+    const formData = new FormData();
+    formData.append("files", file);
+    const res = await fetch("/api/upload", { method: "POST", body: formData });
+    if (!res.ok) throw new Error("Upload failed");
+    const data = await res.json();
+    const processed = data.files?.[0];
+    if (!processed?.text?.trim()) {
+      setError("לא הצלחתי לחלץ טקסט מהקובץ.");
+      setLoading(false);
+      return;
+    }
+    const update = {
+      id: `update-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      type: "new_document",
+      targetType: "issue",
+      targetId: issueId,
+      title: contextTitle || `מסמך: ${processed.name}`,
+      text: processed.text,
+      createdAt: new Date().toISOString(),
+      status: "pending_analysis",
+    };
+    const nextUpdates = [update, ...workspaceUpdates];
+    setWorkspaceUpdates(nextUpdates);
+    persistCurrentCase(analysis, { workspaceUpdates: nextUpdates });
+    await runIncrementalAnalysis(nextUpdates);
+  } catch (err) {
+    console.error(err);
+    setError("לא הצלחתי להעלות את הקובץ.");
+    setLoading(false);
+  }
+}
+
 function handleWorkspaceUpdate(update) {
   const enrichedUpdate = {
     id:
@@ -729,6 +784,7 @@ ${updatesText}
 
   async function runAnalysis() {
     setLoading(true);
+    setLoadingMode("initial");
     setError("");
 
     try {
@@ -859,6 +915,7 @@ async function runIncrementalAnalysis(updatesOverride = null) {
   );
 
   setLoading(true);
+  setLoadingMode("update");
   setError("");
 
   try {
@@ -1482,7 +1539,7 @@ default:
 
   return (
     <div dir="rtl" className="h-screen bg-[#f5f7fa] text-slate-900 flex flex-col overflow-hidden">
-      {loading && <AnalysisLoadingOverlay />}
+      {loading && <AnalysisLoadingOverlay mode={loadingMode} />}
 
       <div className="flex flex-1 overflow-hidden">
         {/* RTL: first in DOM = rightmost on screen */}
@@ -1635,6 +1692,8 @@ default:
                   onAcceptWorkItem={acceptGeneratedWorkItem}
                   onRejectWorkItem={rejectGeneratedWorkItem}
                   onWorkspaceUpdate={handleWorkspaceUpdate}
+                  onInfoUpdate={handleInfoAndReanalyze}
+                  onIssueFileUpload={handleIssueFileUpload}
                   ourSideLabel={analysis?.executiveView?.caseSnapshot?.parties?.[0]}
                   opposingSideLabel={analysis?.executiveView?.caseSnapshot?.parties?.[1]}
                   retrievedPrecedents={analysis?.retrievedPrecedents}

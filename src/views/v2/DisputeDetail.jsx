@@ -145,15 +145,23 @@ function AccordionPanel({ title, count, accentColor, children }) {
 
 // ─── ClientQuestions ──────────────────────────────────────────────────────────
 
-function ClientQuestions({ items, issueId, onAddInfo }) {
+function ClientQuestions({ items, issueId, onAddInfo, onIssueFileUpload }) {
   const [state, setState] = useState({});
   function get(i) { return state[i] ?? {}; }
-  function submit(i, qText) {
+
+  function submitText(i, qText) {
     const t = get(i).text?.trim();
     if (!t) return;
-    onAddInfo?.({ type: "case_text_update", targetType: "issue", targetId: issueId, title: `תשובה: ${qText.slice(0,50)}`, text: t });
+    onAddInfo?.({ type: "client_answer", targetType: "issue", targetId: issueId, title: `תשובה: ${qText.slice(0, 50)}`, text: t });
     setState((s) => ({ ...s, [i]: { done: true } }));
   }
+
+  async function submitFile(i, qText, file) {
+    setState((s) => ({ ...s, [i]: { ...s[i], uploading: true } }));
+    await onIssueFileUpload?.(file, issueId, `תשובה (קובץ): ${qText.slice(0, 50)}`);
+    setState((s) => ({ ...s, [i]: { done: true } }));
+  }
+
   const cs = CHIP_STYLES["שאלה ללקוח"];
   return (
     <div>
@@ -165,13 +173,29 @@ function ClientQuestions({ items, issueId, onAddInfo }) {
           <div key={i} className="py-2.5 border-b border-slate-100 last:border-0">
             <div className="flex items-start gap-2 mb-1.5">
               <span className={`text-[9px] font-bold px-1.5 py-[3px] rounded flex-shrink-0 mt-0.5 leading-none ${cs.bg} ${cs.text}`}>שאלה ללקוח</span>
-              <p className="text-[12.5px] text-slate-700 leading-snug font-medium">{qText}</p>
+              <p className="text-[12.5px] text-slate-700 leading-snug font-medium">
+                {qText}
+                {q.isNew && <span className="inline-block mr-1.5 text-[9px] font-bold px-1.5 py-[2px] rounded bg-amber-100 text-amber-700 border border-amber-200 leading-none align-middle">חדש</span>}
+              </p>
             </div>
             {s.mode === "answering" ? (
-              <div className="mr-[46px]">
+              <div className="mr-[46px] space-y-1.5">
                 <textarea value={s.text ?? ""} onChange={(e) => setState((st) => ({ ...st, [i]: { ...s, text: e.target.value } }))} rows={2} autoFocus placeholder="תשובת הלקוח..." className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-blue-400 resize-none bg-white leading-relaxed" />
-                <div className="flex gap-2 mt-1.5">
-                  <button onClick={() => submit(i, qText)} disabled={!s.text?.trim()} className="text-[11px] bg-slate-900 text-white px-3 py-1.5 rounded-lg border-0 cursor-pointer disabled:opacity-40 hover:bg-slate-800">שמור</button>
+                {onIssueFileUpload && (
+                  <label className={["flex items-center gap-1.5 text-[11px] cursor-pointer border rounded-lg px-3 py-1.5 transition-colors", s.uploading ? "border-slate-200 bg-slate-50 text-slate-400" : "border-dashed border-amber-300 text-amber-600 hover:border-amber-400"].join(" ")}>
+                    {s.uploading ? "מעלה..." : s.fileName ? `✓ ${s.fileName}` : "+ צרף קובץ"}
+                    <input type="file" accept=".docx,.txt,.pdf" className="hidden" disabled={s.uploading}
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        setState((st) => ({ ...st, [i]: { ...s, fileName: file.name } }));
+                        await submitFile(i, qText, file);
+                      }}
+                    />
+                  </label>
+                )}
+                <div className="flex gap-2">
+                  <button onClick={() => submitText(i, qText)} disabled={!s.text?.trim()} className="text-[11px] bg-slate-900 text-white px-3 py-1.5 rounded-lg border-0 cursor-pointer disabled:opacity-40 hover:bg-slate-800">שמור תשובה</button>
                   <button onClick={() => setState((st) => ({ ...st, [i]: { mode: null } }))} className="text-[11px] text-slate-400 bg-transparent border-0 cursor-pointer">ביטול</button>
                 </div>
               </div>
@@ -183,6 +207,76 @@ function ClientQuestions({ items, issueId, onAddInfo }) {
       })}
     </div>
   );
+}
+
+// ─── ClickableInfoItem — expandable item with text + file input, triggers reanalysis ──
+
+function ClickableInfoItem({ chipConfig, text, isNew, issueId, onAddInfo, onIssueFileUpload, updateType, placeholder, saveLabel }) {
+  const [open, setOpen] = useState(false);
+  const [answer, setAnswer] = useState("");
+  const [fileState, setFileState] = useState({ name: null, uploading: false });
+  const [done, setDone] = useState(false);
+
+  if (done) return null;
+
+  function handleSubmitText() {
+    if (!answer.trim()) return;
+    onAddInfo?.({ type: updateType, targetType: "issue", targetId: issueId, title: `${saveLabel}: ${text.slice(0, 50)}`, text: answer.trim() });
+    setDone(true);
+  }
+
+  async function handleFile(e) {
+    const file = e.target.files?.[0];
+    if (!file || !onIssueFileUpload) return;
+    setFileState({ name: file.name, uploading: true });
+    await onIssueFileUpload(file, issueId, `${saveLabel} (קובץ): ${text.slice(0, 50)}`);
+    setDone(true);
+  }
+
+  return (
+    <div className="py-2 border-b border-slate-100 last:border-0">
+      <div className="flex items-start gap-1.5 cursor-pointer" onClick={() => setOpen((v) => !v)}>
+        {chipConfig && (
+          <span className={`text-[9px] font-bold px-1.5 py-[3px] rounded flex-shrink-0 mt-0.5 leading-none ${chipConfig.bg} ${chipConfig.text}`}>
+            {chipConfig.name}
+          </span>
+        )}
+        <p className="text-[12.5px] text-slate-700 leading-snug font-medium flex-1 min-w-0 break-words underline underline-offset-2 decoration-amber-300">
+          {text}
+          {isNew && <span className="inline-block mr-1.5 text-[9px] font-bold px-1.5 py-[2px] rounded bg-amber-100 text-amber-700 border border-amber-200 leading-none align-middle">חדש</span>}
+        </p>
+        <span className="text-[11px] text-slate-400 flex-shrink-0 mt-0.5">{open ? "▴" : "▾"}</span>
+      </div>
+      {open && (
+        <div className="mt-2 bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
+          <textarea
+            autoFocus
+            value={answer}
+            onChange={(e) => setAnswer(e.target.value)}
+            rows={3}
+            placeholder={placeholder}
+            className="w-full text-[12px] border border-amber-200 rounded-lg px-3 py-2 outline-none focus:border-amber-400 resize-none bg-white leading-relaxed"
+          />
+          <label className={["flex items-center gap-1.5 text-[11px] cursor-pointer border rounded-lg px-3 py-1.5 transition-colors", fileState.uploading ? "border-slate-200 bg-slate-50 text-slate-400" : fileState.name ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-dashed border-amber-300 text-amber-600 hover:border-amber-400"].join(" ")}>
+            {fileState.uploading ? "מעלה..." : fileState.name ? `✓ ${fileState.name}` : "+ צרף קובץ"}
+            <input type="file" accept=".docx,.txt,.pdf" className="hidden" disabled={fileState.uploading} onChange={handleFile} />
+          </label>
+          <div className="flex gap-2">
+            <button onClick={handleSubmitText} disabled={!answer.trim() || fileState.uploading} className="flex-1 py-1.5 bg-slate-900 text-white rounded-lg text-[11px] font-bold disabled:opacity-40 cursor-pointer border-0">{saveLabel}</button>
+            <button onClick={() => setOpen(false)} className="py-1.5 px-3 text-[11px] text-slate-400 bg-transparent border-0 cursor-pointer">סגור</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ClickableQuestionItem(props) {
+  return <ClickableInfoItem {...props} updateType="client_answer" placeholder="תשובת הלקוח..." saveLabel="שמור תשובה" />;
+}
+
+function ClickableGapItem(props) {
+  return <ClickableInfoItem {...props} updateType="case_text_update" placeholder="הוסף מידע רלוונטי לפער זה..." saveLabel="שמור מידע" />;
 }
 
 // ─── DetailLink — "N more → פירוט" shown at bottom of column ─────────────────
@@ -202,7 +296,7 @@ function DetailLink({ moreCount, onClick }) {
 
 // ─── Detail pane — white overlay on top of the three-column view ──────────────
 
-function DetailPaneView({ pane, onBack, zones, accordions, issue, onWorkspaceUpdate }) {
+function DetailPaneView({ pane, onBack, zones, accordions, issue, onWorkspaceUpdate, onInfoUpdate, onIssueFileUpload }) {
   const z = zones[pane];
   const accentClasses = { our: "bg-emerald-300", opposing: "bg-amber-300", ambiguous: "bg-slate-300" };
   const labelClasses  = { our: "text-emerald-700", opposing: "text-amber-700", ambiguous: "text-slate-600" };
@@ -234,13 +328,17 @@ function DetailPaneView({ pane, onBack, zones, accordions, issue, onWorkspaceUpd
       {/* Accordions at bottom */}
       <div className="mt-auto pt-6 border-t border-slate-100 grid grid-cols-3 gap-4 items-start">
         <AccordionPanel title="שאלות ללקוח" count={accordions.questions.length} accentColor="amber">
-          <ClientQuestions items={accordions.questions} issueId={issue.id} onAddInfo={onWorkspaceUpdate} />
+          <ClientQuestions items={accordions.questions} issueId={issue.id} onAddInfo={onInfoUpdate ?? onWorkspaceUpdate} onIssueFileUpload={onIssueFileUpload} />
         </AccordionPanel>
         <AccordionPanel title="פערים ראייתיים" count={accordions.gaps.length} accentColor="orange">
-          <div>{accordions.gaps.map((item, i) => <HoverItem key={i} {...item} />)}</div>
+          <div>{accordions.gaps.map((item, i) => <ClickableGapItem key={i} {...item} issueId={issue.id} onAddInfo={onInfoUpdate ?? onWorkspaceUpdate} onIssueFileUpload={onIssueFileUpload} />)}</div>
         </AccordionPanel>
         <AccordionPanel title="צעדים להמשך" count={accordions.steps.length} accentColor="indigo">
-          <div>{accordions.steps.map((item, i) => <HoverItem key={i} {...item} />)}</div>
+          <div>{accordions.steps.map((item, i) =>
+            item.chipConfig?.name === "שאלה ללקוח"
+              ? <ClickableQuestionItem key={i} {...item} issueId={issue.id} onAddInfo={onInfoUpdate ?? onWorkspaceUpdate} onIssueFileUpload={onIssueFileUpload} />
+              : <HoverItem key={i} {...item} />
+          )}</div>
         </AccordionPanel>
       </div>
     </div>
@@ -256,7 +354,7 @@ export default function DisputeDetail({
   onAcceptEvidenceUpdate, onRejectEvidenceUpdate,
   onAcceptContradiction, onRejectContradiction,
   onAcceptWorkItem, onRejectWorkItem,
-  onWorkspaceUpdate, ourSideLabel, opposingSideLabel, retrievedPrecedents,
+  onWorkspaceUpdate, onInfoUpdate, onIssueFileUpload, ourSideLabel, opposingSideLabel, retrievedPrecedents,
 }) {
   const [detailPane, setDetailPane] = useState(null); // null | "our" | "opposing" | "ambiguous"
 
@@ -324,7 +422,12 @@ export default function DisputeDetail({
   ].filter((x) => x.text);
 
   // ── Accordion data ─────────────────────────────────────────────────────────
-  const clientQuestions = issue.actionItems?.clientQuestions ?? [];
+  const clientQuestions = [
+    ...(issue.actionItems?.clientQuestions ?? []),
+    ...workItemOverlays
+      .filter((w) => w.type === "client_question")
+      .map((w) => ({ text: w.title ?? "", isNew: true })),
+  ].filter((q) => (typeof q === "string" ? q : (q.question ?? q.text ?? "")).trim());
 
   const evidenceGaps = [
     ...(issue.missingInfo ?? []).map((m) => ({ chipConfig: mkChip("פער"), text: m })),
@@ -333,7 +436,9 @@ export default function DisputeDetail({
   ].filter((x) => x.text);
 
   const nextSteps = [
-    ...workItemOverlays.map((w) => ({ chipConfig: workItemChip(w.type), text: w.title ?? "", tooltip: w.description ?? null, isNew: true })),
+    ...workItemOverlays
+      .filter((w) => w.type !== "client_question")
+      .map((w) => ({ chipConfig: workItemChip(w.type), text: w.title ?? "", tooltip: w.description ?? null, isNew: true })),
     ...(issue.actionItems?.suggestedActions ?? []).map((a) => ({ chipConfig: mkChip("פעולה"), text: typeof a === "string" ? a : (a.title ?? a.description ?? ""), tooltip: typeof a === "object" ? (a.description ?? null) : null })),
   ].filter((x) => x.text);
 
@@ -469,13 +574,17 @@ export default function DisputeDetail({
         {/* Three accordion panels — items-start prevents grid stretch */}
         <div className="border-t border-slate-100 pt-4 grid grid-cols-3 gap-4 items-start">
           <AccordionPanel title="שאלות ללקוח" count={clientQuestions.length} accentColor="amber">
-            <ClientQuestions items={clientQuestions} issueId={issue.id} onAddInfo={onWorkspaceUpdate} />
+            <ClientQuestions items={clientQuestions} issueId={issue.id} onAddInfo={onInfoUpdate ?? onWorkspaceUpdate} onIssueFileUpload={onIssueFileUpload} />
           </AccordionPanel>
           <AccordionPanel title="פערים ראייתיים" count={evidenceGaps.length} accentColor="orange">
-            <div>{evidenceGaps.map((item, i) => <HoverItem key={i} {...item} />)}</div>
+            <div>{evidenceGaps.map((item, i) => <ClickableGapItem key={i} {...item} issueId={issue.id} onAddInfo={onInfoUpdate ?? onWorkspaceUpdate} onIssueFileUpload={onIssueFileUpload} />)}</div>
           </AccordionPanel>
           <AccordionPanel title="צעדים להמשך" count={nextSteps.length} accentColor="indigo">
-            <div>{nextSteps.map((item, i) => <HoverItem key={i} {...item} />)}</div>
+            <div>{nextSteps.map((item, i) =>
+              item.chipConfig?.name === "שאלה ללקוח"
+                ? <ClickableQuestionItem key={i} {...item} issueId={issue.id} onAddInfo={onInfoUpdate ?? onWorkspaceUpdate} onIssueFileUpload={onIssueFileUpload} />
+                : <HoverItem key={i} {...item} />
+            )}</div>
           </AccordionPanel>
         </div>
 
@@ -491,6 +600,8 @@ export default function DisputeDetail({
             accordions={accordions}
             issue={issue}
             onWorkspaceUpdate={onWorkspaceUpdate}
+            onInfoUpdate={onInfoUpdate}
+            onIssueFileUpload={onIssueFileUpload}
           />
         </div>
       )}
