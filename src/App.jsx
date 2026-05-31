@@ -873,10 +873,10 @@ const pendingUpdates = effectiveUpdates.filter(
       return;
     }
 
-    const allowedIssues = normalizeIssues(analysis).map((issue) => ({
-      id: issue.id,
-      title: issue.title,
-    }));
+    const allowedIssues = [
+      ...normalizeIssues(analysis).map((issue) => ({ id: issue.id, title: issue.title })),
+      ...userIssues.map((issue) => ({ id: issue.id, title: issue.title })),
+    ];
 
     const response = await fetch("/api/reanalyze", {
       method: "POST",
