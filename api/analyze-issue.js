@@ -60,7 +60,7 @@ ${documentText}
   "claimantPosition": "עמדת התובע ביחס למחלוקת זו, או null",
   "defendantPosition": "עמדת הנתבע ביחס למחלוקת זו, או null",
   "evidenceUpdates": [
-    { "type": "new_evidence | document_impact", "title": "", "description": "" }
+    { "type": "new_evidence | document_impact", "title": "", "description": "", "benefitsParty": "claimant | defendant | both" }
   ],
   "contradictions": [
     { "title": "", "description": "", "severity": "low | medium | high", "direction": "hurts_us | hurts_them | unclear", "targetType": "issue | evidence | claim | document_vs_claim | behavior_vs_claim | unknown" }
@@ -74,6 +74,7 @@ ${documentText}
 }
 
 אם אין ממצאים בקטגוריה — החזר מערך ריק.
+עבור כל evidenceUpdate — ציין benefitsParty: "claimant" אם הראיה מחזקת את עמדת התובע, "defendant" אם מחזקת את הנתבע, "both" אם תומכת בשני הצדדים.
 `;
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {

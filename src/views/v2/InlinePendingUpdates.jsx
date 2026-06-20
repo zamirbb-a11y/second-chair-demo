@@ -74,6 +74,7 @@ function PendingItem({ typeLabel, insight, source, onAccept, onReject }) {
 export default function InlinePendingUpdates({
   issue,
   latestDelta,
+  onApproveAll,
   onAcceptAssessmentChange,
   onRejectAssessmentChange,
   onAcceptEvidenceUpdate,
@@ -109,6 +110,10 @@ export default function InlinePendingUpdates({
   if (totalCount === 0) return null;
 
   function handleApproveAll() {
+    if (onApproveAll) {
+      onApproveAll({ assessments, evidence, contradictions, workItems });
+      return;
+    }
     assessments.forEach(({ item, index }) => onAcceptAssessmentChange?.(item, index));
     evidence.forEach(({ item, index }) => onAcceptEvidenceUpdate?.(item, index));
     contradictions.forEach(({ item, index }) => onAcceptContradiction?.(item, index));

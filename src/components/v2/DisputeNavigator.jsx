@@ -35,19 +35,20 @@ function hasPending(issue, delta) {
   );
 }
 
-function IssueNavItem({ issue, selected, onSelect, delta }) {
+function IssueNavItem({ issue, selected, onSelect, onRemove, delta }) {
+  const [confirming, setConfirming] = useState(false);
   const pending = hasPending(issue, delta);
   const signal = getSignal(issue);
 
   return (
     <div
-      onClick={() => onSelect(issue.id)}
       className={[
-        "px-4 py-2.5 cursor-pointer border-r-[3px] transition-all",
+        "group relative px-4 py-2.5 cursor-pointer border-r-[3px] transition-all",
         selected
           ? "bg-blue-50 border-blue-500"
           : "border-transparent hover:bg-slate-50",
       ].join(" ")}
+      onClick={() => { if (!confirming) onSelect(issue.id); }}
     >
       <div className="flex items-center gap-1.5 mb-0.5">
         <span
@@ -68,11 +69,45 @@ function IssueNavItem({ issue, selected, onSelect, delta }) {
         >
           {issue.title}
         </span>
-        {pending && (
+        {pending && !confirming && (
           <span className="w-[7px] h-[7px] rounded-full bg-amber-400 flex-shrink-0" />
         )}
+        {!confirming && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setConfirming(true); }}
+            title="מחק מחלוקת"
+            className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-300 hover:text-red-400 text-[13px] leading-none ml-1 flex-shrink-0"
+          >
+            ×
+          </button>
+        )}
       </div>
-      {signal && (
+
+      {confirming && (
+        <div
+          className="mt-1.5 flex items-center gap-2"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <span className="text-[11px] text-slate-500 flex-1">למחוק מחלוקת?</span>
+          <button
+            type="button"
+            onClick={() => { onRemove?.(issue.id, issue.title); setConfirming(false); }}
+            className="px-2.5 py-1 bg-red-500 text-white text-[10.5px] font-bold rounded-md border-0 cursor-pointer hover:bg-red-600"
+          >
+            מחק
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirming(false)}
+            className="px-2.5 py-1 bg-white text-slate-500 text-[10.5px] border border-slate-200 rounded-md cursor-pointer hover:bg-slate-50"
+          >
+            ביטול
+          </button>
+        </div>
+      )}
+
+      {signal && !confirming && (
         <p
           className={[
             "text-[11px] leading-[1.4] pr-[13px]",
@@ -86,7 +121,7 @@ function IssueNavItem({ issue, selected, onSelect, delta }) {
   );
 }
 
-function Group({ label, issues, selectedIssueId, onSelectIssue, latestDelta }) {
+function Group({ label, issues, selectedIssueId, onSelectIssue, onRemoveIssue, latestDelta }) {
   if (!issues.length) return null;
   return (
     <>
@@ -99,6 +134,7 @@ function Group({ label, issues, selectedIssueId, onSelectIssue, latestDelta }) {
           issue={issue}
           selected={selectedIssueId === issue.id}
           onSelect={onSelectIssue}
+          onRemove={onRemoveIssue}
           delta={latestDelta}
         />
       ))}
@@ -110,6 +146,7 @@ export default function DisputeNavigator({
   issues = [],
   selectedIssueId,
   onSelectIssue,
+  onRemoveIssue,
   latestDelta,
   onAddUserIssue,
   onUploadFile,
@@ -145,12 +182,9 @@ export default function DisputeNavigator({
   }
 
   return (
-    <div className="w-[320px] bg-white border-l border-slate-200 flex flex-col flex-shrink-0 h-full">
-      {/* Header */}
-      <div className="px-4 py-3.5 border-b border-slate-100 flex-shrink-0">
-        {caseName && (
-          <div className="text-[11px] text-slate-400 mb-0.5 truncate">{caseName}</div>
-        )}
+    <div className="w-[320px] bg-[#f8f9fb] border-l border-slate-200 flex flex-col flex-shrink-0 h-full">
+      {/* Header — h-12 matches the top bar height */}
+      <div className="px-4 h-12 border-b border-slate-100 flex-shrink-0 flex items-center">
         <div className="text-[13px] font-bold text-slate-900">מחלוקות</div>
       </div>
 
@@ -177,6 +211,7 @@ export default function DisputeNavigator({
           issues={central}
           selectedIssueId={selectedIssueId}
           onSelectIssue={onSelectIssue}
+          onRemoveIssue={onRemoveIssue}
           latestDelta={latestDelta}
         />
 
@@ -189,6 +224,7 @@ export default function DisputeNavigator({
           issues={secondary}
           selectedIssueId={selectedIssueId}
           onSelectIssue={onSelectIssue}
+          onRemoveIssue={onRemoveIssue}
           latestDelta={latestDelta}
         />
 
@@ -201,6 +237,7 @@ export default function DisputeNavigator({
           issues={peripheral}
           selectedIssueId={selectedIssueId}
           onSelectIssue={onSelectIssue}
+          onRemoveIssue={onRemoveIssue}
           latestDelta={latestDelta}
         />
       </div>

@@ -27,8 +27,12 @@ export function buildLiveCaseState({
 }) {
   if (!analysis) return null;
 
+  const hiddenIssueIds = new Set(
+    overlays.filter(o => o.type === "issue_hidden").map(o => o.patch.issueId)
+  );
+
   const aiIssues = normalizeIssues(analysis);
-  const allIssues = [...aiIssues, ...userIssues];
+  const allIssues = [...aiIssues, ...userIssues].filter(i => !hiddenIssueIds.has(i.id));
 
   const issues = allIssues.map((issue) => {
     // Apply all issue_updated overlays in order; each patches only the fields it contains.
@@ -64,10 +68,17 @@ export function buildLiveCaseState({
       }
     }
 
+    const answeredQuestions = new Set(
+      overlays
+        .filter((o) => o.type === "question_answered" && o.patch.issueId === baseIssue.id)
+        .map((o) => o.patch.questionText)
+    );
+
     return {
       ...baseIssue,
       effectiveLegal,
       updatedLegalFields,
+      answeredQuestions,
       overlays: {
         evidence: evidenceOverlays,
         contradictions: contradictionOverlays,

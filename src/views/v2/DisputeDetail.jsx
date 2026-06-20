@@ -145,7 +145,7 @@ function AccordionPanel({ title, count, accentColor, children }) {
 
 // ─── ClientQuestions ──────────────────────────────────────────────────────────
 
-function ClientQuestions({ items, issueId, onAddInfo, onIssueFileUpload }) {
+function ClientQuestions({ items, issueId, onAddInfo, onIssueFileUpload, onMarkAnswered }) {
   const [state, setState] = useState({});
   function get(i) { return state[i] ?? {}; }
 
@@ -153,12 +153,14 @@ function ClientQuestions({ items, issueId, onAddInfo, onIssueFileUpload }) {
     const t = get(i).text?.trim();
     if (!t) return;
     onAddInfo?.({ type: "client_answer", targetType: "issue", targetId: issueId, title: `תשובה: ${qText.slice(0, 50)}`, text: t });
+    onMarkAnswered?.(issueId, qText);
     setState((s) => ({ ...s, [i]: { done: true } }));
   }
 
   async function submitFile(i, qText, file) {
     setState((s) => ({ ...s, [i]: { ...s[i], uploading: true } }));
     await onIssueFileUpload?.(file, issueId, `תשובה (קובץ): ${qText.slice(0, 50)}`);
+    onMarkAnswered?.(issueId, qText);
     setState((s) => ({ ...s, [i]: { done: true } }));
   }
 
@@ -211,7 +213,7 @@ function ClientQuestions({ items, issueId, onAddInfo, onIssueFileUpload }) {
 
 // ─── ClickableInfoItem — expandable item with text + file input, triggers reanalysis ──
 
-function ClickableInfoItem({ chipConfig, text, isNew, issueId, onAddInfo, onIssueFileUpload, updateType, placeholder, saveLabel }) {
+function ClickableInfoItem({ chipConfig, text, isNew, issueId, onAddInfo, onIssueFileUpload, updateType, placeholder, saveLabel, onAnswered }) {
   const [open, setOpen] = useState(false);
   const [answer, setAnswer] = useState("");
   const [fileState, setFileState] = useState({ name: null, uploading: false });
@@ -222,6 +224,7 @@ function ClickableInfoItem({ chipConfig, text, isNew, issueId, onAddInfo, onIssu
   function handleSubmitText() {
     if (!answer.trim()) return;
     onAddInfo?.({ type: updateType, targetType: "issue", targetId: issueId, title: `${saveLabel}: ${text.slice(0, 50)}`, text: answer.trim() });
+    onAnswered?.(text);
     setDone(true);
   }
 
@@ -230,6 +233,7 @@ function ClickableInfoItem({ chipConfig, text, isNew, issueId, onAddInfo, onIssu
     if (!file || !onIssueFileUpload) return;
     setFileState({ name: file.name, uploading: true });
     await onIssueFileUpload(file, issueId, `${saveLabel} (קובץ): ${text.slice(0, 50)}`);
+    onAnswered?.(text);
     setDone(true);
   }
 
@@ -296,7 +300,7 @@ function DetailLink({ moreCount, onClick }) {
 
 // ─── Detail pane — white overlay on top of the three-column view ──────────────
 
-function DetailPaneView({ pane, onBack, zones, accordions, issue, onWorkspaceUpdate, onInfoUpdate, onIssueFileUpload }) {
+function DetailPaneView({ pane, onBack, zones, accordions, issue, onWorkspaceUpdate, onInfoUpdate, onIssueFileUpload, onMarkQuestionAnswered }) {
   const z = zones[pane];
   const accentClasses = { our: "bg-emerald-300", opposing: "bg-amber-300", ambiguous: "bg-slate-300" };
   const labelClasses  = { our: "text-emerald-700", opposing: "text-amber-700", ambiguous: "text-slate-600" };
@@ -328,7 +332,7 @@ function DetailPaneView({ pane, onBack, zones, accordions, issue, onWorkspaceUpd
       {/* Accordions at bottom */}
       <div className="mt-auto pt-6 border-t border-slate-100 grid grid-cols-3 gap-4 items-start">
         <AccordionPanel title="שאלות ללקוח" count={accordions.questions.length} accentColor="amber">
-          <ClientQuestions items={accordions.questions} issueId={issue.id} onAddInfo={onInfoUpdate ?? onWorkspaceUpdate} onIssueFileUpload={onIssueFileUpload} />
+          <ClientQuestions items={accordions.questions} issueId={issue.id} onAddInfo={onInfoUpdate ?? onWorkspaceUpdate} onIssueFileUpload={onIssueFileUpload} onMarkAnswered={onMarkQuestionAnswered} />
         </AccordionPanel>
         <AccordionPanel title="פערים ראייתיים" count={accordions.gaps.length} accentColor="orange">
           <div>{accordions.gaps.map((item, i) => <ClickableGapItem key={i} {...item} issueId={issue.id} onAddInfo={onInfoUpdate ?? onWorkspaceUpdate} onIssueFileUpload={onIssueFileUpload} />)}</div>
@@ -336,7 +340,7 @@ function DetailPaneView({ pane, onBack, zones, accordions, issue, onWorkspaceUpd
         <AccordionPanel title="צעדים להמשך" count={accordions.steps.length} accentColor="indigo">
           <div>{accordions.steps.map((item, i) =>
             item.chipConfig?.name === "שאלה ללקוח"
-              ? <ClickableQuestionItem key={i} {...item} issueId={issue.id} onAddInfo={onInfoUpdate ?? onWorkspaceUpdate} onIssueFileUpload={onIssueFileUpload} />
+              ? <ClickableQuestionItem key={i} {...item} issueId={issue.id} onAddInfo={onInfoUpdate ?? onWorkspaceUpdate} onIssueFileUpload={onIssueFileUpload} onAnswered={(t) => onMarkQuestionAnswered?.(issue.id, t)} />
               : <HoverItem key={i} {...item} />
           )}</div>
         </AccordionPanel>
@@ -350,11 +354,13 @@ function DetailPaneView({ pane, onBack, zones, accordions, issue, onWorkspaceUpd
 export default function DisputeDetail({
   issue, latestDelta,
   onUpdateIssue,
+  onApproveAll,
   onAcceptAssessmentChange, onRejectAssessmentChange,
   onAcceptEvidenceUpdate, onRejectEvidenceUpdate,
   onAcceptContradiction, onRejectContradiction,
   onAcceptWorkItem, onRejectWorkItem,
-  onWorkspaceUpdate, onInfoUpdate, onIssueFileUpload, ourSideLabel, opposingSideLabel, retrievedPrecedents,
+  onMarkQuestionAnswered,
+  onWorkspaceUpdate, onInfoUpdate, onIssueFileUpload, clientRole = "claimant", ourSideLabel, opposingSideLabel, retrievedPrecedents,
 }) {
   const [detailPane, setDetailPane] = useState(null); // null | "our" | "opposing" | "ambiguous"
 
@@ -375,35 +381,44 @@ export default function DisputeDetail({
   const opposingNarrative = issue.partyPositions?.defendant;
   const coreDispute       = issue.partyPositions?.coreDispute || issue.legalAssessment?.coreDispute;
 
-  // ── Classify retrieved precedents by the `helps` field ────────────────────
+  // ── Classify retrieved precedents by helps + clientRole ───────────────────
+  const isDefendant  = clientRole === "defendant";
+  const ourHelpKey   = isDefendant ? "defense" : "claimant";
+  const theirHelpKey = isDefendant ? "claimant" : "defense";
+
   const ourPrecedents = (retrievedPrecedents ?? [])
-    .filter(p => typeof p === "object" && p.helps?.toLowerCase() === "claimant")
-    .map(p => precedentItem(p, "claimant"))
+    .filter(p => typeof p === "object" && p.helps?.toLowerCase() === ourHelpKey)
+    .map(p => precedentItem(p, isDefendant ? "defendant" : "claimant"))
     .filter(x => x.text);
 
   const opposingPrecedents = (retrievedPrecedents ?? [])
-    .filter(p => typeof p === "object" && p.helps?.toLowerCase() === "defendant")
-    .map(p => precedentItem(p, "defendant"))
+    .filter(p => typeof p === "object" && p.helps?.toLowerCase() === theirHelpKey)
+    .map(p => precedentItem(p, isDefendant ? "claimant" : "defendant"))
     .filter(x => x.text);
 
   const ambiguousPrecedents = (retrievedPrecedents ?? [])
     .filter(p => {
       const h = typeof p === "object" ? p.helps?.toLowerCase() : null;
-      return h !== "claimant" && h !== "defendant";
+      return h !== ourHelpKey && h !== theirHelpKey;
     })
     .map(p => precedentItem(p, "ambiguous"))
     .filter(x => x.text);
 
   // ── Zone A: our evidence + our precedents ──────────────────────────────────
+  const ourParty = isDefendant ? "defendant" : "claimant";
+  const newEvidenceOverlays = evidenceOverlays.filter((e) => !MISSING_TYPES.has(e.patch?.evidenceType ?? e.patch?.type));
   const ourEvidence = [
     ...(issue.linkedEvidence ?? []).map((e) => ({ chipConfig: mkChip("ראיה"), text: typeof e === "string" ? e : (e.title ?? ""), tooltip: typeof e === "object" ? (e.description ?? null) : null })),
     ...(issue.linkedWitnesses ?? []).map((w) => ({ chipConfig: mkChip("עד"), text: typeof w === "string" ? w : (w.name ?? w.title ?? ""), tooltip: typeof w === "object" ? (w.testimony ?? w.description ?? null) : null })),
-    ...evidenceOverlays.filter((e) => !MISSING_TYPES.has(e.patch?.evidenceType ?? e.patch?.type)).map((e) => ({ chipConfig: evidenceOverlayChip(e.patch?.evidenceType ?? e.patch?.type), text: e.patch?.title ?? "", tooltip: e.patch?.description ?? null, isNew: true })),
+    ...newEvidenceOverlays.filter((e) => { const bp = e.patch?.benefitsParty ?? "claimant"; return bp === ourParty || bp === "both"; }).map((e) => ({ chipConfig: evidenceOverlayChip(e.patch?.evidenceType ?? e.patch?.type), text: e.patch?.title ?? "", tooltip: e.patch?.description ?? null, isNew: true })),
     ...contradictionOverlays.filter((c) => c.patch?.direction === "hurts_them").map((c) => ({ chipConfig: mkChip("מחזק"), text: c.patch?.description ?? c.patch?.title ?? "", isNew: true })),
   ].filter((x) => x.text);
 
-  // ── Zone B: opposing evidence + opposing precedents ────────────────────────
+  // ── Zone B: challenge points from initial analysis + hurts_us contradictions ─
+  const opposingParty = isDefendant ? "claimant" : "defendant";
   const opposingEvidence = [
+    ...(issue.challengePoints ?? []).map((cp) => ({ chipConfig: mkChip("מקשה"), text: typeof cp === "string" ? cp : (cp.title ?? cp.description ?? ""), tooltip: typeof cp === "object" ? (cp.description ?? null) : null })),
+    ...newEvidenceOverlays.filter((e) => { const bp = e.patch?.benefitsParty ?? "claimant"; return bp === opposingParty; }).map((e) => ({ chipConfig: evidenceOverlayChip(e.patch?.evidenceType ?? e.patch?.type), text: e.patch?.title ?? "", tooltip: e.patch?.description ?? null, isNew: true })),
     ...contradictionOverlays.filter((c) => c.patch?.direction === "hurts_us").map((c) => ({ chipConfig: mkChip("מקשה"), text: c.patch?.description ?? c.patch?.title ?? "", tooltip: c.patch?.severity ? `עוצמה: ${c.patch.severity === "high" ? "גבוהה" : c.patch.severity === "medium" ? "בינונית" : "נמוכה"}` : null, isNew: true })),
   ].filter((x) => x.text);
 
@@ -422,18 +437,34 @@ export default function DisputeDetail({
   ].filter((x) => x.text);
 
   // ── Accordion data ─────────────────────────────────────────────────────────
+  const answeredQuestions = issue.answeredQuestions ?? new Set();
   const clientQuestions = [
     ...(issue.actionItems?.clientQuestions ?? []),
     ...workItemOverlays
       .filter((w) => w.type === "client_question")
       .map((w) => ({ text: w.title ?? "", isNew: true })),
-  ].filter((q) => (typeof q === "string" ? q : (q.question ?? q.text ?? "")).trim());
+  ].filter((q) => {
+    const raw = (typeof q === "string" ? q : (q.question ?? q.text ?? "")).trim();
+    if (!raw) return false;
+    const norm = raw.replace(/\s+/g, " ").replace(/[?!.،]+$/, "").toLowerCase();
+    return !([...answeredQuestions].some(a =>
+      a.replace(/\s+/g, " ").replace(/[?!.،]+$/, "").toLowerCase() === norm
+    ));
+  });
 
-  const evidenceGaps = [
-    ...(issue.missingInfo ?? []).map((m) => ({ chipConfig: mkChip("פער"), text: m })),
-    ...(issue.actionItems?.missingEvidence ?? []).map((m) => ({ chipConfig: mkChip("פער ראייתי"), text: typeof m === "string" ? m : (m.title ?? m.description ?? ""), tooltip: typeof m === "object" ? (m.description ?? null) : null })),
-    ...evidenceOverlays.filter((e) => MISSING_TYPES.has(e.patch?.evidenceType ?? e.patch?.type)).map((e) => ({ chipConfig: mkChip("פער ראייתי"), text: e.patch?.title ?? "", tooltip: e.patch?.description ?? null, isNew: true })),
-  ].filter((x) => x.text);
+  const evidenceGaps = (() => {
+    const seen = new Set();
+    return [
+      ...(issue.missingInfo ?? []).map((m) => ({ chipConfig: mkChip("פער"), text: m })),
+      ...evidenceOverlays.filter((e) => MISSING_TYPES.has(e.patch?.evidenceType ?? e.patch?.type)).map((e) => ({ chipConfig: mkChip("פער ראייתי"), text: e.patch?.title ?? "", tooltip: e.patch?.description ?? null, isNew: true })),
+    ].filter((x) => {
+      if (!x.text) return false;
+      const key = x.text.trim();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  })();
 
   const nextSteps = [
     ...workItemOverlays
@@ -445,20 +476,22 @@ export default function DisputeDetail({
   const accordions = { questions: clientQuestions, gaps: evidenceGaps, steps: nextSteps };
 
   // ── Zone descriptors passed to detail pane ─────────────────────────────────
+  // When clientRole === "defendant", swap narratives and evidence zones so the
+  // "our" column reflects the defending side, not the claimant side.
   const zones = {
     our: {
-      label: ourSideLabel ?? "גרסת המבקש",
-      narrative: claimantNarrative,
+      label: ourSideLabel ?? (isDefendant ? "גרסת הנתבע" : "גרסת התובע"),
+      narrative: isDefendant ? opposingNarrative : claimantNarrative,
       sections: [
-        { label: "ראיות תומכות", items: ourEvidence },
+        { label: "ראיות תומכות", items: isDefendant ? opposingEvidence : ourEvidence },
         { label: "פסיקה תומכת", items: ourPrecedents },
       ],
     },
     opposing: {
-      label: opposingSideLabel ?? "גרסת המשיב",
-      narrative: opposingNarrative,
+      label: opposingSideLabel ?? (isDefendant ? "גרסת התובע" : "גרסת הנתבע"),
+      narrative: isDefendant ? claimantNarrative : opposingNarrative,
       sections: [
-        { label: "טיעונים מקשים", items: opposingEvidence },
+        { label: "טיעונים מקשים", items: isDefendant ? ourEvidence : opposingEvidence },
         { label: "פסיקה לצד שכנגד", items: opposingPrecedents },
       ],
     },
@@ -502,6 +535,7 @@ export default function DisputeDetail({
 
         <InlinePendingUpdates
           issue={issue} latestDelta={latestDelta}
+          onApproveAll={onApproveAll}
           onAcceptAssessmentChange={onAcceptAssessmentChange} onRejectAssessmentChange={onRejectAssessmentChange}
           onAcceptEvidenceUpdate={onAcceptEvidenceUpdate} onRejectEvidenceUpdate={onRejectEvidenceUpdate}
           onAcceptContradiction={onAcceptContradiction} onRejectContradiction={onRejectContradiction}
@@ -582,7 +616,7 @@ export default function DisputeDetail({
           <AccordionPanel title="צעדים להמשך" count={nextSteps.length} accentColor="indigo">
             <div>{nextSteps.map((item, i) =>
               item.chipConfig?.name === "שאלה ללקוח"
-                ? <ClickableQuestionItem key={i} {...item} issueId={issue.id} onAddInfo={onInfoUpdate ?? onWorkspaceUpdate} onIssueFileUpload={onIssueFileUpload} />
+                ? <ClickableQuestionItem key={i} {...item} issueId={issue.id} onAddInfo={onInfoUpdate ?? onWorkspaceUpdate} onIssueFileUpload={onIssueFileUpload} onAnswered={(t) => onMarkQuestionAnswered?.(issue.id, t)} />
                 : <HoverItem key={i} {...item} />
             )}</div>
           </AccordionPanel>
@@ -602,6 +636,7 @@ export default function DisputeDetail({
             onWorkspaceUpdate={onWorkspaceUpdate}
             onInfoUpdate={onInfoUpdate}
             onIssueFileUpload={onIssueFileUpload}
+            onMarkQuestionAnswered={onMarkQuestionAnswered}
           />
         </div>
       )}

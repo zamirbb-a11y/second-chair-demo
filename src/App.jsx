@@ -121,6 +121,7 @@ function buildIssueAnalysisResult(issueId, issueTitle, result) {
   }
 
   for (const item of result.evidenceUpdates || []) {
+    if (item.type === "missing_evidence" || item.type === "evidence_gap") continue;
     overlays.push({
       id: id(),
       createdAt: now,
@@ -131,6 +132,7 @@ function buildIssueAnalysisResult(issueId, issueTitle, result) {
         evidenceType: item.type,
         title: item.title,
         description: item.description,
+        benefitsParty: item.benefitsParty ?? "claimant",
         relatedIssueId: issueId,
         relatedIssueTitle: issueTitle,
         relatedUpdateId: null,
@@ -229,6 +231,7 @@ export default function App() {
 
   const [loading, setLoading] = useState(false);
   const [loadingMode, setLoadingMode] = useState("initial"); // "initial" | "update"
+  const [clientRole, setClientRole] = useState("claimant"); // "claimant" | "defendant"
   const [error, setError] = useState("");
   const [intakeExpanded, setIntakeExpanded] = useState(true);
 
@@ -246,6 +249,8 @@ export default function App() {
 
   // v2: selected dispute (null = overview)
   const [selectedIssueId, setSelectedIssueId] = useState(null);
+  const [caseMenuOpen, setCaseMenuOpen] = useState(false);
+  const [caseListExpanded, setCaseListExpanded] = useState(false);
 
   // Phase A: computed but not yet read by UI. Infrastructure for Phase B.
   // eslint-disable-next-line no-unused-vars
@@ -339,6 +344,7 @@ export default function App() {
       caseEvents: overrides.caseEvents ?? caseEvents,
       lastAnalyzedCaseText:
   overrides.lastAnalyzedCaseText ?? lastAnalyzedCaseText,
+      clientRole: overrides.clientRole ?? clientRole,
     };
   }
 
@@ -374,6 +380,7 @@ export default function App() {
     setLatestDelta(null);
     setShowDeltaPanel(false);
     setLastAnalyzedCaseText(loaded.lastAnalyzedCaseText || "");
+    setClientRole(loaded.clientRole || loaded.analysis?.clientRole || "claimant");
     setEntryMode("existing");
     setIntakeExpanded(!loaded.analysis);
     setStatus("");
@@ -823,6 +830,7 @@ ${updatesText}
       }
 
       setAnalysis(data);
+      if (data.clientRole) setClientRole(data.clientRole);
       setIntakeExpanded(false);
 
       const analyzedUpdates = workspaceUpdates.map((u) =>
@@ -1014,7 +1022,21 @@ const nextUpdates = effectiveUpdates.map((update) => {
     setError("");
     setStatus("אפשר להוסיף קבצים או לעדכן את תיאור המקרה ואז להריץ ניתוח מחדש.");
   }
+function normQ(t) { return (t ?? "").trim().replace(/\s+/g, " ").replace(/[?!.،]+$/, "").toLowerCase(); }
+
+function isQuestionAlreadyAnswered(item) {
+  if (item.type !== "client_question") return false;
+  const issue = liveCaseState?.issues?.find(i => i.id === item.relatedIssueId || i.title === item.relatedIssueTitle);
+  if (!issue?.answeredQuestions?.size) return false;
+  const n = normQ(item.title);
+  return [...issue.answeredQuestions].some(q => normQ(q) === n);
+}
+
 function acceptGeneratedWorkItem(item, index) {
+  if (isQuestionAlreadyAnswered(item)) {
+    rejectGeneratedWorkItem(index);
+    return;
+  }
   const acceptedItem = {
     ...item,
     id:
@@ -1317,6 +1339,61 @@ function removeAcceptedWorkItem(itemId) {
     persistCurrentCase(analysis, { overlays: nextOverlays, caseEvents: nextCaseEvents });
   }
 
+  function acceptAllPendingUpdates({ assessments = [], evidence = [], contradictions = [], workItems = [] }) {
+    const now = new Date().toISOString();
+    const idGen = () => `overlay-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const newOverlays = [];
+    const newEvents = [];
+    const newAcceptedWorkItems = [];
+
+    for (const { item } of evidence) {
+      newOverlays.push({ id: idGen(), createdAt: now, type: "evidence", isNew: true, sourceDeltaItem: item, patch: { action: "add_evidence_update", evidenceType: item.type, title: item.title, description: item.description, benefitsParty: item.benefitsParty ?? "claimant", relatedIssueId: item.relatedIssueId || null, relatedIssueTitle: item.relatedIssueTitle || null, relatedUpdateId: item.relatedUpdateId || null } });
+      const evType = item.type === "missing_evidence" || item.type === "evidence_gap" ? "evidence_gap_noted" : "evidence_added";
+      const e = createEvent(evType, "ai_delta", { issueId: item.relatedIssueId || null, field: "linkedEvidence" }, { op: "add", path: "linkedEvidence", value: item.title }, { summary: item.title, changed: "ראיות", reason: item.description || "", groundedIn: [] });
+      e.status = "accepted"; newEvents.push(e);
+    }
+
+    for (const { item } of contradictions) {
+      newOverlays.push({ id: idGen(), createdAt: now, type: "contradiction", isNew: true, sourceDeltaItem: item, patch: { action: "add_contradiction", title: item.title, description: item.description, severity: item.severity || "medium", direction: item.direction || "unclear", relatedIssueId: item.relatedIssueId || null, relatedIssueTitle: item.relatedIssueTitle || null, relatedUpdateId: item.relatedUpdateId || null, targetType: item.targetType || "unknown", targetId: item.targetId || null } });
+      const e = createEvent("contradiction_noted", "ai_delta", { issueId: item.relatedIssueId || null, field: "annotations.contradictions" }, { op: "add", path: "annotations.contradictions", value: item.title }, { summary: item.title, changed: "סתירות", reason: item.description || "", groundedIn: [] });
+      e.status = "accepted"; newEvents.push(e);
+    }
+
+    for (const { item } of assessments) {
+      if (!item.field || !SUPPORTED_ASSESSMENT_FIELDS.has(item.field)) continue;
+      newOverlays.push({ id: idGen(), createdAt: now, type: "assessment", isNew: true, sourceDeltaItem: item, patch: { action: "update_assessment", issueId: item.issueId || null, issueTitle: item.issueTitle || null, field: item.field, previousValue: item.previousValue || null, newValue: item.newValue || null, reason: item.reason || null } });
+      const e = createEvent("assessment_changed", "ai_delta", { issueId: item.issueId || null, field: item.field }, { op: "replace", path: item.field, value: item.newValue || null, previousValue: item.previousValue || null }, { summary: `${item.field}: ${item.previousValue ?? "?"} → ${item.newValue ?? "?"}`, changed: "הערכה", reason: item.reason || "", groundedIn: [] });
+      e.status = "accepted"; newEvents.push(e);
+    }
+
+    for (const { item } of workItems) {
+      if (isQuestionAlreadyAnswered(item)) continue;
+      newAcceptedWorkItems.push({ ...item, id: item.id || `work-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, status: "accepted", acceptedAt: now });
+      const e = createEvent("work_item_created", "ai_delta", { issueId: item.relatedIssueId || null, field: null }, { op: "add", path: "workItems", value: item.title }, { summary: item.title, changed: "משימות", reason: item.description || item.reason || "", groundedIn: [] });
+      e.status = "accepted"; newEvents.push(e);
+    }
+
+    const nextOverlays = [...overlays, ...newOverlays];
+    const nextCaseEvents = [...caseEvents, ...newEvents];
+    const nextAcceptedWorkItems = [...acceptedWorkItems, ...newAcceptedWorkItems];
+    const evidenceIdxs  = new Set(evidence.map(e => e.index));
+    const contradIdxs   = new Set(contradictions.map(c => c.index));
+    const assessIdxs    = new Set(assessments.map(a => a.index));
+    const workIdxs      = new Set(workItems.map(w => w.index));
+
+    setOverlays(nextOverlays);
+    setCaseEvents(nextCaseEvents);
+    setAcceptedWorkItems(nextAcceptedWorkItems);
+    setLatestDelta(prev => ({
+      ...prev,
+      evidenceUpdates:    (prev?.evidenceUpdates    ?? []).filter((_, i) => !evidenceIdxs.has(i)),
+      contradictions:     (prev?.contradictions     ?? []).filter((_, i) => !contradIdxs.has(i)),
+      changedAssessments: (prev?.changedAssessments ?? []).filter((_, i) => !assessIdxs.has(i)),
+      generatedWorkItems: (prev?.generatedWorkItems ?? []).filter((_, i) => !workIdxs.has(i)),
+    }));
+    persistCurrentCase(analysis, { overlays: nextOverlays, caseEvents: nextCaseEvents, acceptedWorkItems: nextAcceptedWorkItems });
+  }
+
   function rejectAssessmentChange(index) {
     const nextChangedAssessments =
       latestDelta?.changedAssessments?.filter((_, i) => i !== index) || [];
@@ -1455,6 +1532,33 @@ function removeAcceptedWorkItem(itemId) {
     persistCurrentCase(analysis, { overlays: nextOverlays, caseEvents: nextCaseEvents });
   }
 
+  function removeIssue(issueId, issueTitle) {
+    const overlay = {
+      id: `overlay-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      createdAt: new Date().toISOString(),
+      type: "issue_hidden",
+      isNew: false,
+      patch: { issueId, issueTitle },
+    };
+    const nextOverlays = [...overlays, overlay];
+    setOverlays(nextOverlays);
+    if (selectedIssueId === issueId) setSelectedIssueId(null);
+    persistCurrentCase(analysis, { overlays: nextOverlays });
+  }
+
+  function markQuestionAnswered(issueId, questionText) {
+    const overlay = {
+      id: `overlay-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      createdAt: new Date().toISOString(),
+      type: "question_answered",
+      isNew: false,
+      patch: { issueId, questionText },
+    };
+    const nextOverlays = [...overlays, overlay];
+    setOverlays(nextOverlays);
+    persistCurrentCase(analysis, { overlays: nextOverlays });
+  }
+
   function rollbackOverlay(overlayId) {
     const nextOverlays = overlays.filter((o) => o.id !== overlayId);
     setOverlays(nextOverlays);
@@ -1538,7 +1642,7 @@ default:
   }
 
   return (
-    <div dir="rtl" className="h-screen bg-[#f5f7fa] text-slate-900 flex flex-col overflow-hidden">
+    <div dir="rtl" className="h-screen bg-[#eef0f4] text-slate-900 flex flex-col overflow-hidden">
       {loading && <AnalysisLoadingOverlay mode={loadingMode} />}
 
       <div className="flex flex-1 overflow-hidden">
@@ -1553,6 +1657,7 @@ default:
             onSelectIssue={setSelectedIssueId}
             latestDelta={latestDelta}
             onAddUserIssue={addUserIssue}
+            onRemoveIssue={removeIssue}
             onUploadFile={handleWordUpload}
             caseName={caseName}
           />
@@ -1562,49 +1667,112 @@ default:
         <div className="flex-1 min-w-0 flex flex-col overflow-hidden relative">
 
           {/* Top bar */}
-          <div className="bg-white border-b border-slate-200 px-5 py-2 flex items-center justify-between flex-shrink-0 gap-3">
-            <div className="flex items-center gap-2">
-              <select
-                value={currentCaseId || ""}
-                onChange={(e) => openSavedCase(e.target.value)}
-                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-700"
-              >
-                <option value="" disabled>מעבר בין תיקים</option>
-                {savedCases.map((item) => (
-                  <option key={item.id} value={item.id}>{item.name}</option>
-                ))}
-              </select>
-              <button
-                onClick={() => removeSavedCase(currentCaseId)}
-                className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-sm text-red-700 hover:bg-red-100"
-              >
-                מחק תיק
-              </button>
-              <button
-                onClick={handleOpenNewCase}
-                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
-              >
-                תיק חדש
-              </button>
-            </div>
-            <div className="flex items-center gap-3">
+          <div className="bg-white border-b border-slate-200 px-5 flex items-center gap-3 flex-shrink-0 h-12">
+
+            {/* Right: case title */}
+            <div className="flex-1 flex items-center justify-start min-w-0 pointer-events-none select-none">
               {caseName && (
-                <span className="text-[13px] font-semibold text-slate-700">{caseName}</span>
+                <span className="text-[18px] font-semibold text-slate-900 truncate">{caseName}</span>
               )}
-              {analysis && (
+            </div>
+
+            {/* Center: add info CTA */}
+            {analysis && (
+              <button
+                onClick={() => setIntakeExpanded((v) => !v)}
+                className={[
+                  "shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium border cursor-pointer transition-colors",
+                  intakeExpanded
+                    ? "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200"
+                    : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50",
+                ].join(" ")}
+              >
+                {intakeExpanded ? "סגור ×" : "+ הוסף מידע לתיק"}
+              </button>
+            )}
+
+            {/* Role toggle */}
+            {analysis && (
+              <button
+                onClick={() => {
+                  const next = clientRole === "claimant" ? "defendant" : "claimant";
+                  setClientRole(next);
+                  persistCurrentCase(analysis, { clientRole: next });
+                }}
+                title="לחץ להחלפת הצד המיוצג"
+                className="shrink-0 flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-500 hover:bg-slate-50 cursor-pointer transition-colors"
+              >
+                <span>מייצגים:</span>
+                <span className="font-semibold text-slate-700">{clientRole === "claimant" ? "תובע" : "נתבע"}</span>
+                <span className="text-slate-400 text-[9px]">⇄</span>
+              </button>
+            )}
+
+            {/* Left: case management menu + admin */}
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="relative">
                 <button
-                  onClick={() => setIntakeExpanded((v) => !v)}
-                  className={[
-                    "rounded-lg px-3 py-1.5 text-sm font-semibold border-0 cursor-pointer transition-colors",
-                    intakeExpanded
-                      ? "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                      : "bg-slate-900 text-white hover:bg-slate-800",
-                  ].join(" ")}
+                  onClick={() => setCaseMenuOpen((v) => !v)}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 transition-colors text-lg cursor-pointer"
+                  title="ניהול תיקים"
                 >
-                  {intakeExpanded ? "סגור ×" : "+ הוסף מידע לתיק"}
+                  ⋮
                 </button>
-              )}
-              <a href="/precedents" className="text-[12px] text-slate-400 hover:text-slate-600">
+                {caseMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => { setCaseMenuOpen(false); setCaseListExpanded(false); }} />
+                    <div className="absolute left-0 top-full mt-1.5 w-60 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden z-50" dir="rtl">
+                      {/* החלף תיק */}
+                      <button
+                        onClick={() => setCaseListExpanded((v) => !v)}
+                        className="w-full text-right px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors flex items-center justify-between"
+                      >
+                        <span>החלף תיק</span>
+                        <span className="text-slate-400 text-[10px] mr-2">{caseListExpanded ? "▲" : "▼"}</span>
+                      </button>
+                      {caseListExpanded && (
+                        <div className="max-h-52 overflow-y-auto border-t border-slate-100">
+                          {savedCases.length === 0 ? (
+                            <div className="px-3 py-2 text-xs text-slate-400">אין תיקים שמורים</div>
+                          ) : (
+                            savedCases.map((item) => (
+                              <button
+                                key={item.id}
+                                onClick={() => { openSavedCase(item.id); setCaseMenuOpen(false); setCaseListExpanded(false); }}
+                                className={[
+                                  "w-full text-right px-4 py-2 text-sm transition-colors",
+                                  item.id === currentCaseId
+                                    ? "font-semibold text-slate-900 bg-slate-50"
+                                    : "text-slate-600 hover:bg-slate-50",
+                                ].join(" ")}
+                              >
+                                {item.id === currentCaseId && <span className="ml-1.5 text-[9px] text-slate-400">◀ נוכחי</span>}
+                                {item.name}
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      )}
+                      <div className="border-t border-slate-100" />
+                      <button
+                        onClick={() => { handleOpenNewCase(); setCaseMenuOpen(false); setCaseListExpanded(false); }}
+                        className="w-full text-right px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                      >
+                        + תיק חדש
+                      </button>
+                      {currentCaseId && (
+                        <button
+                          onClick={() => { removeSavedCase(currentCaseId); setCaseMenuOpen(false); setCaseListExpanded(false); }}
+                          className="w-full text-right px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                        >
+                          מחק תיק
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+              <a href="/precedents" className="text-[12px] text-slate-400 hover:text-slate-600 transition-colors">
                 Admin
               </a>
             </div>
@@ -1683,6 +1851,8 @@ default:
                   issue={liveCaseState?.issues?.find((i) => i.id === selectedIssueId)}
                   latestDelta={latestDelta}
                   onUpdateIssue={updateIssue}
+                  onApproveAll={acceptAllPendingUpdates}
+                  onMarkQuestionAnswered={markQuestionAnswered}
                   onAcceptAssessmentChange={acceptAssessmentChange}
                   onRejectAssessmentChange={rejectAssessmentChange}
                   onAcceptEvidenceUpdate={acceptEvidenceUpdate}
@@ -1694,8 +1864,9 @@ default:
                   onWorkspaceUpdate={handleWorkspaceUpdate}
                   onInfoUpdate={handleInfoAndReanalyze}
                   onIssueFileUpload={handleIssueFileUpload}
-                  ourSideLabel={analysis?.executiveView?.caseSnapshot?.parties?.[0]}
-                  opposingSideLabel={analysis?.executiveView?.caseSnapshot?.parties?.[1]}
+                  clientRole={clientRole}
+                  ourSideLabel={clientRole === "defendant" ? analysis?.executiveView?.caseSnapshot?.parties?.[1] : analysis?.executiveView?.caseSnapshot?.parties?.[0]}
+                  opposingSideLabel={clientRole === "defendant" ? analysis?.executiveView?.caseSnapshot?.parties?.[0] : analysis?.executiveView?.caseSnapshot?.parties?.[1]}
                   retrievedPrecedents={analysis?.retrievedPrecedents}
                 />
               )

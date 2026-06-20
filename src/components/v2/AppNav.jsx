@@ -7,11 +7,11 @@ const NAV_ITEMS = [
 
 export default function AppNav({ activeView, onChangeView }) {
   return (
-    <div className="w-[72px] bg-white border-l border-slate-200 flex flex-col items-center flex-shrink-0 h-full">
+    <div className="w-[72px] bg-[#1e293b] border-l border-slate-700 flex flex-col items-center flex-shrink-0 h-full">
       {/* Logo */}
-      <div className="w-full py-4 text-center border-b border-slate-100 select-none">
-        <span className="text-slate-900 font-black text-[13px] leading-none tracking-tight">SC</span>
-        <span className="block text-[8px] text-slate-400 mt-0.5 tracking-wide">Second Chair</span>
+      <div className="w-full h-12 flex flex-col items-center justify-center border-b border-white/10 select-none">
+        <span className="text-white font-black text-[13px] leading-none tracking-tight">SC</span>
+        <span className="block text-[8px] text-white/40 mt-0.5 tracking-wide">Second Chair</span>
       </div>
 
       {/* Nav items */}
@@ -24,8 +24,8 @@ export default function AppNav({ activeView, onChangeView }) {
             className={[
               "w-full rounded-[9px] flex flex-col items-center justify-center gap-[3px] py-2.5 transition-all border-0 cursor-pointer",
               activeView === id
-                ? "bg-blue-50 text-blue-700"
-                : "text-slate-400 hover:bg-slate-50 hover:text-slate-600",
+                ? "bg-white/15 text-white"
+                : "text-white/40 hover:bg-white/8 hover:text-white/70",
             ].join(" ")}
           >
             <span className="text-[17px] leading-none">{icon}</span>
@@ -38,7 +38,7 @@ export default function AppNav({ activeView, onChangeView }) {
       <div className="pb-3 px-2 w-full">
         <button
           title="הגדרות"
-          className="w-full rounded-[9px] flex items-center justify-center py-2.5 text-slate-400 hover:bg-slate-50 hover:text-slate-600 text-[17px] transition-all border-0 cursor-pointer"
+          className="w-full rounded-[9px] flex items-center justify-center py-2.5 text-white/30 hover:bg-white/8 hover:text-white/60 text-[17px] transition-all border-0 cursor-pointer"
         >
           ⚙
         </button>
