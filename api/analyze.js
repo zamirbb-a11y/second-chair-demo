@@ -26,6 +26,7 @@ async function runAdversarialPass(issues, caseText, clientName, clientRole) {
 1. אל תמציא עובדות — הישען רק על החומר שסופק.
 2. ספציפי לעובדות, לא גנרי.
 3. אם אין חולשה אמיתית — החזר impactOnAssessment: "no_change".
+4. זהה גם את הטיעון החזק ביותר לטובת ${clientLabel} בכל מחלוקת — הנקודה שקשה ביותר לתקוף.
 
 מחלוקות:
 ${JSON.stringify(issuesSummary, null, 2)}
@@ -36,6 +37,7 @@ ${caseText.slice(0, 3000)}
 החזר JSON בלבד — מפתח לפי id של כל מחלוקת:
 {
   "<issueId>": {
+    "strongestArgument": "הטיעון החזק ביותר לטובת ${clientLabel} — ספציפי לעובדות",
     "strongestAttack": "הטיעון החזק ביותר שנעלה — ספציפי",
     "vulnerableAssumptions": ["הנחה שניתן לקעקע"],
     "adverseEvidence": ["ראיה קיימת שסותרת"],

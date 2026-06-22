@@ -230,6 +230,8 @@ export default function App() {
   // Sync refs for overlay arrays — updated both by useEffect (general) and synchronously inside
   // handleIssueAnalysisResult to prevent lost writes from concurrent per-issue callbacks.
   const overlaysRef = useRef([]);
+  // Issue IDs that need adversarial re-analysis after delta acceptance.
+  const pendingReanalysisRef = useRef(new Set());
   const caseEventsRef = useRef([]);
   const acceptedWorkItemsRef = useRef([]);
   useEffect(() => { overlaysRef.current = overlays; }, [overlays]);
@@ -311,6 +313,18 @@ export default function App() {
       }
     });
   }, [analysis]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Re-run adversarial for issues affected by accepted delta changes.
+  // Fires after liveCaseState updates (so new overlays are reflected in the API call).
+  useEffect(() => {
+    if (!pendingReanalysisRef.current.size || !liveCaseState?.issues?.length) return;
+    const toAnalyze = [...pendingReanalysisRef.current];
+    pendingReanalysisRef.current = new Set();
+    toAnalyze.forEach(issueId => {
+      const issue = liveCaseState.issues.find(i => i.id === issueId);
+      if (issue?.title) triggerIssueAnalysis(issueId, issue.title, issue.description || "", clientRole, false);
+    });
+  }, [liveCaseState]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!isAuthorized) {
     return (
@@ -394,6 +408,11 @@ export default function App() {
     setDocumentText(loaded.documentText || "");
     setCaseFiles(loaded.caseFiles || []);
     setUploadedFiles(loaded.uploadedFiles || []);
+    // Pre-fill triggeredAnalysisRef so per-issue analysis doesn't re-run on load
+    // (overlays already contain the results from the previous session).
+    if (loaded.analysis?.issues?.length) {
+      triggeredAnalysisRef.current = loaded.analysis.issues.map(i => i.id).join(',');
+    }
     setAnalysis(loaded.analysis || null);
     setPreviousAnalysis(null);
     setAnalysisDiff([]);
@@ -423,6 +442,7 @@ export default function App() {
 
   function startNewCase() {
     const initialCaseName = newCaseName.trim() || "תיק ללא שם";
+    triggeredAnalysisRef.current = null;
 
     setCurrentCaseId(createCaseId());
     setCaseName(initialCaseName);
@@ -451,6 +471,7 @@ export default function App() {
   }
 
   function handleOpenNewCase() {
+    triggeredAnalysisRef.current = null;
     setCurrentCaseId(null);
     setCaseName("תיק ללא שם");
     setCaseText("");
@@ -1426,6 +1447,15 @@ function removeAcceptedWorkItem(itemId) {
     const nextOverlays = [...overlays, ...newOverlays];
     const nextCaseEvents = [...caseEvents, ...newEvents];
     const nextAcceptedWorkItems = [...acceptedWorkItems, ...newAcceptedWorkItems];
+
+    // Schedule adversarial re-run for affected issues so the overview KPI cards update.
+    const affectedIssueIds = new Set([
+      ...assessments.map(a => a.item.issueId).filter(Boolean),
+      ...evidence.map(e => e.item.relatedIssueId).filter(Boolean),
+      ...contradictions.map(c => c.item.relatedIssueId).filter(Boolean),
+    ]);
+    affectedIssueIds.forEach(id => pendingReanalysisRef.current.add(id));
+
     const evidenceIdxs  = new Set(evidence.map(e => e.index));
     const contradIdxs   = new Set(contradictions.map(c => c.index));
     const assessIdxs    = new Set(assessments.map(a => a.index));

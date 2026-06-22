@@ -29,9 +29,11 @@ ${caseText.slice(0, 2500)}
 3. אם אין חולשה אמיתית בחומר הקיים — ציין זאת מפורשות ב-strongestAttack.
 4. ספציפיות ולא גנריות.
 5. אם החומר דל מכדי לתקוף, החזר impactOnAssessment: "no_change".
+6. זהה גם את הטיעון החזק ביותר לטובת ${ourLabel} — הנקודה שקשה ביותר לתקוף.
 
 החזר JSON בלבד:
 {
+  "strongestArgument": "הטיעון החזק ביותר לטובת ${ourLabel} — ספציפי לעובדות",
   "strongestAttack": "הטיעון החזק ביותר שהיריב יעלה — ספציפי",
   "vulnerableAssumptions": ["הנחה שניתן לקעקע"],
   "adverseEvidence": ["ראיה קיימת שסותרת"],
