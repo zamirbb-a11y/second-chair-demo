@@ -1,3 +1,76 @@
+async function runAdversarialLoop(issue, caseText, firstResult, clientName, clientRole) {
+  const isDefendant = clientRole === "defendant";
+  const ourPosition = isDefendant ? firstResult.defendantPosition : firstResult.claimantPosition;
+  const theirPosition = isDefendant ? firstResult.claimantPosition : firstResult.defendantPosition;
+  const ourLabel = clientName || (isDefendant ? "הנתבע" : "התובע");
+  const theirLabel = isDefendant ? "התובע" : "הנתבע";
+
+  const adversarialPrompt = `
+אתה עוה"ד של הצד שכנגד — אתה מייצג את ${theirLabel} ותפקידך לתקוף את עמדת ${ourLabel}.
+
+**המחלוקת שנותחה:**
+כותרת: ${issue.title}
+תיאור: ${issue.description || "(לא סופק)"}
+
+**הניתוח של ${ourLabel} (שאתה תוקף):**
+הערכה: ${firstResult.legalAssessment?.summary || "לא סופקה"}
+חוזק: ${firstResult.legalAssessment?.strength || "לא ידוע"}
+עמדת ${ourLabel}: ${ourPosition || "לא סופקה"}
+עמדת ${theirLabel}: ${theirPosition || "לא סופקה"}
+
+**חומר גלם מהתיק:**
+${caseText.slice(0, 2500)}
+
+---
+
+בצע red-team מקצועי. כללים:
+1. אל תמציא עובדות — הישען רק על החומר שסופק.
+2. זהה את ההנחה המרכזית שעליה נשענת העמדה ובחן אם היא מוצקה.
+3. אם אין חולשה אמיתית בחומר הקיים — ציין זאת מפורשות ב-strongestAttack.
+4. ספציפיות ולא גנריות.
+5. אם החומר דל מכדי לתקוף, החזר impactOnAssessment: "no_change".
+
+החזר JSON בלבד:
+{
+  "strongestAttack": "הטיעון החזק ביותר שהיריב יעלה — ספציפי",
+  "vulnerableAssumptions": ["הנחה שניתן לקעקע"],
+  "adverseEvidence": ["ראיה קיימת שסותרת"],
+  "missingEvidenceThatMatters": ["ראיה קריטית שנעדרת ומחלישה"],
+  "opposingCounselLikelyArgument": "הטיעון שעוה\"ד יריב יפתח איתו",
+  "judgeConcern": "מה השופט עשוי לתהות לגבי העמדה",
+  "impactOnAssessment": "no_change | slightly_weaker | materially_weaker | assessment_should_change",
+  "recommendedNextStep": "פעולה אחת שעורך הדין צריך לעשות בגלל הממצאים"
+}
+`;
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: "gpt-4.1",
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content:
+            `אתה עורך דין ישראלי מנוסה המייצג את הצד שכנגד (${theirLabel}). תפקידך לתקוף את עמדת ${ourLabel} ולחשוף חולשות אמיתיות בלבד — לא להמציא. החזר JSON תקין בלבד.`,
+        },
+        { role: "user", content: adversarialPrompt },
+      ],
+      temperature: 0.3,
+    }),
+  });
+
+  if (!response.ok) throw new Error("Adversarial call failed");
+  const data = await response.json();
+  const content = data.choices?.[0]?.message?.content;
+  if (!content) throw new Error("No adversarial content returned");
+  return JSON.parse(content);
+}
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -7,12 +80,19 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   try {
-    const { issue, liveCaseState, caseText = "", documentText = "" } = req.body || {};
+    const { issue, liveCaseState, caseText = "", documentText = "", clientName = "", clientRole = "claimant", skipAdversarial = false } = req.body || {};
 
     if (!issue?.title) return res.status(400).json({ error: "Missing issue" });
 
+    const isDefendantClient = clientRole === "defendant";
+    const clientLabel = clientName || (isDefendantClient ? "הנתבע" : "התובע");
+    const clientRoleLabel = isDefendantClient ? "הנתבע (הצד המגיב)" : "התובע (הצד שיזם את ההליך)";
+
     const prompt = `
 אתה מבצע ניתוח ממוקד של מחלוקת אחת בלבד בתוך תיק ליטיגציה קיים.
+
+**הלקוח שלנו:** ${clientLabel} — ${clientRoleLabel}.
+כל הערכת legalAssessment.strength תשקף את סיכויי ${clientLabel} לנצח בטענה זו.
 
 **מחלוקת לניתוח:**
 כותרת: ${issue.title}
@@ -55,10 +135,10 @@ ${documentText}
 {
   "legalAssessment": {
     "summary": "תיאור קצר של עוצמת המחלוקת והשאלות המשפטיות המרכזיות — 2-4 משפטים",
-    "strength": "one of: very_strong | strong | medium_strong | medium | medium_weak | weak | very_weak | unclear"
+    "strength": "סיכויי הטענה מנקודת מבט הלקוח: very_strong | strong | medium_strong | medium | medium_weak | weak | very_weak | unclear"
   },
-  "claimantPosition": "עמדת התובע ביחס למחלוקת זו, או null",
-  "defendantPosition": "עמדת הנתבע ביחס למחלוקת זו, או null",
+  "claimantPosition": "2-3 משפטים המתארים את טענות הצד שיזם את ההליך ביחס למחלוקת זו. השתמש בשם הצד האמיתי ולא במילה 'תובע'. החזר null אם אין מספיק מידע.",
+  "defendantPosition": "2-3 משפטים המתארים את טענות הצד המגיב ביחס למחלוקת זו. השתמש בשם הצד האמיתי ולא במילה 'נתבע'. החזר null אם אין מספיק מידע.",
   "evidenceUpdates": [
     { "type": "new_evidence | document_impact", "title": "", "description": "", "benefitsParty": "claimant | defendant | both" }
   ],
@@ -108,11 +188,23 @@ ${documentText}
     const content = data.choices?.[0]?.message?.content;
     if (!content) return res.status(500).json({ error: "No content returned" });
 
+    let firstResult;
     try {
-      return res.status(200).json(JSON.parse(content));
+      firstResult = JSON.parse(content);
     } catch {
       return res.status(500).json({ error: "Model returned invalid JSON", raw: content });
     }
+
+    let adversarialReview = null;
+    if (!skipAdversarial) {
+      try {
+        adversarialReview = await runAdversarialLoop(issue, caseText, firstResult, clientName, clientRole);
+      } catch {
+        // Silent fail — first result is complete without adversarial review
+      }
+    }
+
+    return res.status(200).json({ ...firstResult, adversarialReview });
   } catch (error) {
     console.error("analyze-issue failed:", error);
     return res.status(500).json({ error: "Analysis failed", details: error.message });

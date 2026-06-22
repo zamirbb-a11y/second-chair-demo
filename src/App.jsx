@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import AnalysisLoadingOverlay from "./components/AnalysisLoadingOverlay";
 import CaseIntake from "./components/CaseIntake";
@@ -53,18 +53,16 @@ function buildIssueAnalysisResult(issueId, issueTitle, result) {
   const workItems = [];
 
   if (result.claimantPosition || result.defendantPosition) {
+    const partyPositions = {
+      ...(result.claimantPosition ? { claimant: result.claimantPosition } : {}),
+      ...(result.defendantPosition ? { defendant: result.defendantPosition } : {}),
+    };
     overlays.push({
       id: id(),
       createdAt: now,
       type: "issue_updated",
       isNew: false,
-      patch: {
-        issueId,
-        partyPositions: {
-          claimant: result.claimantPosition || "",
-          defendant: result.defendantPosition || "",
-        },
-      },
+      patch: { issueId, partyPositions },
     });
   }
 
@@ -226,12 +224,26 @@ export default function App() {
   const [userIssues, setUserIssues] = useState([]);
   const [overlays, setOverlays] = useState([]);
   const [caseEvents, setCaseEvents] = useState([]);
+  const [adversarialReviews, setAdversarialReviews] = useState({});
+  const adversarialReviewsRef = useRef({});
+  useEffect(() => { adversarialReviewsRef.current = adversarialReviews; }, [adversarialReviews]);
+  // Sync refs for overlay arrays — updated both by useEffect (general) and synchronously inside
+  // handleIssueAnalysisResult to prevent lost writes from concurrent per-issue callbacks.
+  const overlaysRef = useRef([]);
+  const caseEventsRef = useRef([]);
+  const acceptedWorkItemsRef = useRef([]);
+  useEffect(() => { overlaysRef.current = overlays; }, [overlays]);
+  useEffect(() => { caseEventsRef.current = caseEvents; }, [caseEvents]);
+  useEffect(() => { acceptedWorkItemsRef.current = acceptedWorkItems; }, [acceptedWorkItems]);
   const [lastAnalyzedCaseText, setLastAnalyzedCaseText] = useState("");
   const [showDeltaPanel, setShowDeltaPanel] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [loadingMode, setLoadingMode] = useState("initial"); // "initial" | "update"
+  const [adversarialLoading, setAdversarialLoading] = useState(new Set());
   const [clientRole, setClientRole] = useState("claimant"); // "claimant" | "defendant"
+  const [clientName, setClientName] = useState("");
+  const [newClientName, setNewClientName] = useState("");
   const [error, setError] = useState("");
   const [intakeExpanded, setIntakeExpanded] = useState(true);
 
@@ -282,6 +294,22 @@ export default function App() {
     );
     setWorkspaceUpdates(cleaned);
     persistCurrentCase(analysis, { workspaceUpdates: cleaned });
+  }, [analysis]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-trigger per-issue analysis after a new main analysis lands.
+  // Runs in a useEffect so closures are fresh (liveCaseState, overlays, etc. all reflect the
+  // new analysis). skipAdversarial=true because adversarial data already arrived in the main call.
+  const triggeredAnalysisRef = useRef(null);
+  useEffect(() => {
+    if (!analysis?.issues?.length) return;
+    const sig = analysis.issues.map(i => i.id).join(',');
+    if (triggeredAnalysisRef.current === sig) return;
+    triggeredAnalysisRef.current = sig;
+    analysis.issues.forEach(issue => {
+      if (issue.id && issue.title) {
+        triggerIssueAnalysis(issue.id, issue.title, issue.description || "", clientRole, true);
+      }
+    });
   }, [analysis]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!isAuthorized) {
@@ -342,9 +370,11 @@ export default function App() {
       userIssues: overrides.userIssues ?? userIssues,
       overlays: overrides.overlays ?? overlays,
       caseEvents: overrides.caseEvents ?? caseEvents,
+      adversarialReviews: overrides.adversarialReviews ?? adversarialReviewsRef.current,
       lastAnalyzedCaseText:
   overrides.lastAnalyzedCaseText ?? lastAnalyzedCaseText,
       clientRole: overrides.clientRole ?? clientRole,
+      clientName: overrides.clientName ?? clientName,
     };
   }
 
@@ -377,10 +407,12 @@ export default function App() {
     setUserIssues(loaded.userIssues || []);
     setOverlays(loaded.overlays || []);
     setCaseEvents(loaded.caseEvents || []);
+    setAdversarialReviews(loaded.adversarialReviews || {});
     setLatestDelta(null);
     setShowDeltaPanel(false);
     setLastAnalyzedCaseText(loaded.lastAnalyzedCaseText || "");
     setClientRole(loaded.clientRole || loaded.analysis?.clientRole || "claimant");
+    setClientName(loaded.clientName || "");
     setEntryMode("existing");
     setIntakeExpanded(!loaded.analysis);
     setStatus("");
@@ -394,6 +426,7 @@ export default function App() {
 
     setCurrentCaseId(createCaseId());
     setCaseName(initialCaseName);
+    setClientName(newClientName.trim());
     setCaseText("");
     setDocumentText("");
     setCaseFiles([]);
@@ -403,6 +436,9 @@ export default function App() {
     setAnalysisDiff([]);
     setWorkspaceUpdates([]);
     setAcceptedWorkItems([]);
+    setOverlays([]);
+    setUserIssues([]);
+    setAdversarialReviews({});
     setCaseEvents([]);
     setStatus("");
     setError("");
@@ -410,6 +446,7 @@ export default function App() {
     setEntryMode("new");
     setShowNewCaseForm(false);
     setNewCaseName("");
+    setNewClientName("");
     setLastAnalyzedCaseText("");
   }
 
@@ -528,7 +565,13 @@ export default function App() {
                 <input
                   value={newCaseName}
                   onChange={(e) => setNewCaseName(e.target.value)}
-                  placeholder="שם התיק החדש"
+                  placeholder="שם התיק"
+                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-right focus:outline-none focus:ring-2 focus:ring-slate-300"
+                />
+                <input
+                  value={newClientName}
+                  onChange={(e) => setNewClientName(e.target.value)}
+                  placeholder="שם הלקוח שלך"
                   className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-right focus:outline-none focus:ring-2 focus:ring-slate-300"
                 />
 
@@ -544,6 +587,7 @@ export default function App() {
                     onClick={() => {
                       setShowNewCaseForm(false);
                       setNewCaseName("");
+                      setNewClientName("");
                     }}
                     className="rounded-2xl border border-slate-200 bg-white text-slate-600 py-3 font-medium hover:bg-slate-50 transition"
                   >
@@ -808,6 +852,7 @@ ${updatesText}
           caseText: buildCaseTextForAnalysis(),
           documentText,
           files: caseFiles,
+          clientName,
         }),
       });
 
@@ -831,6 +876,11 @@ ${updatesText}
 
       setAnalysis(data);
       if (data.clientRole) setClientRole(data.clientRole);
+      if (data.adversarialReviews) {
+        setAdversarialReviews(data.adversarialReviews);
+        adversarialReviewsRef.current = data.adversarialReviews;
+      }
+
       setIntakeExpanded(false);
 
       const analyzedUpdates = workspaceUpdates.map((u) =>
@@ -1473,7 +1523,8 @@ function removeAcceptedWorkItem(itemId) {
     triggerIssueAnalysis(issueId, title, description || "");
   }
 
-  async function triggerIssueAnalysis(issueId, issueTitle, issueDescription) {
+  async function triggerIssueAnalysis(issueId, issueTitle, issueDescription, overrideClientRole, skipAdversarial = false) {
+    setAdversarialLoading(prev => new Set([...prev, issueId]));
     try {
       const res = await fetch("/api/analyze-issue", {
         method: "POST",
@@ -1483,12 +1534,17 @@ function removeAcceptedWorkItem(itemId) {
           liveCaseState,
           caseText: caseText.slice(0, 4000),
           documentText: documentText.slice(0, 3000),
+          clientName,
+          clientRole: overrideClientRole ?? clientRole,
+          skipAdversarial,
         }),
       });
       const data = await res.json();
       if (res.ok) handleIssueAnalysisResult(issueId, issueTitle, data);
     } catch {
       // Silent fail — issue is visible without analysis
+    } finally {
+      setAdversarialLoading(prev => { const s = new Set(prev); s.delete(issueId); return s; });
     }
   }
 
@@ -1566,18 +1622,33 @@ function removeAcceptedWorkItem(itemId) {
   }
 
   function handleIssueAnalysisResult(issueId, issueTitle, result) {
+    const existingIssue = liveCaseState?.issues?.find((i) => i.id === issueId);
+    const hasPositions = !!(existingIssue?.partyPositions?.claimant || existingIssue?.partyPositions?.defendant);
+    const resultToProcess = hasPositions
+      ? { ...result, claimantPosition: null, defendantPosition: null }
+      : result;
     const { overlays: newOverlays, events: newEvents, workItems: newWorkItems } =
-      buildIssueAnalysisResult(issueId, issueTitle, result);
-    const nextOverlays = [...overlays, ...newOverlays];
-    const nextCaseEvents = [...caseEvents, ...newEvents];
-    const nextAcceptedWorkItems = [...acceptedWorkItems, ...newWorkItems];
+      buildIssueAnalysisResult(issueId, issueTitle, resultToProcess);
+    // Read from refs (not closure) so concurrent per-issue callbacks don't overwrite each other.
+    const nextOverlays = [...overlaysRef.current, ...newOverlays];
+    const nextCaseEvents = [...caseEventsRef.current, ...newEvents];
+    const nextAcceptedWorkItems = [...acceptedWorkItemsRef.current, ...newWorkItems];
+    // Update refs synchronously before yielding — next concurrent callback sees accumulated values.
+    overlaysRef.current = nextOverlays;
+    caseEventsRef.current = nextCaseEvents;
+    acceptedWorkItemsRef.current = nextAcceptedWorkItems;
+    const nextAdversarialReviews = result.adversarialReview
+      ? { ...adversarialReviewsRef.current, [issueId]: result.adversarialReview }
+      : adversarialReviewsRef.current;
     setOverlays(nextOverlays);
     setCaseEvents(nextCaseEvents);
     setAcceptedWorkItems(nextAcceptedWorkItems);
+    if (result.adversarialReview) setAdversarialReviews(nextAdversarialReviews);
     persistCurrentCase(analysis, {
       overlays: nextOverlays,
       caseEvents: nextCaseEvents,
       acceptedWorkItems: nextAcceptedWorkItems,
+      adversarialReviews: nextAdversarialReviews,
     });
   }
 
@@ -1691,21 +1762,19 @@ default:
               </button>
             )}
 
-            {/* Role toggle */}
-            {analysis && (
-              <button
-                onClick={() => {
-                  const next = clientRole === "claimant" ? "defendant" : "claimant";
-                  setClientRole(next);
-                  persistCurrentCase(analysis, { clientRole: next });
-                }}
-                title="לחץ להחלפת הצד המיוצג"
-                className="shrink-0 flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-500 hover:bg-slate-50 cursor-pointer transition-colors"
-              >
+            {/* Client name label */}
+            {analysis && clientName && (
+              <span className="shrink-0 flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-500">
                 <span>מייצגים:</span>
-                <span className="font-semibold text-slate-700">{clientRole === "claimant" ? "תובע" : "נתבע"}</span>
-                <span className="text-slate-400 text-[9px]">⇄</span>
-              </button>
+                <span className="font-semibold text-slate-700">{clientName}</span>
+                <button
+                  onClick={() => setClientRole(r => r === "claimant" ? "defendant" : "claimant")}
+                  title={`תפקיד נוכחי: ${clientRole === "claimant" ? "תובע" : "נתבע"} — לחץ להחליף`}
+                  className="text-slate-400 hover:text-slate-700 cursor-pointer bg-transparent border-0 p-0 leading-none"
+                >
+                  ({clientRole === "claimant" ? "תובע" : "נתבע"} ⇄)
+                </button>
+              </span>
             )}
 
             {/* Left: case management menu + admin */}
@@ -1865,9 +1934,12 @@ default:
                   onInfoUpdate={handleInfoAndReanalyze}
                   onIssueFileUpload={handleIssueFileUpload}
                   clientRole={clientRole}
-                  ourSideLabel={clientRole === "defendant" ? analysis?.executiveView?.caseSnapshot?.parties?.[1] : analysis?.executiveView?.caseSnapshot?.parties?.[0]}
-                  opposingSideLabel={clientRole === "defendant" ? analysis?.executiveView?.caseSnapshot?.parties?.[0] : analysis?.executiveView?.caseSnapshot?.parties?.[1]}
+                  ourSideLabel={clientName || (clientRole === "defendant" ? analysis?.executiveView?.caseSnapshot?.parties?.[1] : analysis?.executiveView?.caseSnapshot?.parties?.[0])}
+                  opposingSideLabel={clientName ? (analysis?.executiveView?.caseSnapshot?.parties ?? []).find(p => p !== clientName) : (clientRole === "defendant" ? analysis?.executiveView?.caseSnapshot?.parties?.[0] : analysis?.executiveView?.caseSnapshot?.parties?.[1])}
                   retrievedPrecedents={analysis?.retrievedPrecedents}
+                  adversarialReview={adversarialReviews[selectedIssueId] ?? null}
+                  isAdversarialLoading={adversarialLoading.has(selectedIssueId)}
+                  onAnalyzeIssue={triggerIssueAnalysis}
                 />
               )
             ) : (

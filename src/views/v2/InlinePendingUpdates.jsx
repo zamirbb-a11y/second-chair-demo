@@ -1,5 +1,5 @@
 const FIELD_LABELS = {
-  "legalAssessment.strength": "חוזק המחלוקת",
+  "legalAssessment.strength": "סיכויי הטענה",
   "legalAssessment.summary":  "הערכה משפטית",
   importance:                 "חשיבות המחלוקת",
   status:                     "סטטוס",

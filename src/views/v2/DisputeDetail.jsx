@@ -283,6 +283,127 @@ function ClickableGapItem(props) {
   return <ClickableInfoItem {...props} updateType="case_text_update" placeholder="הוסף מידע רלוונטי לפער זה..." saveLabel="שמור מידע" />;
 }
 
+// ─── AdversarialReviewPanel — red-team findings from second AI pass ──────────
+
+const IMPACT_META = {
+  no_change:                { text: "אין שינוי צפוי בהערכה",                color: "slate"  },
+  slightly_weaker:          { text: "מחליש מעט את העמדה",                    color: "amber"  },
+  materially_weaker:        { text: "מחליש מהותית את העמדה",                 color: "orange" },
+  assessment_should_change: { text: "הערכת הסיכויים זקוקה לבחינה מחדש",     color: "red"    },
+};
+const ADVERSARIAL_COLORS = {
+  slate:  { border: "border-slate-200",  head: "bg-slate-50",   label: "text-slate-600",  badge: "bg-slate-100 text-slate-500",   dot: "bg-slate-400"  },
+  amber:  { border: "border-amber-200",  head: "bg-amber-50",   label: "text-amber-800",  badge: "bg-amber-100 text-amber-700",   dot: "bg-amber-400"  },
+  orange: { border: "border-orange-200", head: "bg-orange-50",  label: "text-orange-800", badge: "bg-orange-100 text-orange-700", dot: "bg-orange-500" },
+  red:    { border: "border-red-200",    head: "bg-red-50",     label: "text-red-800",    badge: "bg-red-100 text-red-700",       dot: "bg-red-500"    },
+};
+
+function AdversarialReviewPanel({ review, isLoading, onRetry }) {
+  const isMaterial =
+    review?.impactOnAssessment === "materially_weaker" ||
+    review?.impactOnAssessment === "assessment_should_change";
+  const [open, setOpen] = useState(false);
+
+  if (!review) {
+    if (isLoading) {
+      return (
+        <div className="mt-4 mb-1 flex items-center gap-2 text-[11.5px] text-slate-400">
+          <span className="animate-spin inline-block">⏳</span>
+          מנתח עמדת הצד שכנגד…
+        </div>
+      );
+    }
+    if (!onRetry) return null;
+    return (
+      <div className="mt-4 mb-1">
+        <button
+          onClick={onRetry}
+          className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-[11px] text-slate-400 bg-slate-50 hover:bg-slate-100 hover:text-slate-600 transition-colors cursor-pointer"
+        >
+          ⟳ נסה שוב
+        </button>
+      </div>
+    );
+  }
+
+  const impact  = IMPACT_META[review.impactOnAssessment] ?? IMPACT_META.no_change;
+  const colors  = ADVERSARIAL_COLORS[impact.color];
+
+  return (
+    <div className={`mt-6 border ${colors.border} rounded-xl overflow-hidden`}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className={`w-full flex items-center justify-between px-5 py-3 ${colors.head} border-0 cursor-pointer`}
+      >
+        <div className="flex items-center gap-2.5">
+          <span className={`w-2 h-2 rounded-full ${colors.dot} flex-shrink-0`} />
+          <span className={`text-[12.5px] font-semibold ${colors.label}`}>בדיקת חולשות — Red Team</span>
+          {isMaterial && (
+            <span className={`text-[9.5px] font-bold px-2 py-0.5 rounded-full ${colors.badge}`}>{impact.text}</span>
+          )}
+        </div>
+        <span className={`text-[11px] ${colors.label} opacity-60`}>{open ? "▴" : "▾"}</span>
+      </button>
+
+      {open && (
+        <div className="px-5 py-4 bg-white space-y-4">
+          {review.strongestAttack && (
+            <div>
+              <div className="text-[9px] font-bold text-slate-400 tracking-[0.08em] uppercase mb-1">הטיעון החזק ביותר נגדנו</div>
+              <p className="text-[13px] text-slate-800 leading-relaxed">{review.strongestAttack}</p>
+            </div>
+          )}
+          {review.opposingCounselLikelyArgument && (
+            <div>
+              <div className="text-[9px] font-bold text-slate-400 tracking-[0.08em] uppercase mb-1">מה עוה"ד יריב יפתח איתו</div>
+              <p className="text-[13px] text-slate-700 leading-relaxed">{review.opposingCounselLikelyArgument}</p>
+            </div>
+          )}
+          {review.judgeConcern && (
+            <div>
+              <div className="text-[9px] font-bold text-slate-400 tracking-[0.08em] uppercase mb-1">חשש פוטנציאלי של השופט</div>
+              <p className="text-[13px] text-slate-700 leading-relaxed">{review.judgeConcern}</p>
+            </div>
+          )}
+          {review.vulnerableAssumptions?.length > 0 && (
+            <div>
+              <div className="text-[9px] font-bold text-slate-400 tracking-[0.08em] uppercase mb-1">הנחות שניתן לקעקע</div>
+              <ul className="space-y-1">
+                {review.vulnerableAssumptions.map((a, i) => (
+                  <li key={i} className="text-[12.5px] text-slate-700 flex items-start gap-1.5">
+                    <span className="text-slate-300 mt-[3px] flex-shrink-0">—</span>{a}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {review.missingEvidenceThatMatters?.length > 0 && (
+            <div>
+              <div className="text-[9px] font-bold text-slate-400 tracking-[0.08em] uppercase mb-1">ראיות חסרות שמחלישות</div>
+              <ul className="space-y-1">
+                {review.missingEvidenceThatMatters.map((m, i) => (
+                  <li key={i} className="text-[12.5px] text-slate-700 flex items-start gap-1.5">
+                    <span className="text-slate-300 mt-[3px] flex-shrink-0">—</span>{m}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {review.recommendedNextStep && (
+            <div className="pt-3 border-t border-slate-100">
+              <div className="text-[9px] font-bold text-slate-400 tracking-[0.08em] uppercase mb-1">פעולה מומלצת</div>
+              <p className="text-[13px] text-slate-700 font-medium leading-relaxed">{review.recommendedNextStep}</p>
+            </div>
+          )}
+          {!isMaterial && (
+            <p className="text-[11px] text-slate-400">השפעה על ההערכה: {impact.text}</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── DetailLink — "N more → פירוט" shown at bottom of column ─────────────────
 
 function DetailLink({ moreCount, onClick }) {
@@ -361,6 +482,7 @@ export default function DisputeDetail({
   onAcceptWorkItem, onRejectWorkItem,
   onMarkQuestionAnswered,
   onWorkspaceUpdate, onInfoUpdate, onIssueFileUpload, clientRole = "claimant", ourSideLabel, opposingSideLabel, retrievedPrecedents,
+  adversarialReview, isAdversarialLoading, onAnalyzeIssue,
 }) {
   const [detailPane, setDetailPane] = useState(null); // null | "our" | "opposing" | "ambiguous"
 
@@ -480,7 +602,7 @@ export default function DisputeDetail({
   // "our" column reflects the defending side, not the claimant side.
   const zones = {
     our: {
-      label: ourSideLabel ?? (isDefendant ? "גרסת הנתבע" : "גרסת התובע"),
+      label: ourSideLabel ?? "הצד שלנו",
       narrative: isDefendant ? opposingNarrative : claimantNarrative,
       sections: [
         { label: "ראיות תומכות", items: isDefendant ? opposingEvidence : ourEvidence },
@@ -488,7 +610,7 @@ export default function DisputeDetail({
       ],
     },
     opposing: {
-      label: opposingSideLabel ?? (isDefendant ? "גרסת התובע" : "גרסת הנתבע"),
+      label: opposingSideLabel ?? "הצד שכנגד",
       narrative: isDefendant ? claimantNarrative : opposingNarrative,
       sections: [
         { label: "טיעונים מקשים", items: isDefendant ? ourEvidence : opposingEvidence },
@@ -506,8 +628,8 @@ export default function DisputeDetail({
   };
 
   // ── Column more-count helpers ──────────────────────────────────────────────
-  const ourMore       = Math.max(0, ourEvidence.length - SECTION_LIMIT) + Math.max(0, ourPrecedents.length - SECTION_LIMIT);
-  const opposingMore  = Math.max(0, opposingEvidence.length - SECTION_LIMIT) + Math.max(0, opposingPrecedents.length - SECTION_LIMIT);
+  const ourMore       = Math.max(0, zones.our.sections[0].items.length - SECTION_LIMIT) + Math.max(0, zones.our.sections[1].items.length - SECTION_LIMIT);
+  const opposingMore  = Math.max(0, zones.opposing.sections[0].items.length - SECTION_LIMIT) + Math.max(0, zones.opposing.sections[1].items.length - SECTION_LIMIT);
   const ambiguousMore = Math.max(0, legalSources.length - SECTION_LIMIT) + Math.max(0, unclearContradictions.length - SECTION_LIMIT);
 
   const synthesis = [coreDispute, summary].filter(Boolean).join(" — ");
@@ -524,7 +646,7 @@ export default function DisputeDetail({
           <h1 className="text-[19px] font-bold text-slate-900 leading-tight">{issue.title}</h1>
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-bold bg-slate-900 text-white rounded-md px-2.5 py-1">{importanceLabel}</span>
-            {strength && <span className={`text-[11px] font-semibold border rounded-md px-2.5 py-1 ${strengthBadgeClass(strength)}`}>{strengthLabel(strength)}</span>}
+            {strength && <span title={`סיכויי הטענה של ${zones.our.label ?? "הצד שלנו"} לנצח בטענה זו`} className={`text-[11px] font-semibold border rounded-md px-2.5 py-1 ${strengthBadgeClass(strength)}`}>{strengthLabel(strength)}</span>}
             {isUpdated && (
               <span className="inline-flex items-center gap-1 text-[9.5px] text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
                 <span className="w-1 h-1 rounded-full bg-amber-400 inline-block" />עודכן
@@ -565,6 +687,12 @@ export default function DisputeDetail({
           </div>
         )}
 
+        <AdversarialReviewPanel
+          review={adversarialReview}
+          isLoading={isAdversarialLoading}
+          onRetry={onAnalyzeIssue ? () => onAnalyzeIssue(issue.id, issue.title, issue.description ?? "") : null}
+        />
+
         {/* Three columns */}
         <div className="grid grid-cols-3 gap-6 mb-6">
 
@@ -572,9 +700,9 @@ export default function DisputeDetail({
           <div className="min-w-0 overflow-hidden">
             <div className="h-[3px] rounded-full bg-emerald-300 mb-3" />
             <div className="text-[12.5px] font-bold text-emerald-700 mb-2">{zones.our.label}</div>
-            {claimantNarrative && <p className="text-[13px] text-slate-700 leading-[1.7] mb-1 break-words">{claimantNarrative}</p>}
-            <SectionBlock label="ראיות תומכות" items={ourEvidence} limit={SECTION_LIMIT} />
-            <SectionBlock label="פסיקה תומכת" items={ourPrecedents} limit={SECTION_LIMIT} />
+            {zones.our.narrative && <p className="text-[13px] text-slate-700 leading-[1.7] mb-1 break-words">{zones.our.narrative}</p>}
+            <SectionBlock label="ראיות תומכות" items={zones.our.sections[0].items} limit={SECTION_LIMIT} />
+            <SectionBlock label="פסיקה תומכת" items={zones.our.sections[1].items} limit={SECTION_LIMIT} />
             <DetailLink moreCount={ourMore} onClick={() => setDetailPane("our")} />
           </div>
 
@@ -582,10 +710,10 @@ export default function DisputeDetail({
           <div className="min-w-0 overflow-hidden">
             <div className="h-[3px] rounded-full bg-amber-300 mb-3" />
             <div className="text-[12.5px] font-bold text-amber-700 mb-2">{zones.opposing.label}</div>
-            {opposingNarrative && <p className="text-[13px] text-slate-700 leading-[1.7] mb-1 break-words">{opposingNarrative}</p>}
-            <SectionBlock label="טיעונים מקשים" items={opposingEvidence} limit={SECTION_LIMIT} />
-            <SectionBlock label="פסיקה לצד שכנגד" items={opposingPrecedents} limit={SECTION_LIMIT} />
-            {!opposingNarrative && !opposingEvidence.length && !opposingPrecedents.length && (
+            {zones.opposing.narrative && <p className="text-[13px] text-slate-700 leading-[1.7] mb-1 break-words">{zones.opposing.narrative}</p>}
+            <SectionBlock label="טיעונים מקשים" items={zones.opposing.sections[0].items} limit={SECTION_LIMIT} />
+            <SectionBlock label="פסיקה לצד שכנגד" items={zones.opposing.sections[1].items} limit={SECTION_LIMIT} />
+            {!zones.opposing.narrative && !zones.opposing.sections[0].items.length && !zones.opposing.sections[1].items.length && (
               <p className="text-[12px] text-slate-300 italic mt-2">טרם זוהו טיעונים נגדיים.</p>
             )}
             <DetailLink moreCount={opposingMore} onClick={() => setDetailPane("opposing")} />
