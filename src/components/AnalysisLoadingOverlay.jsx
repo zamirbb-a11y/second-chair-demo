@@ -1,118 +1,110 @@
 import { useEffect, useState } from "react";
 
-const steps = [
-  "מזהה שאלות משפטיות",
-  "מנתח עובדות",
-  "מנתח מסמכים",
-  "מזהה חוסרים",
-  "ממפה סיכונים",
+const STEPS = [
+  "קורא את חומר התיק",
+  "ממפה שאלות משפטיות",
+  "מנתח עובדות וראיות",
+  "מזהה חולשות וסיכונים",
   "בונה תיאוריות תיק",
+  "מכין את מפת המחלוקות",
 ];
 
-export default function AnalysisLoadingOverlay({ mode = "initial" }) {
+export default function AnalysisLoadingOverlay({ mode = "initial", caseName, clientName }) {
   const isUpdate = mode === "update";
   const [stepIndex, setStepIndex] = useState(0);
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setStepIndex((prev) => (prev + 1) % steps.length);
-    }, 1600);
-
-    return () => clearInterval(interval);
+    const show = setTimeout(() => setVisible(true), 50);
+    const tick = setInterval(() => setStepIndex(i => (i + 1) % STEPS.length), 1800);
+    return () => { clearTimeout(show); clearInterval(tick); };
   }, []);
 
+  const progress = ((stepIndex + 1) / STEPS.length) * 100;
+
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/20 backdrop-blur-[2px] flex items-center justify-center p-4">
-      <div className="w-full max-w-lg rounded-2xl border bg-white/95 shadow-xl p-5">
-        <div className="flex items-start gap-4">
-          <BookLoader />
+    <div
+      className={`fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-950 transition-opacity duration-300 ${visible ? "opacity-100" : "opacity-0"}`}
+      dir="rtl"
+    >
+      {/* Subtle grid texture */}
+      <div className="absolute inset-0 opacity-[0.03]" style={{
+        backgroundImage: "linear-gradient(rgba(255,255,255,.4) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.4) 1px,transparent 1px)",
+        backgroundSize: "40px 40px"
+      }} />
 
-          <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-bold text-slate-900">
-              {isUpdate ? "מעדכן ניתוח" : "מנתח את התיק"}
-            </h2>
+      <div className="relative flex flex-col items-center gap-10 px-8 text-center max-w-sm w-full">
+        {/* Brand */}
+        <p className="text-[9px] text-slate-600 uppercase tracking-[0.22em]">Second Chair</p>
 
-            <p className="mt-1 text-sm text-slate-500 leading-6">
-              {isUpdate
-                ? "Second Chair משלבת את המידע החדש ומעדכנת את הניתוח הקיים."
-                : "Second Chair בוחנת את העובדות, המסמכים והסיכונים הליטיגטוריים."}
-            </p>
+        {/* Case name */}
+        <div className="flex flex-col gap-2">
+          {caseName && (
+            <h1 className="text-[20px] font-bold text-white leading-snug">
+              {caseName}
+            </h1>
+          )}
+          {clientName && (
+            <p className="text-[12px] text-slate-500">לקוח: {clientName}</p>
+          )}
+          <p className="text-[13px] text-slate-400 mt-1">
+            {isUpdate ? "מעדכן ניתוח…" : "מנתח את התיק…"}
+          </p>
+        </div>
 
-            <div className="mt-4 rounded-xl bg-slate-50 border px-4 py-3">
-              <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-                <span className="h-2 w-2 rounded-full bg-slate-900 animate-pulse" />
-                {steps[stepIndex]}
-              </div>
+        {/* Animated dots */}
+        <div className="flex gap-2.5">
+          {[0, 1, 2].map(i => (
+            <div
+              key={i}
+              className="w-2 h-2 rounded-full bg-indigo-500"
+              style={{ animation: `pulse-dot 1.4s ease-in-out ${i * 0.22}s infinite` }}
+            />
+          ))}
+        </div>
 
-              <div className="mt-3 grid grid-cols-6 gap-1">
-                {steps.map((step, index) => (
-                  <div
-                    key={step}
-                    className={
-                      index <= stepIndex
-                        ? "h-1.5 rounded-full bg-slate-900"
-                        : "h-1.5 rounded-full bg-slate-200"
-                    }
-                  />
-                ))}
-              </div>
-            </div>
+        {/* Current step */}
+        <div className="flex flex-col gap-3 w-full">
+          <p className="text-[14px] text-slate-200 font-medium min-h-[1.5em]">
+            {STEPS[stepIndex]}
+          </p>
 
-            <p className="mt-3 text-xs text-slate-400">
-              זה עשוי לקחת עד דקה, במיוחד כאשר יש כמה מסמכים.
-            </p>
+          {/* Progress bar */}
+          <div className="w-full h-0.5 bg-slate-800 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-indigo-500 rounded-full transition-all duration-[1800ms] ease-out"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+
+          {/* Step dots */}
+          <div className="flex justify-center gap-1.5">
+            {STEPS.map((_, i) => (
+              <div
+                key={i}
+                className={`rounded-full transition-all duration-300 ${
+                  i === stepIndex
+                    ? "w-4 h-1.5 bg-indigo-400"
+                    : i < stepIndex
+                    ? "w-1.5 h-1.5 bg-slate-600"
+                    : "w-1.5 h-1.5 bg-slate-800"
+                }`}
+              />
+            ))}
           </div>
         </div>
 
-        <style>{`
-          @keyframes subtleFlip {
-            0% { transform: rotateY(0deg); opacity: 0.9; }
-            45% { transform: rotateY(-55deg); opacity: 0.65; }
-            100% { transform: rotateY(0deg); opacity: 0.9; }
-          }
-
-          .subtle-page-flip {
-            animation: subtleFlip 1.6s ease-in-out infinite;
-            transform-style: preserve-3d;
-          }
-        `}</style>
-      </div>
-    </div>
-  );
-}
-
-function BookLoader() {
-  return (
-    <div className="relative mt-1 h-20 w-24 shrink-0">
-      <div className="absolute inset-x-3 bottom-1 h-3 rounded-full bg-slate-200 blur-md" />
-
-      <div className="absolute left-1/2 top-3 h-14 w-20 -translate-x-1/2 rounded-xl bg-slate-100 border shadow-sm overflow-hidden">
-        <div className="absolute inset-y-0 right-1/2 w-px bg-slate-300" />
-
-        <div className="absolute right-2.5 top-3 space-y-1.5">
-          <div className="h-1.5 w-7 rounded bg-slate-300" />
-          <div className="h-1.5 w-9 rounded bg-slate-300" />
-          <div className="h-1.5 w-6 rounded bg-slate-300" />
-        </div>
-
-        <div className="absolute left-2.5 top-3 space-y-1.5">
-          <div className="h-1.5 w-9 rounded bg-slate-300" />
-          <div className="h-1.5 w-7 rounded bg-slate-300" />
-          <div className="h-1.5 w-8 rounded bg-slate-300" />
-        </div>
-
-        <div className="subtle-page-flip absolute left-1/2 top-0 h-full w-10 origin-right rounded-l-xl bg-white border-r shadow-sm">
-          <div className="mt-4 mr-2 space-y-1.5">
-            <div className="h-1.5 w-5 rounded bg-slate-200" />
-            <div className="h-1.5 w-7 rounded bg-slate-200" />
-            <div className="h-1.5 w-4 rounded bg-slate-200" />
-          </div>
-        </div>
+        <p className="text-[11px] text-slate-700">
+          זה עשוי לקחת עד דקה
+        </p>
       </div>
 
-      <div className="absolute left-1/2 top-7 -translate-x-1/2 rounded-full bg-white border px-2 py-1 shadow-sm text-sm">
-        ⚖️
-      </div>
+      <style>{`
+        @keyframes pulse-dot {
+          0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+          40%            { opacity: 1;   transform: scale(1.1); }
+        }
+      `}</style>
     </div>
   );
 }

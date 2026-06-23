@@ -25,6 +25,7 @@ import HorizontalTimeline from "./components/HorizontalTimeline";
 import SuccessAssessment from "./components/SuccessAssessment";
 import DeltaNotificationPanel from "./components/DeltaNotificationPanel";
 import PreIntakePanel from "./components/PreIntakePanel";
+import NewCaseWizard from "./components/NewCaseWizard";
 
 import {
   createCaseId,
@@ -246,10 +247,10 @@ export default function App() {
   const [adversarialLoading, setAdversarialLoading] = useState(new Set());
   const [preIntakeLoading, setPreIntakeLoading] = useState(false);
   const [preIntakeQuestions, setPreIntakeQuestions] = useState([]);
+  const [preIntakeDetectedParties, setPreIntakeDetectedParties] = useState([]);
   const [showPreIntake, setShowPreIntake] = useState(false);
   const [clientRole, setClientRole] = useState("claimant"); // "claimant" | "defendant"
   const [clientName, setClientName] = useState("");
-  const [newClientName, setNewClientName] = useState("");
   const [error, setError] = useState("");
   const [intakeExpanded, setIntakeExpanded] = useState(true);
 
@@ -258,8 +259,7 @@ export default function App() {
 
   const [entryMode, setEntryMode] = useState(null);
   const [savedCases, setSavedCases] = useState([]);
-  const [newCaseName, setNewCaseName] = useState("");
-  const [showNewCaseForm, setShowNewCaseForm] = useState(false);
+  const [showWizard, setShowWizard] = useState(false);
   const [currentCaseId, setCurrentCaseId] = useState(null);
 
   const [isAuthorized, setIsAuthorized] = useState(false);
@@ -440,38 +440,45 @@ export default function App() {
     setIntakeExpanded(!loaded.analysis);
     setStatus("");
     setError("");
-    setShowNewCaseForm(false);
-    setNewCaseName("");
+    setShowWizard(false);
   }
 
-  function startNewCase() {
-    const initialCaseName = newCaseName.trim() || "תיק ללא שם";
+  function handleWizardComplete({ caseName: wCaseName, caseText: wCaseText, processedFiles, clientName: wClientName, clientRole: wClientRole, answers }) {
     triggeredAnalysisRef.current = null;
-
-    setCurrentCaseId(createCaseId());
-    setCaseName(initialCaseName);
-    setClientName(newClientName.trim());
-    setCaseText("");
-    setDocumentText("");
-    setCaseFiles([]);
-    setUploadedFiles([]);
+    const newId = createCaseId();
+    setCurrentCaseId(newId);
+    setCaseName(wCaseName);
+    setClientName(wClientName);
+    if (wClientRole) setClientRole(wClientRole);
+    setCaseText(wCaseText);
+    setCaseFiles(processedFiles);
+    setUploadedFiles(processedFiles.map(f => ({ name: f.name, size: f.size, status: f.status, type: f.type })));
+    const extractedTexts = processedFiles.filter(f => f.text?.trim()).map(f => `--- ${f.name} ---\n${f.text}`);
+    const docText = extractedTexts.join("\n\n");
+    setDocumentText(docText);
     setAnalysis(null);
     setPreviousAnalysis(null);
     setAnalysisDiff([]);
     setWorkspaceUpdates([]);
     setAcceptedWorkItems([]);
     setOverlays([]);
-    setUserIssues([]);
-    setAdversarialReviews({});
     setCaseEvents([]);
+    setLatestDelta(null);
+    setShowDeltaPanel(false);
+    setLastAnalyzedCaseText("");
     setStatus("");
     setError("");
-    setIntakeExpanded(true);
+    setIntakeExpanded(false);
     setEntryMode("new");
-    setShowNewCaseForm(false);
-    setNewCaseName("");
-    setNewClientName("");
-    setLastAnalyzedCaseText("");
+    setActiveView("case-map");
+    setShowWizard(false);
+
+    const fullCaseText = [wCaseText, docText].filter(Boolean).join("\n\n");
+    const extraText = answers
+      .filter(a => a.text?.trim())
+      .map(a => `שאלה: ${a.question}\nתשובה: ${a.text}`)
+      .join("\n\n");
+    runFullAnalysis(extraText, wClientName, wClientRole, fullCaseText, processedFiles, docText);
   }
 
   function handleOpenNewCase() {
@@ -496,9 +503,8 @@ export default function App() {
     setError("");
     setIntakeExpanded(true);
     setActiveView("case-map");
-    setShowNewCaseForm(false);
-    setNewCaseName("");
     setEntryMode(null);
+    setShowWizard(true);
   }
 
  function removeSavedCase(caseId) {
@@ -534,6 +540,12 @@ export default function App() {
         dir="rtl"
         className="min-h-screen bg-[#eef4fb] flex items-center justify-center p-6"
       >
+        {showWizard && (
+          <NewCaseWizard
+            onComplete={handleWizardComplete}
+            onCancel={() => setShowWizard(false)}
+          />
+        )}
         <div className="w-full max-w-2xl rounded-3xl bg-white shadow-xl border border-slate-200 p-10 space-y-8">
           <div className="space-y-3 text-center">
             <h1 className="text-4xl font-bold text-slate-900">Second Chair</h1>
@@ -546,6 +558,13 @@ export default function App() {
             <div className="text-sm font-semibold text-slate-500">
               תיקים שמורים
             </div>
+
+            <button
+              onClick={() => setShowWizard(true)}
+              className="w-full rounded-2xl border border-slate-200 bg-white text-slate-700 py-3 text-base font-medium hover:bg-slate-50 transition"
+            >
+              + תיק חדש
+            </button>
 
             {savedCases.length > 0 ? (
               <div className="space-y-2">
@@ -560,7 +579,6 @@ export default function App() {
                         {item.documentsCount || 0} מסמכים
                       </div>
                     </button>
-
                     <button
                       onClick={() => removeSavedCase(item.id)}
                       className="rounded-2xl border border-red-200 bg-red-50 px-4 text-sm text-red-700 hover:bg-red-100"
@@ -573,52 +591,6 @@ export default function App() {
             ) : (
               <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">
                 אין עדיין תיקים שמורים.
-              </div>
-            )}
-          </div>
-
-          <div className="border-t border-slate-200 pt-5 space-y-3">
-            {!showNewCaseForm ? (
-              <button
-                onClick={() => setShowNewCaseForm(true)}
-                className="w-full rounded-2xl border border-slate-200 bg-white text-slate-700 py-3 text-base font-medium hover:bg-slate-50 transition"
-              >
-                + תיק חדש
-              </button>
-            ) : (
-              <div className="space-y-3">
-                <input
-                  value={newCaseName}
-                  onChange={(e) => setNewCaseName(e.target.value)}
-                  placeholder="שם התיק"
-                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-right focus:outline-none focus:ring-2 focus:ring-slate-300"
-                />
-                <input
-                  value={newClientName}
-                  onChange={(e) => setNewClientName(e.target.value)}
-                  placeholder="שם הלקוח שלך"
-                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-right focus:outline-none focus:ring-2 focus:ring-slate-300"
-                />
-
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={startNewCase}
-                    className="rounded-2xl bg-slate-900 text-white py-3 font-medium hover:bg-slate-800 transition"
-                  >
-                    צור תיק
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setShowNewCaseForm(false);
-                      setNewCaseName("");
-                      setNewClientName("");
-                    }}
-                    className="rounded-2xl border border-slate-200 bg-white text-slate-600 py-3 font-medium hover:bg-slate-50 transition"
-                  >
-                    ביטול
-                  </button>
-                </div>
               </div>
             )}
           </div>
@@ -874,32 +846,39 @@ ${updatesText}
       });
       if (res.ok) {
         const data = await res.json();
-        const questions = data.intakeQuestions ?? [];
-        if (questions.length > 0) {
-          setPreIntakeQuestions(questions);
-          setShowPreIntake(true);
-          setPreIntakeLoading(false);
-          return;
-        }
+        setPreIntakeQuestions(data.intakeQuestions ?? []);
+        setPreIntakeDetectedParties(data.detectedParties ?? []);
+      } else {
+        setPreIntakeQuestions([]);
+        setPreIntakeDetectedParties([]);
       }
     } catch {
-      // On pre-intake failure, proceed directly to analysis
+      setPreIntakeQuestions([]);
+      setPreIntakeDetectedParties([]);
     }
     setPreIntakeLoading(false);
-    runFullAnalysis("");
+    setShowPreIntake(true);
   }
 
-  function handlePreIntakeContinue(answers) {
+  function handlePreIntakeContinue({ answers = [], clientName: newClientName, clientRole: newClientRole }) {
+    if (newClientName) setClientName(newClientName);
+    if (newClientRole) setClientRole(newClientRole);
     const extraText = answers
       .filter((a) => a.text?.trim())
       .map((a) => `שאלה: ${a.question}\nתשובה: ${a.text}`)
       .join("\n\n");
     setPreIntakeQuestions([]);
+    setPreIntakeDetectedParties([]);
     setShowPreIntake(false);
-    runFullAnalysis(extraText);
+    runFullAnalysis(extraText, newClientName || clientName, newClientRole || clientRole);
   }
 
-  async function runFullAnalysis(extraText = "") {
+  async function runFullAnalysis(extraText = "", overrideClientName, overrideClientRole, overrideBaseCaseText, overrideFiles, overrideDocumentText) {
+    const effectiveClientName = overrideClientName ?? clientName;
+    const effectiveClientRole = overrideClientRole ?? clientRole;
+    const effectiveDocumentText = overrideDocumentText ?? documentText;
+    const effectiveFiles = overrideFiles ?? caseFiles;
+
     setLoading(true);
     setLoadingMode("initial");
     setShowPreIntake(false);
@@ -910,7 +889,7 @@ ${updatesText}
         setPreviousAnalysis(analysis);
       }
 
-      const baseCaseText = buildCaseTextForAnalysis();
+      const baseCaseText = overrideBaseCaseText ?? buildCaseTextForAnalysis();
       const enrichedCaseText = extraText.trim()
         ? `${baseCaseText}\n\n---\n\nמידע נוסף שהתקבל לפני הניתוח:\n${extraText}`
         : baseCaseText;
@@ -922,9 +901,9 @@ ${updatesText}
         },
         body: JSON.stringify({
           caseText: enrichedCaseText,
-          documentText,
-          files: caseFiles,
-          clientName,
+          documentText: effectiveDocumentText,
+          files: effectiveFiles,
+          clientName: effectiveClientName,
         }),
       });
 
@@ -947,7 +926,8 @@ ${updatesText}
       }
 
       setAnalysis(data);
-      if (data.clientRole) setClientRole(data.clientRole);
+      // Honor user's manual selection; fall back to AI inference only if no override was provided
+      if (data.clientRole && !overrideClientRole) setClientRole(data.clientRole);
       if (data.adversarialReviews) {
         setAdversarialReviews(data.adversarialReviews);
         adversarialReviewsRef.current = data.adversarialReviews;
@@ -1795,7 +1775,14 @@ default:
 
   return (
     <div dir="rtl" className="h-screen bg-[#eef0f4] text-slate-900 flex flex-col overflow-hidden">
-      {loading && <AnalysisLoadingOverlay mode={loadingMode} />}
+      {loading && <AnalysisLoadingOverlay mode={loadingMode} caseName={caseName} clientName={clientName} />}
+
+      {showWizard && (
+        <NewCaseWizard
+          onComplete={handleWizardComplete}
+          onCancel={() => setShowWizard(false)}
+        />
+      )}
 
       <div className="flex flex-1 overflow-hidden">
         {/* RTL: first in DOM = rightmost on screen */}
@@ -1872,6 +1859,13 @@ default:
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => { setCaseMenuOpen(false); setCaseListExpanded(false); }} />
                     <div className="absolute left-0 top-full mt-1.5 w-60 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden z-50" dir="rtl">
+                      <button
+                        onClick={() => { handleOpenNewCase(); setCaseMenuOpen(false); setCaseListExpanded(false); }}
+                        className="w-full text-right px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                      >
+                        + תיק חדש
+                      </button>
+                      <div className="border-t border-slate-100" />
                       {/* החלף תיק */}
                       <button
                         onClick={() => setCaseListExpanded((v) => !v)}
@@ -1904,12 +1898,6 @@ default:
                         </div>
                       )}
                       <div className="border-t border-slate-100" />
-                      <button
-                        onClick={() => { handleOpenNewCase(); setCaseMenuOpen(false); setCaseListExpanded(false); }}
-                        className="w-full text-right px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-                      >
-                        + תיק חדש
-                      </button>
                       {currentCaseId && (
                         <button
                           onClick={() => { removeSavedCase(currentCaseId); setCaseMenuOpen(false); setCaseListExpanded(false); }}
@@ -1975,23 +1963,25 @@ default:
           <div className="flex-1 overflow-y-auto">
             {!analysis ? (
               <div className="p-6">
-                {showPreIntake ? (
+                <CaseIntake
+                  caseText={caseText}
+                  setCaseText={setCaseText}
+                  handleWordUpload={handleWordUpload}
+                  uploadedFiles={uploadedFiles}
+                  status={status}
+                  runAnalysis={runAnalysis}
+                  loading={loading || preIntakeLoading}
+                  hasAnalysis={false}
+                />
+                {showPreIntake && (
                   <PreIntakePanel
                     questions={preIntakeQuestions}
+                    detectedParties={preIntakeDetectedParties}
+                    clientName={clientName}
+                    clientRole={clientRole}
                     onContinue={handlePreIntakeContinue}
                     onUploadFile={handleWordUpload}
                     isLoading={loading}
-                  />
-                ) : (
-                  <CaseIntake
-                    caseText={caseText}
-                    setCaseText={setCaseText}
-                    handleWordUpload={handleWordUpload}
-                    uploadedFiles={uploadedFiles}
-                    status={status}
-                    runAnalysis={runAnalysis}
-                    loading={loading || preIntakeLoading}
-                    hasAnalysis={false}
                   />
                 )}
               </div>

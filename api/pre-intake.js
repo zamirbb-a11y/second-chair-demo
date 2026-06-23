@@ -19,19 +19,22 @@ export default async function handler(req, res) {
     const prompt = `
 אתה עורך דין בכיר שקיבל חומר תיק ראשוני.
 
-לפני ביצוע הניתוח המלא, עליך לזהות: מהם עד שלושה פריטי מידע שחסרים כרגע — שאם היינו מקבלים אותם לפני הניתוח, היו משנים באופן מהותי את איכותו או את ההמלצות האסטרטגיות.
+משימה כפולה:
+א. זהה את שמות שני הצדדים העיקריים במחלוקת (מקסימום 2 שמות).
+ב. זהה עד שלושה פריטי מידע חסרים שאם היינו מקבלים אותם לפני הניתוח, היו משנים באופן מהותי את איכותו.
 
 כללים מחייבים:
 1. התבסס אך ורק על החומר שנמסר — אל תמציא עובדות.
 2. בחר רק מידע שחסרונו פוגע ממשית בניתוח הראשוני — לא שאלות רקע גנריות.
-3. אם אין חוסרים משמעותיים — החזר מערך ריק.
-4. לא יותר מ-3 פריטים.
+3. אם אין חוסרים משמעותיים — החזר intakeQuestions כמערך ריק.
+4. לא יותר מ-3 פריטי שאלות.
 
 חומר התיק:
 ${fullText.slice(0, 5000)}
 
 החזר JSON בלבד:
 {
+  "detectedParties": ["שם הצד הראשון", "שם הצד השני"],
   "intakeQuestions": [
     {
       "question": "שאלה ספציפית ותמציתית",
@@ -41,7 +44,9 @@ ${fullText.slice(0, 5000)}
   ]
 }
 
-הערה: suggestedAction יכול להיות "answer" (ניתן לענות כעת), "upload_document" (נדרש מסמך), או "ask_client" (יש לברר עם הלקוח).
+הערות:
+- detectedParties: שמות ספציפיים מהחומר, לא "תובע"/"נתבע". אם לא ניתן לזהות — מערך ריק.
+- suggestedAction יכול להיות "answer", "upload_document", או "ask_client".
 `;
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -82,7 +87,8 @@ ${fullText.slice(0, 5000)}
     }
 
     const questions = (parsed.intakeQuestions ?? []).slice(0, 3);
-    return res.status(200).json({ intakeQuestions: questions });
+    const parties   = (parsed.detectedParties ?? []).slice(0, 2);
+    return res.status(200).json({ intakeQuestions: questions, detectedParties: parties });
   } catch {
     // Never block the user — on any error, proceed to analysis
     return res.status(200).json({ intakeQuestions: [] });

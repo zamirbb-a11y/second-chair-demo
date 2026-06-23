@@ -745,7 +745,7 @@ export default function DisputeDetail({
               {isAdversarialLoading && !adversarialReview
                 ? <span className="text-[11px] text-slate-400 flex items-center gap-1.5"><span className="animate-spin inline-block">⏳</span> מנתח…</span>
                 : adversarialReview?.strongestArgument
-                  ? <p className="text-[12px] text-slate-800 line-clamp-3 leading-relaxed">{adversarialReview.strongestArgument}</p>
+                  ? <p className="text-[12px] text-slate-800 leading-relaxed">{adversarialReview.strongestArgument}</p>
                   : <p className="text-[12px] text-slate-400">אין ניתוח עדיין</p>
               }
             </div>
@@ -756,7 +756,7 @@ export default function DisputeDetail({
               {isAdversarialLoading && !adversarialReview
                 ? <span className="text-[11px] text-slate-400 flex items-center gap-1.5"><span className="animate-spin inline-block">⏳</span> מנתח…</span>
                 : adversarialReview?.strongestAttack
-                  ? <p className="text-[12px] text-slate-800 line-clamp-3 leading-relaxed">{adversarialReview.strongestAttack}</p>
+                  ? <p className="text-[12px] text-slate-800 leading-relaxed">{adversarialReview.strongestAttack}</p>
                   : <p className="text-[12px] text-slate-400">אין ניתוח עדיין</p>
               }
             </div>
@@ -765,7 +765,7 @@ export default function DisputeDetail({
             <div className="border border-amber-100 rounded-xl p-4 bg-amber-50/30">
               <div className="text-[9px] font-bold text-amber-600 tracking-[0.08em] uppercase mb-2">מה חסר לנו?</div>
               {topGaps[0]
-                ? <p className="text-[12px] text-slate-700 line-clamp-3 leading-relaxed">{topGaps[0].text}</p>
+                ? <p className="text-[12px] text-slate-700 leading-relaxed">{topGaps[0].text}</p>
                 : <p className="text-[12px] text-slate-400">לא זוהו פערים</p>
               }
             </div>
@@ -774,7 +774,7 @@ export default function DisputeDetail({
             <div className="border border-indigo-100 rounded-xl p-4 bg-indigo-50/20">
               <div className="text-[9px] font-bold text-indigo-600 tracking-[0.08em] uppercase mb-2">מה הפעולה הבאה?</div>
               {(adversarialReview?.recommendedNextStep || nextSteps[0])
-                ? <p className="text-[12px] text-slate-700 font-medium line-clamp-3 leading-relaxed">
+                ? <p className="text-[12px] text-slate-700 font-medium leading-relaxed">
                     {adversarialReview?.recommendedNextStep ?? nextSteps[0]?.text}
                   </p>
                 : <p className="text-[12px] text-slate-400">טרם הוגדרה פעולה</p>

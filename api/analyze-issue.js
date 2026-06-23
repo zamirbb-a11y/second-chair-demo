@@ -33,15 +33,15 @@ ${caseText.slice(0, 2500)}
 
 החזר JSON בלבד:
 {
-  "strongestArgument": "הטיעון החזק ביותר לטובת ${ourLabel} — הנקודה שקשה לי (כצד התוקף) לתקוף",
-  "strongestAttack": "הטיעון החזק ביותר שאני מעלה כנגד ${ourLabel} — ספציפי לעובדות",
+  "strongestArgument": "משפט אחד עד שניים בלבד — הטיעון החזק ביותר לטובת ${ourLabel}",
+  "strongestAttack": "משפט אחד עד שניים בלבד — הטיעון החזק ביותר שאני מעלה כנגד ${ourLabel}, ספציפי לעובדות",
   "vulnerableAssumptions": ["הנחה שניתן לקעקע"],
   "adverseEvidence": ["ראיה קיימת שסותרת"],
   "missingEvidenceThatMatters": ["ראיה קריטית שנעדרת ומחלישה"],
   "opposingCounselLikelyArgument": "בטיעון הפותח שלי כנגד ${ourLabel} אומר: [הטיעון שאני, כעוה\"ד של ${theirLabel}, אפתח איתו]",
   "judgeConcern": "מה השופט עשוי לתהות לגבי העמדה",
   "impactOnAssessment": "no_change | slightly_weaker | materially_weaker | assessment_should_change",
-  "recommendedNextStep": "פעולה אחת שעורך הדין צריך לעשות בגלל הממצאים"
+  "recommendedNextStep": "משפט אחד עד שניים — פעולה אחת קונקרטית שעורך הדין צריך לעשות"
 }
 `;
 
@@ -139,8 +139,8 @@ ${documentText}
     "summary": "תיאור קצר של עוצמת המחלוקת והשאלות המשפטיות המרכזיות — 2-4 משפטים",
     "strength": "סיכויי הטענה מנקודת מבט הלקוח: very_strong | strong | medium_strong | medium | medium_weak | weak | very_weak | unclear"
   },
-  "claimantPosition": "2-3 משפטים המתארים את טענות הצד שיזם את ההליך ביחס למחלוקת זו. השתמש בשם הצד האמיתי ולא במילה 'תובע'. החזר null אם אין מספיק מידע.",
-  "defendantPosition": "2-3 משפטים המתארים את טענות הצד המגיב ביחס למחלוקת זו. השתמש בשם הצד האמיתי ולא במילה 'נתבע'. החזר null אם אין מספיק מידע.",
+  "claimantPosition": "עמדת ${clientLabel} בסוגיה זו — 2-3 משפטים הכתובים בשמו/ה הישיר. החזר null אם אין מספיק מידע.",
+  "defendantPosition": "עמדת הצד שכנגד (הצד שאינו ${clientLabel}) בסוגיה זו — 2-3 משפטים הכתובים בשמו/ה הישיר. החזר null אם אין מספיק מידע.",
   "evidenceUpdates": [
     { "type": "new_evidence | document_impact", "title": "", "description": "", "benefitsParty": "claimant | defendant | both" }
   ],
