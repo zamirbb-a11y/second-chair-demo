@@ -24,6 +24,7 @@ import PrecedentBankManager from "./admin/PrecedentBankManager";
 import HorizontalTimeline from "./components/HorizontalTimeline";
 import SuccessAssessment from "./components/SuccessAssessment";
 import DeltaNotificationPanel from "./components/DeltaNotificationPanel";
+import PreIntakePanel from "./components/PreIntakePanel";
 
 import {
   createCaseId,
@@ -243,6 +244,9 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [loadingMode, setLoadingMode] = useState("initial"); // "initial" | "update"
   const [adversarialLoading, setAdversarialLoading] = useState(new Set());
+  const [preIntakeLoading, setPreIntakeLoading] = useState(false);
+  const [preIntakeQuestions, setPreIntakeQuestions] = useState([]);
+  const [showPreIntake, setShowPreIntake] = useState(false);
   const [clientRole, setClientRole] = useState("claimant"); // "claimant" | "defendant"
   const [clientName, setClientName] = useState("");
   const [newClientName, setNewClientName] = useState("");
@@ -855,8 +859,50 @@ ${updatesText}
 }
 
   async function runAnalysis() {
+    setPreIntakeLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/pre-intake", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          caseText: buildCaseTextForAnalysis(),
+          documentText,
+          files: caseFiles,
+          clientName,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const questions = data.intakeQuestions ?? [];
+        if (questions.length > 0) {
+          setPreIntakeQuestions(questions);
+          setShowPreIntake(true);
+          setPreIntakeLoading(false);
+          return;
+        }
+      }
+    } catch {
+      // On pre-intake failure, proceed directly to analysis
+    }
+    setPreIntakeLoading(false);
+    runFullAnalysis("");
+  }
+
+  function handlePreIntakeContinue(answers) {
+    const extraText = answers
+      .filter((a) => a.text?.trim())
+      .map((a) => `שאלה: ${a.question}\nתשובה: ${a.text}`)
+      .join("\n\n");
+    setPreIntakeQuestions([]);
+    setShowPreIntake(false);
+    runFullAnalysis(extraText);
+  }
+
+  async function runFullAnalysis(extraText = "") {
     setLoading(true);
     setLoadingMode("initial");
+    setShowPreIntake(false);
     setError("");
 
     try {
@@ -864,13 +910,18 @@ ${updatesText}
         setPreviousAnalysis(analysis);
       }
 
+      const baseCaseText = buildCaseTextForAnalysis();
+      const enrichedCaseText = extraText.trim()
+        ? `${baseCaseText}\n\n---\n\nמידע נוסף שהתקבל לפני הניתוח:\n${extraText}`
+        : baseCaseText;
+
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          caseText: buildCaseTextForAnalysis(),
+          caseText: enrichedCaseText,
           documentText,
           files: caseFiles,
           clientName,
@@ -1924,16 +1975,25 @@ default:
           <div className="flex-1 overflow-y-auto">
             {!analysis ? (
               <div className="p-6">
-                <CaseIntake
-                  caseText={caseText}
-                  setCaseText={setCaseText}
-                  handleWordUpload={handleWordUpload}
-                  uploadedFiles={uploadedFiles}
-                  status={status}
-                  runAnalysis={runAnalysis}
-                  loading={loading}
-                  hasAnalysis={false}
-                />
+                {showPreIntake ? (
+                  <PreIntakePanel
+                    questions={preIntakeQuestions}
+                    onContinue={handlePreIntakeContinue}
+                    onUploadFile={handleWordUpload}
+                    isLoading={loading}
+                  />
+                ) : (
+                  <CaseIntake
+                    caseText={caseText}
+                    setCaseText={setCaseText}
+                    handleWordUpload={handleWordUpload}
+                    uploadedFiles={uploadedFiles}
+                    status={status}
+                    runAnalysis={runAnalysis}
+                    loading={loading || preIntakeLoading}
+                    hasAnalysis={false}
+                  />
+                )}
               </div>
             ) : activeView === "case-map" ? (
               selectedIssueId === null ? (
