@@ -37,12 +37,12 @@ ${caseText.slice(0, 3000)}
 החזר JSON בלבד — מפתח לפי id של כל מחלוקת:
 {
   "<issueId>": {
-    "strongestArgument": "הטיעון החזק ביותר לטובת ${clientLabel} — ספציפי לעובדות",
-    "strongestAttack": "הטיעון החזק ביותר שנעלה — ספציפי",
+    "strongestArgument": "הטיעון החזק ביותר לטובת ${clientLabel} — הנקודה שקשה לי (כצד התוקף) לתקוף",
+    "strongestAttack": "הטיעון החזק ביותר שאני מעלה כנגד ${clientLabel} — ספציפי לעובדות",
     "vulnerableAssumptions": ["הנחה שניתן לקעקע"],
     "adverseEvidence": ["ראיה קיימת שסותרת"],
     "missingEvidenceThatMatters": ["ראיה חסרה שמחלישה"],
-    "opposingCounselLikelyArgument": "במה נפתח",
+    "opposingCounselLikelyArgument": "הטיעון הפותח שלי כנגד ${clientLabel}: [מה שאני, כעוה\"ד של הצד שכנגד, אפתח איתו]",
     "judgeConcern": "מה השופט עשוי לתהות",
     "impactOnAssessment": "no_change | slightly_weaker | materially_weaker | assessment_should_change",
     "recommendedNextStep": "פעולה אחת שעורך הדין צריך לעשות"

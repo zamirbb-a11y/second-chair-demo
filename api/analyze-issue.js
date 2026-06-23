@@ -33,12 +33,12 @@ ${caseText.slice(0, 2500)}
 
 החזר JSON בלבד:
 {
-  "strongestArgument": "הטיעון החזק ביותר לטובת ${ourLabel} — ספציפי לעובדות",
-  "strongestAttack": "הטיעון החזק ביותר שהיריב יעלה — ספציפי",
+  "strongestArgument": "הטיעון החזק ביותר לטובת ${ourLabel} — הנקודה שקשה לי (כצד התוקף) לתקוף",
+  "strongestAttack": "הטיעון החזק ביותר שאני מעלה כנגד ${ourLabel} — ספציפי לעובדות",
   "vulnerableAssumptions": ["הנחה שניתן לקעקע"],
   "adverseEvidence": ["ראיה קיימת שסותרת"],
   "missingEvidenceThatMatters": ["ראיה קריטית שנעדרת ומחלישה"],
-  "opposingCounselLikelyArgument": "הטיעון שעוה\"ד יריב יפתח איתו",
+  "opposingCounselLikelyArgument": "בטיעון הפותח שלי כנגד ${ourLabel} אומר: [הטיעון שאני, כעוה\"ד של ${theirLabel}, אפתח איתו]",
   "judgeConcern": "מה השופט עשוי לתהות לגבי העמדה",
   "impactOnAssessment": "no_change | slightly_weaker | materially_weaker | assessment_should_change",
   "recommendedNextStep": "פעולה אחת שעורך הדין צריך לעשות בגלל הממצאים"
