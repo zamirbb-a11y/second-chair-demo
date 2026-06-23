@@ -45,7 +45,7 @@ import { createEvent, hasIntakeEvent, computeCaseState } from "./lib/caseEvents"
 import { normalizeTimelineDate } from "./utils/normalizeTimelineDate";
 import { normalizeDeltaIssueLinks } from "./utils/normalizeDeltaIssueLinks";
 
-function buildIssueAnalysisResult(issueId, issueTitle, result) {
+function buildIssueAnalysisResult(issueId, issueTitle, result, isNew = true) {
   const id = () => `overlay-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const now = new Date().toISOString();
   const overlays = [];
@@ -71,7 +71,7 @@ function buildIssueAnalysisResult(issueId, issueTitle, result) {
       id: id(),
       createdAt: now,
       type: "assessment",
-      isNew: true,
+      isNew,
       patch: {
         action: "update_assessment",
         issueId,
@@ -97,7 +97,7 @@ function buildIssueAnalysisResult(issueId, issueTitle, result) {
       id: id(),
       createdAt: now,
       type: "assessment",
-      isNew: true,
+      isNew,
       patch: {
         action: "update_assessment",
         issueId,
@@ -124,7 +124,7 @@ function buildIssueAnalysisResult(issueId, issueTitle, result) {
       id: id(),
       createdAt: now,
       type: "evidence",
-      isNew: true,
+      isNew,
       patch: {
         action: "add_evidence_update",
         evidenceType: item.type,
@@ -149,7 +149,7 @@ function buildIssueAnalysisResult(issueId, issueTitle, result) {
       id: id(),
       createdAt: now,
       type: "evidence",
-      isNew: true,
+      isNew,
       patch: {
         action: "add_evidence_update",
         evidenceType: "missing_evidence",
@@ -170,7 +170,7 @@ function buildIssueAnalysisResult(issueId, issueTitle, result) {
       id: id(),
       createdAt: now,
       type: "contradiction",
-      isNew: true,
+      isNew,
       patch: {
         action: "add_contradiction",
         title: item.title,
@@ -1570,7 +1570,7 @@ function removeAcceptedWorkItem(itemId) {
         }),
       });
       const data = await res.json();
-      if (res.ok) handleIssueAnalysisResult(issueId, issueTitle, data);
+      if (res.ok) handleIssueAnalysisResult(issueId, issueTitle, data, !skipAdversarial);
     } catch {
       // Silent fail — issue is visible without analysis
     } finally {
@@ -1651,14 +1651,14 @@ function removeAcceptedWorkItem(itemId) {
     persistCurrentCase(analysis, { overlays: nextOverlays });
   }
 
-  function handleIssueAnalysisResult(issueId, issueTitle, result) {
+  function handleIssueAnalysisResult(issueId, issueTitle, result, isNew = true) {
     const existingIssue = liveCaseState?.issues?.find((i) => i.id === issueId);
     const hasPositions = !!(existingIssue?.partyPositions?.claimant || existingIssue?.partyPositions?.defendant);
     const resultToProcess = hasPositions
       ? { ...result, claimantPosition: null, defendantPosition: null }
       : result;
     const { overlays: newOverlays, events: newEvents, workItems: newWorkItems } =
-      buildIssueAnalysisResult(issueId, issueTitle, resultToProcess);
+      buildIssueAnalysisResult(issueId, issueTitle, resultToProcess, isNew);
     // Read from refs (not closure) so concurrent per-issue callbacks don't overwrite each other.
     const nextOverlays = [...overlaysRef.current, ...newOverlays];
     const nextCaseEvents = [...caseEventsRef.current, ...newEvents];
