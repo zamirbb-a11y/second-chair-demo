@@ -1,4 +1,4 @@
-﻿<title>Second Chair</title>
+<title>Second Chair</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 
@@ -173,6 +173,81 @@ footer{
 .f-logo em{color:rgba(79,110,255,.4);font-style:normal}
 .f-tag{font-size:11.5px;color:rgba(255,255,255,.14)}
 
+/* ─── CTA SECTION ──────────────────── */
+.cta-sec{
+  min-height:90vh;display:flex;align-items:center;
+  background:#fff;text-align:center;padding:48px 36px
+}
+.cta-in{max-width:1000px;margin:0 auto;display:flex;flex-direction:column;align-items:center;width:100%}
+.cta-h{font-size:38px;font-weight:800;color:var(--text);line-height:1.25;margin-bottom:22px}
+
+.wiz-prev{
+  width:100%;border-radius:14px;overflow:hidden;
+  border:1px solid var(--border);
+  box-shadow:0 8px 32px rgba(15,23,42,.09),0 2px 8px rgba(15,23,42,.05);
+  display:flex;direction:rtl;height:290px;margin-bottom:22px;
+  cursor:pointer;transition:transform .18s,box-shadow .18s
+}
+.wiz-prev:hover{transform:translateY(-3px) scale(1.01);box-shadow:0 16px 52px rgba(15,23,42,.14),0 4px 20px rgba(15,23,42,.08)}
+.wiz-prev:active{transform:translateY(-1px) scale(1.005);transition-duration:.08s}
+.wp-sd{
+  width:190px;background:#0F172A;flex-shrink:0;
+  padding:22px 18px;display:flex;flex-direction:column
+}
+.wp-sd-brand{font-size:8px;font-weight:800;color:rgba(255,255,255,.2);
+  letter-spacing:.16em;text-transform:uppercase;margin-bottom:12px}
+.wp-sd-title{font-size:14px;font-weight:800;color:#fff;line-height:1.35;margin-bottom:22px}
+.wp-steps{display:flex;flex-direction:column;gap:6px}
+.wp-si{display:flex;align-items:center;gap:10px;border-radius:8px;padding:8px 7px}
+.wp-si.wp-cur{background:rgba(255,255,255,.09)}
+.wp-dot{
+  width:24px;height:24px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700
+}
+.wd-done{background:#34D399;color:#fff}
+.wd-cur{background:#fff;color:#0F172A}
+.wd-wait{background:#1E293B;color:#475569}
+.wp-si-lbl{font-size:12px;font-weight:600;color:rgba(255,255,255,.3)}
+.wp-si.wp-cur .wp-si-lbl{color:rgba(255,255,255,.9)}
+.wp-bd{
+  flex:1;background:#fff;padding:30px 36px;
+  display:flex;flex-direction:column;gap:12px;overflow:hidden
+}
+.wp-step-n{font-size:10px;color:#94A3B8;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+.wp-step-title{font-size:28px;font-weight:800;color:#0F172A;line-height:1.2}
+.wp-step-sub{font-size:14px;color:#94A3B8;line-height:1.5}
+.wp-input-row{
+  border:2px solid #818CF8;border-radius:11px;
+  padding:13px 18px;background:#F8FAFC;
+  font-size:16px;color:#0F172A;font-family:var(--font);
+  min-height:52px;direction:rtl;
+  display:flex;align-items:center;margin-top:4px
+}
+.wp-typed{font-size:16px;color:#0F172A;font-family:var(--font)}
+.wp-caret{
+  display:inline-block;width:2px;height:18px;
+  background:#6366F1;margin-right:1px;vertical-align:middle;flex-shrink:0;
+  animation:caretBlink 1s step-end infinite
+}
+@keyframes caretBlink{0%,100%{opacity:1}50%{opacity:0}}
+
+.cta-reassure{
+  display:flex;flex-direction:column;gap:9px;
+  align-self:flex-start;width:100%;margin-bottom:22px
+}
+.cta-ra{font-size:15px;color:var(--text2);display:flex;align-items:center;gap:9px}
+.cta-ra::before{content:'✓';color:#10B981;font-weight:800;font-size:15px;flex-shrink:0}
+
+.cta-btn{
+  background:var(--accent);color:#fff;border:none;border-radius:10px;
+  padding:17px 50px;font-size:19px;font-weight:700;
+  cursor:pointer;font-family:var(--font);
+  transition:background .15s,transform .1s;margin-bottom:14px
+}
+.cta-btn:hover{background:#3a57f0;transform:translateY(-1px)}
+.cta-btn:active{transform:translateY(0)}
+.cta-duration{font-size:13px;color:#94A3B8}
+
 /* ─── RESPONSIVE ─────────────────────── */
 @media(max-width:860px){
   .hero-in{grid-template-columns:1fr}
@@ -181,6 +256,12 @@ footer{
   .nav,.hero,.sec,.coming-strip,.sec-scr{padding-inline:20px}
   .scr-bullets{flex-direction:column;gap:8px}
   .cs-items{flex-direction:column;gap:4px}
+  .cta-sec{min-height:auto;padding:48px 20px}
+  .cta-h{font-size:26px}
+  .wp-sd{display:none}
+  .wiz-prev{height:220px}
+  .wiz-prev:hover{transform:none;box-shadow:0 8px 32px rgba(15,23,42,.09)}
+  .wp-bd{padding:20px 20px}
 }
 @media(prefers-reduced-motion:reduce){
   .chat-convo,.chat-ans{transition:none}
@@ -254,6 +335,44 @@ footer{
       alt="Second Chair — ניתוח מחלוקת מלא"
       class="product-img"
     />
+  </div>
+</section>
+
+<!-- CTA SECTION -->
+<section class="cta-sec">
+  <div class="cta-in">
+
+    <h2 class="cta-h">התיק הראשון שלכם מתחיל כאן</h2>
+
+    <div class="wiz-prev" id="wizPrev" role="button" tabindex="0" aria-label="פתח אשף פתיחת תיק חדש">
+      <div class="wp-sd">
+        <div class="wp-sd-brand">Second Chair</div>
+        <div class="wp-sd-title">פתיחת<br>תיק חדש</div>
+        <div class="wp-steps">
+          <div class="wp-si wp-cur"><div class="wp-dot wd-cur">1</div><span class="wp-si-lbl">שם התיק</span></div>
+          <div class="wp-si"><div class="wp-dot wd-wait">2</div><span class="wp-si-lbl">חומר ראשוני</span></div>
+          <div class="wp-si"><div class="wp-dot wd-wait">3</div><span class="wp-si-lbl">הצדדים</span></div>
+        </div>
+      </div>
+      <div class="wp-bd">
+        <div class="wp-step-n">שלב 1 מתוך 3</div>
+        <div class="wp-step-title">שם התיק</div>
+        <p class="wp-step-sub">בחר שם שיזהה את התיק בקלות — לרוב שמות הצדדים.</p>
+        <div class="wp-input-row">
+          <span class="wp-typed" id="ctaTyped"></span><span class="wp-caret"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="cta-reassure">
+      <span class="cta-ra">אפשר להתחיל גם עם מספר מסמכים בלבד.</span>
+      <span class="cta-ra">תמיד ניתן להוסיף חומר בהמשך.</span>
+      <span class="cta-ra">הניתוח מתעדכן ככל שהתיק מתפתח.</span>
+    </div>
+
+    <button class="cta-btn" id="btn-new-cta">התחל תיק חדש</button>
+    <p class="cta-duration">ההקמה הראשונית אורכת בדרך כלל כ־3 דקות.</p>
+
   </div>
 </section>
 
@@ -458,7 +577,7 @@ function jumpTo(idx) {
 function updateCardStates() {}
 
 /* ── CTA buttons ───────────────────────────────────────────── */
-['btn-new','btn-new-hero'].forEach(function(id) {
+['btn-new','btn-new-hero','btn-new-cta'].forEach(function(id) {
   var el = document.getElementById(id);
   if (el) el.addEventListener('click', function() { window.location.href = '/?action=new'; });
 });
@@ -471,6 +590,35 @@ function updateCardStates() {}
 buildDots();
 renderConvo(0, true);
 setTimeout(startTimer, 1200 + CONVOS[0].paras.length * 560 + 2000);
+
+/* ── Wizard preview click ──────────────────────────────────── */
+var wizPrevEl = document.getElementById('wizPrev');
+if (wizPrevEl) {
+  wizPrevEl.addEventListener('click', function() { window.location.href = '/?action=new'; });
+  wizPrevEl.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.location.href = '/?action=new'; } });
+}
+
+/* ── CTA typing animation ──────────────────────────────────── */
+var ctaCases = ['אלפא נ׳ כהן', 'עיריית ירושלים נ׳ דקל', 'מכרז תחבורה ציבורית'];
+var ctaIdx = 0, ctaChar = 0, ctaDel = false;
+var ctaTypedEl = document.getElementById('ctaTyped');
+if (ctaTypedEl) {
+  function ctaStep() {
+    var t = ctaCases[ctaIdx];
+    if (!ctaDel) {
+      ctaChar++;
+      ctaTypedEl.textContent = t.slice(0, ctaChar);
+      if (ctaChar === t.length) { setTimeout(function(){ ctaDel = true; ctaStep(); }, 2200); return; }
+      setTimeout(ctaStep, 90);
+    } else {
+      ctaChar--;
+      ctaTypedEl.textContent = t.slice(0, ctaChar);
+      if (ctaChar === 0) { ctaDel = false; ctaIdx = (ctaIdx + 1) % ctaCases.length; setTimeout(ctaStep, 500); return; }
+      setTimeout(ctaStep, 45);
+    }
+  }
+  setTimeout(ctaStep, 800);
+}
 
 })();
 </script>
