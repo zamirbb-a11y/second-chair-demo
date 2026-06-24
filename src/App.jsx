@@ -311,6 +311,20 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (!isAuthorized || entryMode) return;
+    const action = new URLSearchParams(window.location.search).get('action');
+    if (!action) {
+      window.location.href = '/landing.html';
+      return;
+    }
+    if (action === 'new') {
+      window.history.replaceState({}, '', '/');
+      setShowWizard(true);
+    }
+    // action === 'open': fall through — JSX renders the cases list
+  }, [isAuthorized, entryMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
     if (!analysis) return;
     const hasPending = workspaceUpdates.some(
       (u) => u.status === "pending_analysis"
@@ -842,6 +856,9 @@ export default function App() {
 }
 
   if (!entryMode) {
+    const landingAction = new URLSearchParams(window.location.search).get('action');
+    if (!landingAction && !showWizard) return null; // useEffect is redirecting to /landing.html
+
     return (
       <div
         dir="rtl"
@@ -900,6 +917,14 @@ export default function App() {
                 אין עדיין תיקים שמורים.
               </div>
             )}
+          </div>
+          <div className="pt-2 text-center">
+            <button
+              onClick={() => { window.location.href = '/landing.html'; }}
+              className="text-sm text-slate-400 hover:text-slate-600 transition"
+            >
+              ← חזור לדף הבית
+            </button>
           </div>
         </div>
       </div>

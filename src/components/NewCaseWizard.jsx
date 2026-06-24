@@ -297,12 +297,29 @@ export default function NewCaseWizard({ onComplete, onCancel }) {
 
           {/* ── Navigation footer ───────────────────────────────── */}
           <div className="border-t border-slate-100 px-10 py-5 flex items-center justify-between shrink-0">
-            <button
-              onClick={step === 0 ? onCancel : () => setStep(s => s - 1)}
-              className="text-[13px] text-slate-400 hover:text-slate-700 transition-colors"
-            >
-              {step === 0 ? "ביטול" : "‹ חזור"}
-            </button>
+            {step === 0 ? (
+              <div className="flex items-center gap-5">
+                <button
+                  onClick={() => { window.location.href = '/landing.html'; }}
+                  className="text-[13px] text-slate-400 hover:text-slate-700 transition-colors"
+                >
+                  ← דף הבית
+                </button>
+                <button
+                  onClick={() => { window.location.href = '/?action=open'; }}
+                  className="text-[13px] text-slate-400 hover:text-slate-700 transition-colors"
+                >
+                  תיקים קיימים
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setStep(s => s - 1)}
+                className="text-[13px] text-slate-400 hover:text-slate-700 transition-colors"
+              >
+                ‹ חזור
+              </button>
+            )}
 
             <button
               disabled={!canAdvance || loadingPreIntake || uploading}

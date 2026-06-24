@@ -146,8 +146,8 @@ export default function CaseOverview({
           </div>
 
           {assessment.disputeFocus && (
-            <div className="text-[13.5px] text-slate-500 leading-relaxed mb-2">
-              <span className="font-semibold text-slate-700">מוקד המחלוקת: </span>
+            <div className="text-[15px] text-slate-700 leading-[1.75] mb-2">
+              <span className="font-semibold">מוקד המחלוקת: </span>
               {assessment.disputeFocus}
             </div>
           )}
@@ -155,12 +155,6 @@ export default function CaseOverview({
           {assessment.summary && (
             <div className="text-[15px] text-slate-700 leading-[1.75] max-w-[760px]">
               {assessment.summary}
-            </div>
-          )}
-
-          {assessment.reservation && (
-            <div className="mt-3 border-r-[3px] border-slate-200 pr-4 text-[13.5px] text-slate-500 leading-relaxed max-w-[720px]">
-              {assessment.reservation}
             </div>
           )}
         </div>
