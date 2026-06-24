@@ -56,6 +56,7 @@ export default function CaseChatPanel({
   const lastAiRef  = useRef(null);
   const resizeRef  = useRef(null); // { startY, startH }
   const panelRef   = useRef(null);
+  const threadRef  = useRef(null);
 
   const hasMessages = chatHistory.length > 0;
 
@@ -87,6 +88,13 @@ export default function CaseChatPanel({
   // Focus input when expanding
   useEffect(() => {
     if (expanded) setTimeout(() => inputRef.current?.focus(), 60);
+  }, [expanded]);
+
+  // Force scrollbar to the right regardless of inherited RTL direction
+  useEffect(() => {
+    if (threadRef.current) {
+      threadRef.current.style.setProperty('direction', 'ltr', 'important');
+    }
   }, [expanded]);
 
   // Collapse on outside click
@@ -153,8 +161,12 @@ export default function CaseChatPanel({
       {/* ── Thread area ── */}
       {expanded && (
         <div
-          className="flex-1 overflow-y-auto px-5 py-3 flex flex-col gap-3"
+          id="chat-thread-scroll"
+          ref={threadRef}
+          className="flex-1 overflow-y-auto"
+          dir="ltr"
         >
+        <div className="px-5 py-3 flex flex-col gap-3" dir="rtl">
           {!hasMessages && !isLoading && (
             /* Suggested prompts when empty */
             <div className="flex flex-wrap gap-2 pt-1">
@@ -190,6 +202,7 @@ export default function CaseChatPanel({
 
           {isLoading && <TypingIndicator />}
           <div ref={endRef} />
+        </div>
         </div>
       )}
 
@@ -272,6 +285,7 @@ export default function CaseChatPanel({
           0%, 80%, 100% { opacity: 0.2; transform: scale(0.75); }
           40%            { opacity: 1;   transform: scale(1.1); }
         }
+        #chat-thread-scroll { direction: ltr !important; }
       `}</style>
     </div>
   );
