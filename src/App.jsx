@@ -115,6 +115,7 @@ function buildIssueAnalysisResult(issueId, issueTitle, result) {
   }
 
   for (const item of result.evidenceUpdates || []) {
+    if (item.type === "missing_evidence" || item.type === "evidence_gap") continue;
     overlays.push({
       id: id(),
       createdAt: now,
@@ -255,6 +256,20 @@ export default function App() {
   useEffect(() => {
     setSavedCases(listCases());
   }, []);
+
+  useEffect(() => {
+    if (!isAuthorized || entryMode) return;
+    const action = new URLSearchParams(window.location.search).get('action');
+    if (!action) {
+      window.location.href = '/landing.html';
+      return;
+    }
+    if (action === 'new') {
+      window.history.replaceState({}, '', '/');
+      startNewCase();
+    }
+    // action === 'open': fall through — JSX will render the cases list
+  }, [isAuthorized, entryMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!analysis) return;
@@ -450,6 +465,9 @@ export default function App() {
 }
 
   if (!entryMode) {
+    const landingAction = new URLSearchParams(window.location.search).get('action');
+    if (!landingAction) return null; // useEffect is redirecting to /landing.html
+
     return (
       <div
         dir="rtl"
@@ -535,6 +553,14 @@ export default function App() {
                 </div>
               </div>
             )}
+          </div>
+          <div className="pt-2 text-center">
+            <button
+              onClick={() => { window.location.href = '/landing.html'; }}
+              className="text-sm text-slate-400 hover:text-slate-600 transition"
+            >
+              ← חזור לדף הבית
+            </button>
           </div>
         </div>
       </div>
