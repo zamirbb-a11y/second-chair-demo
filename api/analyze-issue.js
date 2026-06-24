@@ -82,7 +82,7 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   try {
-    const { issue, liveCaseState, caseText = "", documentText = "", clientName = "", clientRole = "claimant", skipAdversarial = false } = req.body || {};
+    const { issue, liveCaseState, caseText = "", documentText = "", clientName = "", clientRole = "claimant", skipAdversarial = false, additionalContext = null } = req.body || {};
 
     if (!issue?.title) return res.status(400).json({ error: "Missing issue" });
 
@@ -120,10 +120,11 @@ ${caseText}
 
 **מסמכים:**
 ${documentText}
-
+${additionalContext ? `\n**מידע חדש שהוסיף עורך הדין — שקול אותו בניתוח:**\n${additionalContext}\n` : ""}
 ---
 
 המטרה: נתח את המחלוקת הנ"ל בלבד מול חומר התיק.
+${additionalContext ? "קח בחשבון את המידע החדש שסופק — הוא נאמר על ידי עורך הדין המייצג וייתכן שמשפיע על ראיות, סתירות או פעולות נדרשות." : ""}
 
 כללים חיוניים:
 - נתח את המחלוקת הנ"ל בלבד. אל תגע במחלוקות אחרות.

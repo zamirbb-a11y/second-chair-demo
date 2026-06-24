@@ -515,6 +515,7 @@ export default function DisputeDetail({
   onMarkQuestionAnswered,
   onWorkspaceUpdate, onInfoUpdate, onIssueFileUpload, clientRole = "claimant", ourSideLabel, opposingSideLabel, retrievedPrecedents,
   adversarialReview, isAdversarialLoading, onAnalyzeIssue,
+  onOpenChat,
 }) {
   const [detailPane, setDetailPane] = useState(null); // null | "our" | "opposing" | "ambiguous"
   const [activeTab, setActiveTab] = useState("overview"); // "overview" | "full"
@@ -719,7 +720,7 @@ export default function DisputeDetail({
         />
 
         {/* Tab bar */}
-        <div className="flex gap-1 mt-4 mb-5 border-b border-slate-200">
+        <div className="flex gap-1 mt-4 mb-5 border-b border-slate-200 items-center">
           {[["overview", "מבט על"], ["full", "ניתוח מלא"], ["adversarial", "הצד שכנגד"]].map(([id, label]) => (
             <button
               key={id}
@@ -733,6 +734,17 @@ export default function DisputeDetail({
               {label}
             </button>
           ))}
+          <div className="flex-1" />
+          {onOpenChat && (
+            <button
+              onClick={() => onOpenChat(issue.id, issue.title)}
+              className="mb-px flex items-center gap-1.5 px-3 py-1.5 text-[11.5px] font-semibold rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition-colors cursor-pointer"
+              title="שאל שאלה על סוגיה זו"
+            >
+              <span>💬</span>
+              <span>שאל</span>
+            </button>
+          )}
         </div>
 
         {/* ── Overview tab — 2×2 KPI cards ──────────────────────────────── */}

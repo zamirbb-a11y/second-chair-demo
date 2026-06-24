@@ -26,6 +26,7 @@ import SuccessAssessment from "./components/SuccessAssessment";
 import DeltaNotificationPanel from "./components/DeltaNotificationPanel";
 import PreIntakePanel from "./components/PreIntakePanel";
 import NewCaseWizard from "./components/NewCaseWizard";
+import CaseChatPanel from "./components/CaseChatPanel";
 
 import {
   createCaseId,
@@ -270,6 +271,26 @@ export default function App() {
   const [caseMenuOpen, setCaseMenuOpen] = useState(false);
   const [caseListExpanded, setCaseListExpanded] = useState(false);
 
+  // Case chat
+  const [showCaseChat, setShowCaseChat] = useState(false);
+  const [chatIssueContext, setChatIssueContext] = useState(null); // { id, title } | null
+  const [caseChatHistory, setCaseChatHistory] = useState([]);
+  const [chatLoading, setChatLoading] = useState(false);
+
+  const chatSendingRef = useRef(false); // prevents double-send before isLoading propagates
+
+  // Persist chat history per case (must be after caseChatHistory + currentCaseId are declared)
+  useEffect(() => {
+    if (currentCaseId && caseChatHistory.length > 0) {
+      try { localStorage.setItem(`secondChair.chat.${currentCaseId}`, JSON.stringify(caseChatHistory)); } catch { /* ignore */ }
+    }
+  }, [caseChatHistory, currentCaseId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-show chat panel whenever analysis becomes available
+  useEffect(() => {
+    if (analysis) setShowCaseChat(true);
+  }, [analysis]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Phase A: computed but not yet read by UI. Infrastructure for Phase B.
   // eslint-disable-next-line no-unused-vars
   const caseState = useMemo(
@@ -441,6 +462,12 @@ export default function App() {
     setStatus("");
     setError("");
     setShowWizard(false);
+    setChatIssueContext(null);
+    setShowCaseChat(false);
+    try {
+      const savedChat = localStorage.getItem(`secondChair.chat.${caseId}`);
+      setCaseChatHistory(savedChat ? JSON.parse(savedChat) : []);
+    } catch { setCaseChatHistory([]); }
   }
 
   function handleWizardComplete({ caseName: wCaseName, caseText: wCaseText, processedFiles, clientName: wClientName, clientRole: wClientRole, answers }) {
@@ -472,6 +499,9 @@ export default function App() {
     setEntryMode("new");
     setActiveView("case-map");
     setShowWizard(false);
+    setCaseChatHistory([]);
+    setChatIssueContext(null);
+    setShowCaseChat(false);
 
     const fullCaseText = [wCaseText, docText].filter(Boolean).join("\n\n");
     const extraText = answers
@@ -505,7 +535,284 @@ export default function App() {
     setActiveView("case-map");
     setEntryMode(null);
     setShowWizard(true);
+    setCaseChatHistory([]);
+    setChatIssueContext(null);
+    setShowCaseChat(false);
   }
+
+  // ── Case chat ─────────────────────────────────────────────────────────────
+
+  function openChatForIssue(issueId, issueTitle) {
+    setChatIssueContext(issueId ? { id: issueId, title: issueTitle } : null);
+    setShowCaseChat(true);
+  }
+
+  function buildChatContext() {
+    if (!liveCaseState) return "";
+    const lines = [];
+    const { issues = [], successAssessment } = liveCaseState;
+    const roleLabel = clientRole === "defendant" ? "נתבע" : "תובע";
+    lines.push(`לקוח: ${clientName || "לא צוין"} | תפקיד: ${roleLabel}`);
+    if (successAssessment?.summary) {
+      lines.push(`הערכת סיכויים: ${successAssessment.level || ""} — ${successAssessment.summary}`);
+    }
+    lines.push("\n=== מחלוקות ===");
+    issues.forEach((issue) => {
+      const strength = issue.effectiveLegal?.strength || "לא ידוע";
+      lines.push(`• [${issue.id}] ${issue.title} | חוזק: ${strength}`);
+      if (issue.effectiveLegal?.summary) {
+        lines.push(`  ${issue.effectiveLegal.summary.slice(0, 130)}`);
+      }
+      if (issue.partyPositions?.claimant) {
+        lines.push(`  עמדתנו: ${issue.partyPositions.claimant.slice(0, 100)}`);
+      }
+      const evidenceCount = (issue.overlays?.evidence ?? []).length;
+      if (evidenceCount > 0) lines.push(`  ראיות מצורפות: ${evidenceCount}`);
+    });
+    const precedents = analysis?.retrievedPrecedents;
+    if (precedents?.length) {
+      lines.push("\n=== פסיקה ===");
+      precedents.slice(0, 8).forEach((p) => {
+        const name = p.shortName || p.title || p.caseNumber || "";
+        const ratio = p.miniRatio || p.relevance || "";
+        lines.push(`• ${name}${ratio ? `: ${ratio.slice(0, 80)}` : ""} | עוזרת: ${p.helps || "?"}`);
+      });
+    }
+    const openWork = acceptedWorkItems.slice(-10);
+    if (openWork.length) {
+      lines.push("\n=== פעולות פתוחות ===");
+      openWork.forEach((w) => lines.push(`• ${w.title} (${w.type || ""})`));
+    }
+    return lines.join("\n");
+  }
+
+  function buildIssueContext(issueId) {
+    if (!issueId || !liveCaseState) return null;
+    const issue = liveCaseState.issues?.find((i) => i.id === issueId);
+    if (!issue) return null;
+    const lines = [];
+    lines.push(`כותרת: ${issue.title}`);
+    if (issue.description) lines.push(`תיאור: ${issue.description}`);
+    lines.push(`חוזק: ${issue.effectiveLegal?.strength || "לא ידוע"}`);
+    if (issue.effectiveLegal?.summary) lines.push(`ניתוח: ${issue.effectiveLegal.summary}`);
+    if (issue.partyPositions?.claimant) lines.push(`עמדתנו: ${issue.partyPositions.claimant}`);
+    if (issue.partyPositions?.defendant) lines.push(`עמדת הצד שכנגד: ${issue.partyPositions.defendant}`);
+    const evidence = [
+      ...(issue.linkedEvidence ?? []).map((e) => (typeof e === "string" ? e : e.title)).filter(Boolean),
+      ...(issue.overlays?.evidence ?? []).map((e) => e.patch?.title || "").filter(Boolean),
+    ];
+    if (evidence.length) lines.push(`ראיות: ${evidence.join(", ")}`);
+    const contradictions = (issue.overlays?.contradictions ?? []).map((c) => c.patch?.title || "").filter(Boolean);
+    if (contradictions.length) lines.push(`סתירות: ${contradictions.join(", ")}`);
+    return lines.join("\n");
+  }
+
+  async function handleChatMessage(message) {
+    if (chatSendingRef.current) return;
+    chatSendingRef.current = true;
+
+    const userMsg = {
+      id: `cm_${Date.now()}_u`,
+      role: "user",
+      content: message,
+      timestamp: new Date().toISOString(),
+    };
+    setCaseChatHistory((prev) => [...prev, userMsg]);
+    setChatLoading(true);
+
+    try {
+      const res = await fetch("/api/case-chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message,
+          chatHistory: caseChatHistory.slice(-8).map((m) => ({
+            role: m.role,
+            content: m.content,
+            raw: m.raw,
+          })),
+          caseContext: buildChatContext(),
+          issueContext: chatIssueContext ? buildIssueContext(chatIssueContext.id) : null,
+          clientName,
+          clientRole,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        // Surface the actual OpenAI error message when available
+        const openaiMsg = typeof data?.details === "object"
+          ? (data.details?.error?.message || JSON.stringify(data.details))
+          : data?.details;
+        const detail = openaiMsg || data?.error || `שגיאת שרת ${res.status}`;
+        throw new Error(detail);
+      }
+      const aiMsg = {
+        id: `cm_${Date.now()}_a`,
+        role: "assistant",
+        content: (data.sections ?? []).map((s) => s.content).join("\n\n"),
+        sections: data.sections ?? [],
+        sources: data.sources ?? [],
+        proposedUpdates: data.proposedUpdates ?? [],
+        limitations: data.limitations ?? [],
+        nextBestActions: data.nextBestActions ?? [],
+        raw: data,
+        timestamp: new Date().toISOString(),
+      };
+      setCaseChatHistory((prev) => [...prev, aiMsg]);
+    } catch (err) {
+      console.error("chat error:", err);
+      setCaseChatHistory((prev) => [
+        ...prev,
+        {
+          id: `cm_${Date.now()}_err`,
+          role: "assistant",
+          errorText: err?.message || "שגיאה לא ידועה",
+          sections: [],
+          sources: [],
+          proposedUpdates: [],
+          timestamp: new Date().toISOString(),
+        },
+      ]);
+    } finally {
+      setChatLoading(false);
+      chatSendingRef.current = false;
+    }
+  }
+
+  function resolveTargetIssue(update) {
+    const issues = liveCaseState?.issues ?? [];
+    if (!issues.length) return null;
+
+    const pick = (issue) => ({ id: issue.id, title: issue.title, description: issue.description || "" });
+
+    // 1. Chat opened from within a specific issue card
+    if (chatIssueContext?.id) {
+      const found = issues.find(i => i.id === chatIssueContext.id);
+      if (found) return pick(found);
+    }
+    // 2. Issue currently selected/open on screen
+    if (selectedIssueId) {
+      const found = issues.find(i => i.id === selectedIssueId);
+      if (found) return pick(found);
+    }
+    // 3. AI included a matching issueId
+    if (update.data?.issueId) {
+      const found = issues.find(i => i.id === update.data.issueId);
+      if (found) return pick(found);
+    }
+    // 4. Keyword match — always falls back to issues[0]
+    const needle = `${update.data?.title || ""} ${update.description || ""}`.toLowerCase();
+    const words = needle.split(/\s+/).filter(w => w.length > 2);
+    let best = issues[0];
+    let bestScore = 0;
+    for (const issue of issues) {
+      const haystack = `${issue.title || ""} ${issue.description || ""}`.toLowerCase();
+      const score = words.filter(w => haystack.includes(w)).length;
+      if (score > bestScore) { bestScore = score; best = issue; }
+    }
+    return pick(best);
+  }
+
+  async function handleAcceptChatUpdate(update) {
+    const target = resolveTargetIssue(update);
+    if (!target) return;
+
+    // Remove from chat history so it doesn't reappear after reload
+    setCaseChatHistory(prev => prev.map(msg =>
+      msg.proposedUpdates?.length
+        ? { ...msg, proposedUpdates: msg.proposedUpdates.filter(u => u.id !== update.id) }
+        : msg
+    ));
+
+    setActiveView("case-map");
+    setSelectedIssueId(target.id);
+
+    const { type, data: uData, description } = update;
+    const title = uData?.title || description || "";
+    const desc  = uData?.description || "";
+    const allIssues = liveCaseState?.issues ?? [];
+
+    // Ask AI which issues are relevant — fallback to primary only
+    let relevantIds = [target.id];
+    try {
+      const res = await fetch("/api/check-relevance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          item: { type, title, description: desc },
+          issues: allIssues.map(i => ({ id: i.id, title: i.title, description: i.description || "" })),
+        }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const ids = json.relevantIssueIds ?? [];
+        relevantIds = ids.length ? ids : [target.id];
+        if (!relevantIds.includes(target.id)) relevantIds.push(target.id);
+      }
+    } catch { /* fallback to primary */ }
+
+    // Build delta entries for every relevant issue
+    const newEvidenceUpdates = [];
+    const newWorkItems = [];
+    const newContradictions = [];
+
+    relevantIds.forEach(issueId => {
+      const issue = allIssues.find(i => i.id === issueId) ?? { id: issueId, title: "" };
+
+      if (type === "new_evidence") {
+        newEvidenceUpdates.push({
+          type: uData?.type || "new_evidence",
+          title,
+          description: desc,
+          benefitsParty: uData?.benefitsParty || "claimant",
+          relatedIssueId: issue.id,
+          relatedIssueTitle: issue.title,
+        });
+      } else if (type === "new_work_item") {
+        newWorkItems.push({
+          type: uData?.type || "suggested_action",
+          title,
+          description: desc,
+          priority: uData?.priority || "medium",
+          relatedIssueId: issue.id,
+          relatedIssueTitle: issue.title,
+        });
+      } else if (type === "new_question") {
+        newWorkItems.push({
+          type: "client_question",
+          title,
+          description: desc,
+          priority: "medium",
+          relatedIssueId: issue.id,
+          relatedIssueTitle: issue.title,
+        });
+      } else if (type === "new_contradiction") {
+        newContradictions.push({
+          title,
+          description: desc,
+          severity: uData?.severity || "medium",
+          direction: uData?.direction || "unclear",
+          relatedIssueId: issue.id,
+          relatedIssueTitle: issue.title,
+        });
+      }
+    });
+
+    setLatestDelta(prev => ({
+      ...(prev ?? {}),
+      evidenceUpdates:    [...(prev?.evidenceUpdates    ?? []), ...newEvidenceUpdates],
+      generatedWorkItems: [...(prev?.generatedWorkItems ?? []), ...newWorkItems],
+      contradictions:     [...(prev?.contradictions     ?? []), ...newContradictions],
+    }));
+  }
+
+  // eslint-disable-next-line no-unused-vars
+  function handleRejectChatUpdate(_updateId) {
+    // Client-side dismissal is handled inside CaseChatPanel via local state
+  }
+
+  // ── End case chat ──────────────────────────────────────────────────────────
 
  function removeSavedCase(caseId) {
   if (!caseId) return;
@@ -1218,8 +1525,6 @@ function removeAcceptedWorkItem(itemId) {
         relatedUpdateId: item.relatedUpdateId || null,
       },
     };
-    console.log("[acceptEvidenceUpdate] delta item:", item);
-    console.log("[acceptEvidenceUpdate] overlay created:", overlay);
 
     const nextOverlays = [...overlays, overlay];
     const nextEvidenceUpdates =
@@ -1479,14 +1784,6 @@ function removeAcceptedWorkItem(itemId) {
     const nextCaseEvents = [...caseEvents, ...newEvents];
     const nextAcceptedWorkItems = [...acceptedWorkItems, ...newAcceptedWorkItems];
 
-    // Schedule adversarial re-run for affected issues so the overview KPI cards update.
-    const affectedIssueIds = new Set([
-      ...assessments.map(a => a.item.issueId).filter(Boolean),
-      ...evidence.map(e => e.item.relatedIssueId).filter(Boolean),
-      ...contradictions.map(c => c.item.relatedIssueId).filter(Boolean),
-    ]);
-    affectedIssueIds.forEach(id => pendingReanalysisRef.current.add(id));
-
     const evidenceIdxs  = new Set(evidence.map(e => e.index));
     const contradIdxs   = new Set(contradictions.map(c => c.index));
     const assessIdxs    = new Set(assessments.map(a => a.index));
@@ -1584,7 +1881,7 @@ function removeAcceptedWorkItem(itemId) {
     triggerIssueAnalysis(issueId, title, description || "");
   }
 
-  async function triggerIssueAnalysis(issueId, issueTitle, issueDescription, overrideClientRole, skipAdversarial = false) {
+  async function triggerIssueAnalysis(issueId, issueTitle, issueDescription, overrideClientRole, skipAdversarial = false, additionalContext = null) {
     setAdversarialLoading(prev => new Set([...prev, issueId]));
     try {
       const res = await fetch("/api/analyze-issue", {
@@ -1598,12 +1895,13 @@ function removeAcceptedWorkItem(itemId) {
           clientName,
           clientRole: overrideClientRole ?? clientRole,
           skipAdversarial,
+          additionalContext,
         }),
       });
       const data = await res.json();
       if (res.ok) handleIssueAnalysisResult(issueId, issueTitle, data, !skipAdversarial);
-    } catch {
-      // Silent fail — issue is visible without analysis
+    } catch (err) {
+      console.error("[triggerIssueAnalysis] failed:", err);
     } finally {
       setAdversarialLoading(prev => { const s = new Set(prev); s.delete(issueId); return s; });
     }
@@ -1690,10 +1988,31 @@ function removeAcceptedWorkItem(itemId) {
       : result;
     const { overlays: newOverlays, events: newEvents, workItems: newWorkItems } =
       buildIssueAnalysisResult(issueId, issueTitle, resultToProcess, isNew);
+
+    // Dedup: skip work items whose title already exists for this issue
+    const existingWorkTitles = new Set(
+      acceptedWorkItemsRef.current
+        .filter(w => w.relatedIssueId === issueId)
+        .map(w => w.title?.trim().toLowerCase()).filter(Boolean)
+    );
+    const dedupedWorkItems = newWorkItems.filter(
+      w => !existingWorkTitles.has(w.title?.trim().toLowerCase())
+    );
+
+    // Dedup: skip evidence overlays whose title already exists for this issue
+    const existingEvidenceTitles = new Set(
+      overlaysRef.current
+        .filter(o => o.type === "evidence" && o.patch?.relatedIssueId === issueId)
+        .map(o => o.patch?.title?.trim().toLowerCase()).filter(Boolean)
+    );
+    const dedupedOverlays = newOverlays.filter(o =>
+      o.type !== "evidence" || !existingEvidenceTitles.has(o.patch?.title?.trim().toLowerCase())
+    );
+
     // Read from refs (not closure) so concurrent per-issue callbacks don't overwrite each other.
-    const nextOverlays = [...overlaysRef.current, ...newOverlays];
+    const nextOverlays = [...overlaysRef.current, ...dedupedOverlays];
     const nextCaseEvents = [...caseEventsRef.current, ...newEvents];
-    const nextAcceptedWorkItems = [...acceptedWorkItemsRef.current, ...newWorkItems];
+    const nextAcceptedWorkItems = [...acceptedWorkItemsRef.current, ...dedupedWorkItems];
     // Update refs synchronously before yielding — next concurrent callback sees accumulated values.
     overlaysRef.current = nextOverlays;
     caseEventsRef.current = nextCaseEvents;
@@ -1815,19 +2134,29 @@ default:
               )}
             </div>
 
-            {/* Center: add info CTA */}
+            {/* Center: add info CTA + chat */}
             {analysis && (
-              <button
-                onClick={() => setIntakeExpanded((v) => !v)}
-                className={[
-                  "shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium border cursor-pointer transition-colors",
-                  intakeExpanded
-                    ? "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200"
-                    : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50",
-                ].join(" ")}
-              >
-                {intakeExpanded ? "סגור ×" : "+ הוסף מידע לתיק"}
-              </button>
+              <>
+                <button
+                  onClick={() => setIntakeExpanded((v) => !v)}
+                  className={[
+                    "shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium border cursor-pointer transition-colors",
+                    intakeExpanded
+                      ? "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200"
+                      : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50",
+                  ].join(" ")}
+                >
+                  {intakeExpanded ? "סגור ×" : "+ הוסף מידע לתיק"}
+                </button>
+                <button
+                  onClick={() => { setChatIssueContext(null); setShowCaseChat(true); }}
+                  className="shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium border cursor-pointer transition-colors bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 flex items-center gap-1.5"
+                  title="שאל את המערכת על התיק"
+                >
+                  <span>💬</span>
+                  <span>שאל</span>
+                </button>
+              </>
             )}
 
             {/* Client name label */}
@@ -2020,6 +2349,7 @@ default:
                   adversarialReview={adversarialReviews[selectedIssueId] ?? null}
                   isAdversarialLoading={adversarialLoading.has(selectedIssueId)}
                   onAnalyzeIssue={triggerIssueAnalysis}
+                  onOpenChat={openChatForIssue}
                 />
               )
             ) : (
@@ -2028,6 +2358,19 @@ default:
               </div>
             )}
           </div>
+
+          {/* Chat panel — anchored to bottom of main content column */}
+          {analysis && showCaseChat && (
+            <CaseChatPanel
+              issueContext={chatIssueContext}
+              chatHistory={caseChatHistory}
+              onMessage={handleChatMessage}
+              onAcceptUpdate={handleAcceptChatUpdate}
+              onRejectUpdate={handleRejectChatUpdate}
+              onClose={() => setShowCaseChat(false)}
+              isLoading={chatLoading}
+            />
+          )}
 
         </div>
       </div>
