@@ -42,12 +42,13 @@ body{font-family:var(--font);direction:rtl;background:var(--ground);color:var(--
   background:var(--hero);
   padding:0 36px;
   min-height:calc(100vh - 54px);
-  display:flex;align-items:center
+  display:flex;align-items:center;
+  overflow:hidden
 }
 .hero-in{
   max-width:1080px;margin:0 auto;width:100%;
-  display:grid;grid-template-columns:1fr 500px;
-  gap:56px;align-items:center
+  display:grid;grid-template-columns:1fr min(500px,44%);
+  gap:clamp(24px,4vw,56px);align-items:center
 }
 
 .hero-name{font-size:14px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.28);margin-bottom:10px}
@@ -120,20 +121,17 @@ body{font-family:var(--font);direction:rtl;background:var(--ground);color:var(--
 .sec-scr{padding:40px 36px 52px}
 .sec-scr .sec-in{max-width:1440px}
 .scr-meta{
-  display:flex;align-items:baseline;gap:24px;
+  display:flex;align-items:center;gap:16px;
   margin-bottom:20px;flex-wrap:wrap
 }
-.scr-bullets{
-  display:flex;gap:20px;flex-wrap:wrap
+.scr-brand-lbl{
+  font-size:13.5px;font-weight:800;color:var(--text);white-space:nowrap;flex-shrink:0
 }
-.scr-bul{
-  font-size:13.5px;color:var(--muted);
-  display:flex;align-items:center;gap:6px
+.scr-caps{
+  display:flex;align-items:center;flex-wrap:wrap;gap:0
 }
-.scr-bul::before{
-  content:'';display:block;width:5px;height:5px;
-  border-radius:50%;background:var(--accent);flex-shrink:0
-}
+.scr-cap{font-size:13.5px;color:var(--muted)}
+.scr-sep{font-size:13.5px;color:var(--border);padding:0 10px;user-select:none}
 .product-img{
   width:100%;display:block;
   border-radius:10px;
@@ -323,11 +321,17 @@ footer{
 <section class="sec sec-w sec-scr">
   <div class="sec-in">
     <div class="scr-meta">
-      <h2 class="sec-h">כך Second Chair מארגן את התיק</h2>
-      <div class="scr-bullets">
-        <span class="scr-bul">מזהה מחלוקות מרכזיות</span>
-        <span class="scr-bul">מקשר ראיות, סתירות ופסיקה</span>
-        <span class="scr-bul">מאפשר לעבוד על התיק דרך שיחה אחת</span>
+      <span class="scr-brand-lbl">Second Chair</span>
+      <div class="scr-caps">
+        <span class="scr-cap">מזהה מחלוקות</span>
+        <span class="scr-sep">|</span>
+        <span class="scr-cap">מקשר עובדות, ראיות ופסיקה</span>
+        <span class="scr-sep">|</span>
+        <span class="scr-cap">מנתח חוזקות וחולשות</span>
+        <span class="scr-sep">|</span>
+        <span class="scr-cap">מציע פעולות</span>
+        <span class="scr-sep">|</span>
+        <span class="scr-cap">מאפשר שיחה על התיק עם AI</span>
       </div>
     </div>
     <img
