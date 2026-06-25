@@ -263,7 +263,7 @@ export default function App() {
   const [showWizard, setShowWizard] = useState(false);
   const [currentCaseId, setCurrentCaseId] = useState(null);
 
-  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [isAuthorized, setIsAuthorized] = useState(true);
   const [passwordInput, setPasswordInput] = useState("");
 
   // v2: selected dispute (null = overview)
