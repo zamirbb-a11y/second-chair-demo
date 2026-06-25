@@ -37,6 +37,9 @@ import {
   loadCase,
   listCases,
   deleteCase,
+  syncFromSupabase,
+  getSyncStatus,
+  onSyncStatusChange,
 } from "./utils/caseStorage";
 
 import {
@@ -265,13 +268,16 @@ export default function App() {
   const [savedCases, setSavedCases] = useState([]);
   const [showWizard, setShowWizard] = useState(false);
   const [currentCaseId, setCurrentCaseId] = useState(null);
+  const [authModal, setAuthModal] = useState(null); // null | "login" | "signup"
+  const [switchUserModal, setSwitchUserModal] = useState(false);
+  const [syncStatus, setSyncStatus] = useState(getSyncStatus);
+  const [showSaved, setShowSaved] = useState(false);
 
   const session = useAuthSession();
 
   // v2: selected dispute (null = overview)
   const [selectedIssueId, setSelectedIssueId] = useState(null);
-  const [caseMenuOpen, setCaseMenuOpen] = useState(false);
-  const [caseListExpanded, setCaseListExpanded] = useState(false);
+
 
   // Case chat
   const [showCaseChat, setShowCaseChat] = useState(false);
@@ -313,17 +319,57 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!session || entryMode) return;
+    if (!session?.user?.id) return;
+    syncFromSupabase(session.user.id).then(() => setSavedCases(listCases()));
+  }, [session?.user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Subscribe to cloud sync status updates from caseStorage
+  useEffect(() => onSyncStatusChange(setSyncStatus), []);
+
+  // Auto-hide the "saved" indicator after 3 seconds
+  useEffect(() => {
+    if (syncStatus.state !== "saved") return;
+    setShowSaved(true);
+    const t = setTimeout(() => setShowSaved(false), 3000);
+    return () => clearTimeout(t);
+  }, [syncStatus.state, syncStatus.lastSavedAt]);
+
+  // Persist chat history whenever it changes (debounced cloud save via persistCurrentCase)
+  useEffect(() => {
+    if (!currentCaseId || !caseChatHistory.length) return;
+    persistCurrentCase();
+  }, [caseChatHistory]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (session === undefined || entryMode) return;
     const action = new URLSearchParams(window.location.search).get('action');
     if (!action) {
       window.location.href = '/landing.html';
+      return;
+    }
+    if (action === 'login' && !session) {
+      window.history.replaceState({}, '', '/');
+      setAuthModal('login');
+      return;
+    }
+    if (action === 'signup' && !session) {
+      window.history.replaceState({}, '', '/');
+      setAuthModal('signup');
       return;
     }
     if (action === 'new') {
       window.history.replaceState({}, '', '/');
       setShowWizard(true);
     }
-    // action === 'open': fall through — JSX renders the cases list
+    if (action === 'open') {
+      const caseId = new URLSearchParams(window.location.search).get('caseId');
+      if (caseId) {
+        window.history.replaceState({}, '', '/');
+        openSavedCase(caseId);
+        return;
+      }
+      // no caseId: fall through — JSX renders the cases list
+    }
   }, [session, entryMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -375,8 +421,8 @@ export default function App() {
     );
   }
 
-  if (!session) {
-    return <AuthScreen />;
+  if (authModal && !session) {
+    return <AuthScreen initialMode={authModal} />;
   }
 
   function buildCurrentCaseState(analysisData = analysis, overrides = {}) {
@@ -402,6 +448,7 @@ export default function App() {
   overrides.lastAnalyzedCaseText ?? lastAnalyzedCaseText,
       clientRole: overrides.clientRole ?? clientRole,
       clientName: overrides.clientName ?? clientName,
+      caseChatHistory: overrides.caseChatHistory ?? caseChatHistory,
     };
   }
 
@@ -452,10 +499,15 @@ export default function App() {
     setShowWizard(false);
     setChatIssueContext(null);
     setShowCaseChat(false);
-    try {
-      const savedChat = localStorage.getItem(`secondChair.chat.${caseId}`);
-      setCaseChatHistory(savedChat ? JSON.parse(savedChat) : []);
-    } catch { setCaseChatHistory([]); }
+    // Prefer chat history embedded in the case blob; fall back to the legacy separate key
+    let chat = loaded.caseChatHistory || [];
+    if (!chat.length) {
+      try {
+        const legacy = localStorage.getItem(`secondChair.chat.${caseId}`);
+        if (legacy) chat = JSON.parse(legacy);
+      } catch { /* ignore */ }
+    }
+    setCaseChatHistory(chat);
   }
 
   function handleWizardComplete({ caseName: wCaseName, caseText: wCaseText, processedFiles, clientName: wClientName, clientRole: wClientRole, answers }) {
@@ -521,7 +573,7 @@ export default function App() {
     setError("");
     setIntakeExpanded(true);
     setActiveView("case-map");
-    setEntryMode(null);
+    setEntryMode("new");
     setShowWizard(true);
     setCaseChatHistory([]);
     setChatIssueContext(null);
@@ -2094,6 +2146,8 @@ default:
   return (
     <div dir="rtl" className="h-screen bg-[#eef0f4] text-slate-900 flex flex-col overflow-hidden">
       {loading && <AnalysisLoadingOverlay mode={loadingMode} caseName={caseName} clientName={clientName} />}
+      {!!analysis && !session && <AuthScreen isModal paywallMode initialMode="signup" />}
+      {switchUserModal && <AuthScreen isModal initialMode="login" onDone={() => setSwitchUserModal(false)} />}
 
       {showWizard && (
         <NewCaseWizard
@@ -2104,7 +2158,18 @@ default:
 
       <div className="flex flex-1 overflow-hidden">
         {/* RTL: first in DOM = rightmost on screen */}
-        <AppNav activeView={activeView} onChangeView={setActiveView} />
+        <AppNav
+          activeView={activeView}
+          onChangeView={setActiveView}
+          session={session}
+          onSwitchUser={() => setSwitchUserModal(true)}
+          onLogout={async () => { await supabase?.auth.signOut(); window.location.href = '/landing.html'; }}
+          savedCases={savedCases}
+          currentCaseId={currentCaseId}
+          onNewCase={handleOpenNewCase}
+          onOpenCase={openSavedCase}
+          onDeleteCase={removeSavedCase}
+        />
 
         {/* Dispute navigator — only in case-map view */}
         {activeView === "case-map" && (
@@ -2173,81 +2238,37 @@ default:
               </span>
             )}
 
-            {/* Left: case management menu + admin */}
+            {/* Left: sync indicator + username */}
             <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={() => supabase?.auth.signOut()}
-                className="text-[11px] text-slate-400 hover:text-slate-700 cursor-pointer bg-transparent border-0 px-2 py-1"
-                title="התנתק"
-              >
-                יציאה
-              </button>
-              <div className="relative">
-                <button
-                  onClick={() => setCaseMenuOpen((v) => !v)}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 transition-colors text-lg cursor-pointer"
-                  title="ניהול תיקים"
+              {syncStatus.state === "syncing" && (
+                <span className="text-[10px] text-slate-400 flex items-center gap-1 select-none">
+                  <span className="inline-block animate-spin">↻</span>
+                  מסנכרן...
+                </span>
+              )}
+              {syncStatus.state === "saved" && showSaved && (
+                <span className="text-[10px] text-emerald-500 select-none">✓ נשמר בענן</span>
+              )}
+              {syncStatus.state === "failed" && (
+                <span
+                  className="text-[10px] text-red-500 select-none cursor-default"
+                  title="השמירה לענן נכשלה. מנסה שוב אוטומטית..."
                 >
-                  ⋮
+                  ⚠ השמירה לענן נכשלה
+                </span>
+              )}
+              {session ? (
+                <span className="text-[11px] text-slate-400 px-1 max-w-[120px] truncate">
+                  {session.user?.user_metadata?.full_name || session.user?.email}
+                </span>
+              ) : (
+                <button
+                  onClick={() => setAuthModal('login')}
+                  className="text-[11px] text-slate-400 hover:text-slate-700 cursor-pointer bg-transparent border-0 px-2 py-1"
+                >
+                  התחבר
                 </button>
-                {caseMenuOpen && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => { setCaseMenuOpen(false); setCaseListExpanded(false); }} />
-                    <div className="absolute left-0 top-full mt-1.5 w-60 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden z-50" dir="rtl">
-                      <button
-                        onClick={() => { handleOpenNewCase(); setCaseMenuOpen(false); setCaseListExpanded(false); }}
-                        className="w-full text-right px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-                      >
-                        + תיק חדש
-                      </button>
-                      <div className="border-t border-slate-100" />
-                      {/* החלף תיק */}
-                      <button
-                        onClick={() => setCaseListExpanded((v) => !v)}
-                        className="w-full text-right px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors flex items-center justify-between"
-                      >
-                        <span>החלף תיק</span>
-                        <span className="text-slate-400 text-[10px] mr-2">{caseListExpanded ? "▲" : "▼"}</span>
-                      </button>
-                      {caseListExpanded && (
-                        <div className="max-h-52 overflow-y-auto border-t border-slate-100">
-                          {savedCases.length === 0 ? (
-                            <div className="px-3 py-2 text-xs text-slate-400">אין תיקים שמורים</div>
-                          ) : (
-                            savedCases.map((item) => (
-                              <button
-                                key={item.id}
-                                onClick={() => { openSavedCase(item.id); setCaseMenuOpen(false); setCaseListExpanded(false); }}
-                                className={[
-                                  "w-full text-right px-4 py-2 text-sm transition-colors",
-                                  item.id === currentCaseId
-                                    ? "font-semibold text-slate-900 bg-slate-50"
-                                    : "text-slate-600 hover:bg-slate-50",
-                                ].join(" ")}
-                              >
-                                {item.id === currentCaseId && <span className="ml-1.5 text-[9px] text-slate-400">◀ נוכחי</span>}
-                                {item.name}
-                              </button>
-                            ))
-                          )}
-                        </div>
-                      )}
-                      <div className="border-t border-slate-100" />
-                      {currentCaseId && (
-                        <button
-                          onClick={() => { removeSavedCase(currentCaseId); setCaseMenuOpen(false); setCaseListExpanded(false); }}
-                          className="w-full text-right px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                        >
-                          מחק תיק
-                        </button>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-              <a href="/precedents" className="text-[12px] text-slate-400 hover:text-slate-600 transition-colors">
-                Admin
-              </a>
+              )}
             </div>
           </div>
 

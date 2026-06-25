@@ -30,7 +30,43 @@ body{font-family:var(--font);direction:rtl;background:var(--ground);color:var(--
 }
 .logo{font-size:15.5px;font-weight:800;color:rgba(255,255,255,.9)}
 .logo em{color:var(--accent);font-style:normal}
-.nav-btns{display:flex;gap:8px}
+.nav-group{display:flex;gap:8px;align-items:center}
+.nav-end{display:flex;align-items:center;gap:10px}
+.nav-username{font-size:13px;color:rgba(255,255,255,.65);font-weight:500}
+.nav-logout{background:transparent;border:none;font-size:12px;color:rgba(255,255,255,.35);cursor:pointer;font-family:var(--font);padding:0 4px;transition:color .15s}
+.nav-logout:hover{color:rgba(255,255,255,.7)}
+
+/* ─── CASES MODAL ───────────────────────── */
+#cases-modal{display:none;position:fixed;inset:0;z-index:200;background:rgba(11,17,32,.78);backdrop-filter:blur(10px);align-items:center;justify-content:center;padding:24px}
+#cases-modal.open{display:flex}
+.cases-card{background:#fff;border-radius:24px;padding:32px;width:100%;max-width:480px;position:relative;direction:rtl;box-shadow:0 24px 64px rgba(0,0,0,.3);max-height:80vh;display:flex;flex-direction:column}
+.cases-hd{font-size:20px;font-weight:800;color:#0f172a;margin-bottom:16px}
+.cases-list{overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:8px}
+.case-item{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border:1px solid #e2e8f0;border-radius:14px;cursor:pointer;transition:background .12s;text-align:right;background:#fff}
+.case-item:hover{background:#f8fafc}
+.case-name{font-size:14px;font-weight:600;color:#0f172a}
+.case-meta{font-size:12px;color:#94a3b8;margin-top:2px}
+.cases-empty{text-align:center;padding:32px 16px;color:#94a3b8;font-size:14px}
+
+/* ─── AUTH MODAL ────────────────────────── */
+#auth-modal{display:none;position:fixed;inset:0;z-index:200;background:rgba(11,17,32,.78);backdrop-filter:blur(10px);align-items:center;justify-content:center;padding:24px}
+#auth-modal.open{display:flex}
+.auth-card{background:#fff;border-radius:24px;padding:36px 32px;width:100%;max-width:400px;position:relative;direction:rtl;box-shadow:0 24px 64px rgba(0,0,0,.3)}
+.modal-close{position:absolute;top:14px;left:14px;background:none;border:none;cursor:pointer;color:#94a3b8;font-size:18px;line-height:1;font-family:var(--font);padding:6px;border-radius:50%;transition:color .15s}
+.modal-close:hover{color:#475569}
+.auth-hd{text-align:center;margin-bottom:22px}
+.auth-hd-title{font-size:26px;font-weight:800;color:#0f172a;margin-bottom:4px}
+.auth-hd-sub{font-size:13px;color:#64748b}
+.auth-form{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
+.auth-inp{width:100%;border:1px solid #cbd5e1;border-radius:14px;padding:12px 16px;font-size:14px;font-family:var(--font);text-align:right;outline:none;transition:border-color .15s;box-sizing:border-box}
+.auth-inp:focus{border-color:#4f6eff;box-shadow:0 0 0 3px rgba(79,110,255,.12)}
+.auth-err{font-size:13px;color:#dc2626;text-align:right;margin:0;display:none}
+.auth-btn{background:#0f172a;color:#fff;border:none;border-radius:14px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font);transition:background .15s;width:100%}
+.auth-btn:hover{background:#1e293b}
+.auth-btn:disabled{opacity:.5;cursor:default}
+.auth-sw{text-align:center;font-size:13px;color:#64748b;margin:0}
+.auth-sw-btn{background:none;border:none;color:#4f6eff;font-weight:600;cursor:pointer;font-family:var(--font);font-size:13px;padding:0}
+.auth-sw-btn:hover{text-decoration:underline}
 .nbtn{padding:6px 15px;border-radius:7px;font-size:14.5px;font-weight:600;cursor:pointer;border:none;font-family:var(--font);transition:all .15s}
 .nbtn-g{background:transparent;color:rgba(255,255,255,.6);border:1px solid rgba(255,255,255,.1)}
 .nbtn-g:hover{background:rgba(255,255,255,.07);color:#fff}
@@ -272,11 +308,21 @@ footer{
 
 <!-- NAV -->
 <nav class="nav">
-  <div class="nav-btns">
-    <button class="nbtn nbtn-a" id="btn-new">התחל תיק חדש</button>
+  <!-- RIGHT side (inline-start in RTL): toggles based on auth state -->
+  <div id="nav-logged-out" class="nav-group">
+    <button class="nbtn nbtn-g" id="btn-login">התחבר</button>
+    <button class="nbtn nbtn-a" id="btn-signup">הרשמה</button>
+  </div>
+  <div id="nav-logged-in" class="nav-group" style="display:none">
+    <button class="nbtn nbtn-a" id="btn-new">תיק חדש</button>
     <button class="nbtn nbtn-g" id="btn-open">פתח תיק קיים</button>
   </div>
-  <div class="logo">Second<em>Chair</em></div>
+  <!-- LEFT side: logo + username + logout when logged in -->
+  <div class="nav-end">
+    <span id="nav-username" class="nav-username"></span>
+    <button id="btn-logout" class="nav-logout" style="display:none">יציאה</button>
+    <div class="logo">Second<em>Chair</em></div>
+  </div>
 </nav>
 
 <!-- HERO -->
@@ -289,7 +335,7 @@ footer{
       <div class="hero-pos">עורך הדין השני על התיק</div>
       <p class="hero-sub">מאפיין מחלוקות, מנתח עובדות, ראיות ופסיקה, מזהה חוסרים ומציע דרכי פעולה.</p>
       <div class="hero-ctas">
-        <button class="btn-p" id="btn-new-hero">התחל תיק חדש</button>
+        <button class="btn-p" id="btn-new-hero">תיק חדש</button>
         <button class="btn-s" id="btn-open-hero">פתח תיק קיים</button>
       </div>
     </div>
@@ -375,7 +421,7 @@ footer{
       <span class="cta-ra">הניתוח מתעדכן ככל שהתיק מתפתח.</span>
     </div>
 
-    <button class="cta-btn" id="btn-new-cta">התחל תיק חדש</button>
+    <button class="cta-btn" id="btn-new-cta">תיק חדש</button>
     <p class="cta-duration">ההקמה הראשונית אורכת בדרך כלל כ־3 דקות.</p>
 
   </div>
@@ -396,6 +442,36 @@ footer{
   <div class="f-logo">Second<em>Chair</em></div>
   <div class="f-tag">עורך הדין השני על התיק</div>
 </footer>
+
+<!-- CASES MODAL -->
+<div id="cases-modal">
+  <div class="cases-card">
+    <button id="cases-modal-close" class="modal-close" type="button">✕</button>
+    <div class="cases-hd">תיקים שמורים</div>
+    <div id="cases-list" class="cases-list"></div>
+  </div>
+</div>
+
+<!-- AUTH MODAL -->
+<div id="auth-modal">
+  <div class="auth-card">
+    <button id="modal-close" class="modal-close" type="button">✕</button>
+    <div class="auth-hd">
+      <div class="auth-hd-title">Second Chair</div>
+      <div id="auth-subtitle" class="auth-hd-sub">כניסה לחשבון</div>
+    </div>
+    <form id="auth-form" class="auth-form" novalidate>
+      <input id="modal-name" type="text" placeholder="שם מלא" class="auth-inp" style="display:none" />
+      <input id="modal-email" type="email" placeholder="כתובת אימייל" required class="auth-inp" />
+      <input id="modal-password" type="password" placeholder="סיסמה" required minlength="6" class="auth-inp" />
+      <p id="modal-error" class="auth-err"></p>
+      <button id="modal-submit" type="submit" class="auth-btn">כניסה</button>
+    </form>
+    <p class="auth-sw">
+      <span id="toggle-text">אין לך חשבון עדיין?</span>&#32;<button id="modal-toggle" class="auth-sw-btn" type="button">הרשמה</button>
+    </p>
+  </div>
+</div>
 
 <script>
 (function(){
@@ -588,8 +664,156 @@ function updateCardStates() {}
 });
 ['btn-open','btn-open-hero'].forEach(function(id) {
   var el = document.getElementById(id);
-  if (el) el.addEventListener('click', function() { window.location.href = '/?action=open'; });
+  if (el) el.addEventListener('click', openCasesModal);
 });
+
+/* ── Cases modal ───────────────────────────────────────────── */
+function openCasesModal() {
+  var list = document.getElementById('cases-list');
+  if (!list) return;
+  list.innerHTML = '';
+  var cases = [];
+  try { cases = JSON.parse(localStorage.getItem('secondChair.cases.index') || '[]'); } catch(e) {}
+  cases = Array.isArray(cases) ? cases : [];
+  if (cases.length === 0) {
+    list.innerHTML = '<div class="cases-empty">אין עדיין תיקים שמורים</div>';
+  } else {
+    cases.forEach(function(item) {
+      var date = item.updatedAt ? new Date(item.updatedAt).toLocaleDateString('he-IL') : '';
+      var docs = item.documentsCount ? item.documentsCount + ' מסמכים' : '';
+      var meta = [date, docs].filter(Boolean).join(' · ');
+      var btn = document.createElement('button');
+      btn.className = 'case-item';
+      btn.innerHTML = '<div><div class="case-name">' + (item.name || 'תיק ללא שם') + '</div>' +
+        (meta ? '<div class="case-meta">' + meta + '</div>' : '') + '</div>' +
+        '<span style="color:#cbd5e1;font-size:18px">‹</span>';
+      btn.addEventListener('click', function() {
+        window.location.href = '/?action=open&caseId=' + encodeURIComponent(item.id);
+      });
+      list.appendChild(btn);
+    });
+  }
+  document.getElementById('cases-modal').classList.add('open');
+}
+document.getElementById('cases-modal-close').addEventListener('click', function() {
+  document.getElementById('cases-modal').classList.remove('open');
+});
+document.getElementById('cases-modal').addEventListener('click', function(e) {
+  if (e.target === this) this.classList.remove('open');
+});
+/* ── Auth nav + modal ──────────────────────────────────────── */
+(function() {
+  var SUPA_URL = 'https://axwcgvvhirlfjgeuzspq.supabase.co';
+  var SUPA_KEY = 'sb_publishable_8D93TfMa71wqiplrCvo1vw_QeCnMJEg';
+  var client = null;
+  var mode = 'login';
+
+  /* nav state */
+  function updateNav(session) {
+    var out = document.getElementById('nav-logged-out');
+    var inn = document.getElementById('nav-logged-in');
+    var uname = document.getElementById('nav-username');
+    var logoutBtn = document.getElementById('btn-logout');
+    if (session && session.user) {
+      var name = (session.user.user_metadata && session.user.user_metadata.full_name)
+        ? session.user.user_metadata.full_name : session.user.email;
+      if (uname) uname.textContent = name;
+      if (out) out.style.display = 'none';
+      if (inn) inn.style.display = 'flex';
+      if (logoutBtn) logoutBtn.style.display = 'inline';
+    } else {
+      if (uname) uname.textContent = '';
+      if (out) out.style.display = 'flex';
+      if (inn) inn.style.display = 'none';
+      if (logoutBtn) logoutBtn.style.display = 'none';
+    }
+  }
+
+  /* modal */
+  function openModal(m) {
+    setMode(m);
+    document.getElementById('modal-email').value = '';
+    document.getElementById('modal-password').value = '';
+    document.getElementById('modal-name').value = '';
+    document.getElementById('modal-error').style.display = 'none';
+    document.getElementById('auth-modal').classList.add('open');
+    setTimeout(function() { document.getElementById('modal-email').focus(); }, 80);
+  }
+  function closeModal() {
+    document.getElementById('auth-modal').classList.remove('open');
+  }
+  function setMode(m) {
+    mode = m;
+    var isLogin = m === 'login';
+    document.getElementById('auth-subtitle').textContent = isLogin ? 'כניסה לחשבון' : 'יצירת חשבון חדש';
+    document.getElementById('modal-name').style.display = isLogin ? 'none' : 'block';
+    document.getElementById('modal-submit').textContent = isLogin ? 'כניסה' : 'הרשמה';
+    document.getElementById('toggle-text').textContent = isLogin ? 'אין לך חשבון עדיין?' : 'יש לך כבר חשבון?';
+    document.getElementById('modal-toggle').textContent = isLogin ? 'הרשמה' : 'כניסה';
+    document.getElementById('modal-error').style.display = 'none';
+  }
+
+  function translateError(msg) {
+    if (msg.indexOf('Invalid login credentials') > -1) return 'אימייל או סיסמה שגויים';
+    if (msg.indexOf('User already registered') > -1) return 'כתובת האימייל כבר רשומה במערכת';
+    if (msg.indexOf('Password should be') > -1) return 'הסיסמה חייבת להכיל לפחות 6 תווים';
+    if (msg.indexOf('rate limit') > -1) return 'יותר מדי ניסיונות — נסה שוב עוד מספר דקות';
+    return msg;
+  }
+
+  /* load Supabase */
+  var script = document.createElement('script');
+  script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
+  script.onload = function() {
+    client = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+    client.auth.getSession().then(function(res) { updateNav(res.data.session); });
+    client.auth.onAuthStateChange(function(_e, session) {
+      updateNav(session);
+      if (session) closeModal();
+    });
+
+    /* nav button wiring */
+    var loginBtn = document.getElementById('btn-login');
+    if (loginBtn) loginBtn.addEventListener('click', function() { openModal('login'); });
+    var signupBtn = document.getElementById('btn-signup');
+    if (signupBtn) signupBtn.addEventListener('click', function() { openModal('signup'); });
+    var logoutBtn = document.getElementById('btn-logout');
+    if (logoutBtn) logoutBtn.addEventListener('click', function() { client.auth.signOut(); });
+
+    /* modal wiring */
+    document.getElementById('modal-close').addEventListener('click', closeModal);
+    document.getElementById('auth-modal').addEventListener('click', function(e) {
+      if (e.target === this) closeModal();
+    });
+    document.getElementById('modal-toggle').addEventListener('click', function() {
+      setMode(mode === 'login' ? 'signup' : 'login');
+    });
+
+    document.getElementById('auth-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      var email = document.getElementById('modal-email').value;
+      var password = document.getElementById('modal-password').value;
+      var name = document.getElementById('modal-name').value.trim();
+      var errEl = document.getElementById('modal-error');
+      var submitBtn = document.getElementById('modal-submit');
+      errEl.style.display = 'none';
+      submitBtn.disabled = true;
+      submitBtn.textContent = '...';
+      var promise = mode === 'login'
+        ? client.auth.signInWithPassword({ email: email, password: password })
+        : client.auth.signUp({ email: email, password: password, options: { data: { full_name: name } } });
+      promise.then(function(result) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = mode === 'login' ? 'כניסה' : 'הרשמה';
+        if (result.error) {
+          errEl.textContent = translateError(result.error.message);
+          errEl.style.display = 'block';
+        }
+      });
+    });
+  };
+  document.head.appendChild(script);
+})();
 
 /* ── Init ──────────────────────────────────────────────────── */
 buildDots();
