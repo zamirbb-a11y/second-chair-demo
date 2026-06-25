@@ -27,6 +27,9 @@ import DeltaNotificationPanel from "./components/DeltaNotificationPanel";
 import PreIntakePanel from "./components/PreIntakePanel";
 import NewCaseWizard from "./components/NewCaseWizard";
 import CaseChatPanel from "./components/CaseChatPanel";
+import AuthScreen from "./components/AuthScreen";
+import { useAuthSession } from "./hooks/useAuthSession";
+import { supabase } from "./lib/supabaseClient";
 
 import {
   createCaseId,
@@ -263,8 +266,7 @@ export default function App() {
   const [showWizard, setShowWizard] = useState(false);
   const [currentCaseId, setCurrentCaseId] = useState(null);
 
-  const [isAuthorized, setIsAuthorized] = useState(true);
-  const [passwordInput, setPasswordInput] = useState("");
+  const session = useAuthSession();
 
   // v2: selected dispute (null = overview)
   const [selectedIssueId, setSelectedIssueId] = useState(null);
@@ -311,7 +313,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!isAuthorized || entryMode) return;
+    if (!session || entryMode) return;
     const action = new URLSearchParams(window.location.search).get('action');
     if (!action) {
       window.location.href = '/landing.html';
@@ -322,7 +324,7 @@ export default function App() {
       setShowWizard(true);
     }
     // action === 'open': fall through — JSX renders the cases list
-  }, [isAuthorized, entryMode]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [session, entryMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!analysis) return;
@@ -365,44 +367,16 @@ export default function App() {
     });
   }, [liveCaseState]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!isAuthorized) {
+  if (session === undefined) {
     return (
-      <div
-        dir="rtl"
-        className="min-h-screen bg-[#eef4fb] flex items-center justify-center p-6"
-      >
-        <div className="w-full max-w-md rounded-3xl bg-white border border-slate-200 shadow-xl p-8 space-y-6">
-          <div className="space-y-2 text-center">
-            <h1 className="text-3xl font-bold text-slate-900">Second Chair</h1>
-            <p className="text-sm text-slate-500">סביבת ניסוי פנימית</p>
-          </div>
-
-          <div className="space-y-3">
-            <input
-              type="password"
-              value={passwordInput}
-              onChange={(e) => setPasswordInput(e.target.value)}
-              placeholder="הכנס סיסמה"
-              className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-right focus:outline-none focus:ring-2 focus:ring-slate-400"
-            />
-
-            <button
-              type="button"
-              onClick={() => {
-                if (passwordInput === "1984") {
-                  setIsAuthorized(true);
-                } else {
-                  alert("סיסמה שגויה");
-                }
-              }}
-              className="w-full rounded-2xl bg-slate-900 py-3 text-white font-bold hover:bg-slate-800"
-            >
-              כניסה
-            </button>
-          </div>
-        </div>
+      <div className="min-h-screen bg-[#eef0f4] flex items-center justify-center">
+        <div className="text-slate-400 text-sm">טוען…</div>
       </div>
     );
+  }
+
+  if (!session) {
+    return <AuthScreen />;
   }
 
   function buildCurrentCaseState(analysisData = analysis, overrides = {}) {
@@ -2201,6 +2175,13 @@ default:
 
             {/* Left: case management menu + admin */}
             <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => supabase?.auth.signOut()}
+                className="text-[11px] text-slate-400 hover:text-slate-700 cursor-pointer bg-transparent border-0 px-2 py-1"
+                title="התנתק"
+              >
+                יציאה
+              </button>
               <div className="relative">
                 <button
                   onClick={() => setCaseMenuOpen((v) => !v)}
