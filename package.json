@@ -5,11 +5,15 @@
     "start": "vite --host 0.0.0.0"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.108.2",
     "@vitejs/plugin-react": "latest",
-    "vite": "latest",
+    "dotenv": "^17.4.2",
+    "formidable": "^3.5.1",
+    "mailparser": "^3.7.2",
+    "mammoth": "^1.8.0",
+    "pdf-parse": "^1.1.1",
     "react": "latest",
     "react-dom": "latest",
-    "mammoth": "latest"
-  },
-  "devDependencies": {}
+    "vite": "latest"
+  }
 }
