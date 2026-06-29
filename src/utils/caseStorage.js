@@ -90,8 +90,18 @@ export function deleteCase(caseId) {
 
 // ── Sync from Supabase (called once on login) ─────────────────
 
+const CURRENT_USER_KEY = "secondChair.currentUserId";
+
 export async function syncFromSupabase(userId) {
   if (!supabase || !userId) return;
+
+  // Clear local case data if a different user logs in on the same browser
+  const storedUserId = localStorage.getItem(CURRENT_USER_KEY);
+  if (storedUserId && storedUserId !== userId) {
+    listCases().forEach((item) => localStorage.removeItem(`${CASE_KEY_PREFIX}${item.id}`));
+    localStorage.removeItem(CASES_INDEX_KEY);
+  }
+  localStorage.setItem(CURRENT_USER_KEY, userId);
 
   const { data: remote, error } = await supabase
     .from("cases")
