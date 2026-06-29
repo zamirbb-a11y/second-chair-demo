@@ -20,6 +20,7 @@ import EvidenceView from "./views/EvidenceView";
 import WitnessesView from "./views/WitnessesView";
 
 import PrecedentBankManager from "./admin/PrecedentBankManager";
+import AdminPanel from "./admin/AdminPanel";
 
 import HorizontalTimeline from "./components/HorizontalTimeline";
 import SuccessAssessment from "./components/SuccessAssessment";
@@ -342,6 +343,8 @@ export default function App() {
 
   useEffect(() => {
     if (session === undefined || entryMode) return;
+    const { pathname } = window.location;
+    if (pathname === '/precedents' || pathname === '/admin') return; // admin routes — no redirect
     const action = new URLSearchParams(window.location.search).get('action');
     if (!action) {
       window.location.href = '/landing.html';
@@ -881,6 +884,9 @@ export default function App() {
   }
 }
 
+  if (window.location.pathname === "/precedents") return <PrecedentBankManager />;
+  if (window.location.pathname === "/admin") return <AdminPanel />;
+
   if (!entryMode) {
     const landingAction = new URLSearchParams(window.location.search).get('action');
     if (!landingAction && !showWizard) return null; // useEffect is redirecting to /landing.html
@@ -955,10 +961,6 @@ export default function App() {
         </div>
       </div>
     );
-  }
-
-  if (window.location.pathname === "/precedents") {
-    return <PrecedentBankManager />;
   }
 
   async function handleWordUpload(event) {
@@ -2187,6 +2189,11 @@ default:
 
         {/* Main content column */}
         <div className="flex-1 min-w-0 flex flex-col overflow-hidden relative">
+
+          {/* Demo banner */}
+          <div className="bg-amber-50 border-b border-amber-100 text-center py-1.5 shrink-0" dir="rtl">
+            <span className="text-xs text-amber-700 font-medium">גרסת דמו. המערכת אומנה על דיני חוזים בלבד; המאגר המשפטי קטן מאוד.</span>
+          </div>
 
           {/* Top bar */}
           <div className="bg-white border-b border-slate-200 px-5 flex items-center gap-3 flex-shrink-0 h-12">

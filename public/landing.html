@@ -73,6 +73,18 @@ body{font-family:var(--font);direction:rtl;background:var(--ground);color:var(--
 .nbtn-a{background:var(--accent);color:#fff}
 .nbtn-a:hover{background:#3a57f0}
 
+/* ─── DEMO BANNER ───────────────────── */
+.demo-banner{
+  margin-top:54px;
+  background:#fffbeb;color:#92400e;
+  text-align:center;font-size:13px;font-weight:500;
+  padding:8px 16px;border-bottom:1px solid #fde68a;direction:rtl
+}
+
+/* ─── NAME MODAL (post-invite) ───────── */
+#name-modal{display:none;position:fixed;inset:0;z-index:300;background:rgba(11,17,32,.78);backdrop-filter:blur(10px);align-items:center;justify-content:center;padding:24px}
+#name-modal.open{display:flex}
+
 /* ─── HERO ─────────────────────────── */
 .hero{
   background:var(--hero);
@@ -311,7 +323,6 @@ footer{
   <!-- RIGHT side (inline-start in RTL): toggles based on auth state -->
   <div id="nav-logged-out" class="nav-group">
     <button class="nbtn nbtn-g" id="btn-login">התחבר</button>
-    <button class="nbtn nbtn-a" id="btn-signup">הרשמה</button>
   </div>
   <div id="nav-logged-in" class="nav-group" style="display:none">
     <button class="nbtn nbtn-a" id="btn-new">תיק חדש</button>
@@ -324,6 +335,9 @@ footer{
     <div class="logo">Second<em>Chair</em></div>
   </div>
 </nav>
+
+<!-- DEMO BANNER -->
+<div class="demo-banner">גרסת דמו. המערכת אומנה על דיני חוזים בלבד; המאגר המשפטי קטן מאוד.</div>
 
 <!-- HERO -->
 <section class="hero" id="hero">
@@ -461,15 +475,27 @@ footer{
       <div id="auth-subtitle" class="auth-hd-sub">כניסה לחשבון</div>
     </div>
     <form id="auth-form" class="auth-form" novalidate>
-      <input id="modal-name" type="text" placeholder="שם מלא" class="auth-inp" style="display:none" />
       <input id="modal-email" type="email" placeholder="כתובת אימייל" required class="auth-inp" />
       <input id="modal-password" type="password" placeholder="סיסמה" required minlength="6" class="auth-inp" />
       <p id="modal-error" class="auth-err"></p>
       <button id="modal-submit" type="submit" class="auth-btn">כניסה</button>
     </form>
-    <p class="auth-sw">
-      <span id="toggle-text">אין לך חשבון עדיין?</span>&#32;<button id="modal-toggle" class="auth-sw-btn" type="button">הרשמה</button>
-    </p>
+    <p class="auth-sw" style="color:#94a3b8;font-size:12px;text-align:center">הגישה למערכת בהזמנה בלבד</p>
+  </div>
+</div>
+
+<!-- NAME MODAL: shown to invited users who have no display name yet -->
+<div id="name-modal">
+  <div class="auth-card">
+    <div class="auth-hd">
+      <div class="auth-hd-title">ברוכים הבאים!</div>
+      <div class="auth-hd-sub">אנא הכנס את שמך להמשך</div>
+    </div>
+    <form id="name-form" class="auth-form" novalidate>
+      <input id="name-input" type="text" placeholder="שם מלא" class="auth-inp" required autocomplete="name" />
+      <p id="name-error" class="auth-err"></p>
+      <button type="submit" class="auth-btn">המשך</button>
+    </form>
   </div>
 </div>
 
@@ -730,27 +756,15 @@ document.getElementById('cases-modal').addEventListener('click', function(e) {
   }
 
   /* modal */
-  function openModal(m) {
-    setMode(m);
+  function openModal() {
     document.getElementById('modal-email').value = '';
     document.getElementById('modal-password').value = '';
-    document.getElementById('modal-name').value = '';
     document.getElementById('modal-error').style.display = 'none';
     document.getElementById('auth-modal').classList.add('open');
     setTimeout(function() { document.getElementById('modal-email').focus(); }, 80);
   }
   function closeModal() {
     document.getElementById('auth-modal').classList.remove('open');
-  }
-  function setMode(m) {
-    mode = m;
-    var isLogin = m === 'login';
-    document.getElementById('auth-subtitle').textContent = isLogin ? 'כניסה לחשבון' : 'יצירת חשבון חדש';
-    document.getElementById('modal-name').style.display = isLogin ? 'none' : 'block';
-    document.getElementById('modal-submit').textContent = isLogin ? 'כניסה' : 'הרשמה';
-    document.getElementById('toggle-text').textContent = isLogin ? 'אין לך חשבון עדיין?' : 'יש לך כבר חשבון?';
-    document.getElementById('modal-toggle').textContent = isLogin ? 'הרשמה' : 'כניסה';
-    document.getElementById('modal-error').style.display = 'none';
   }
 
   function translateError(msg) {
@@ -766,17 +780,42 @@ document.getElementById('cases-modal').addEventListener('click', function(e) {
   script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
   script.onload = function() {
     client = window.supabase.createClient(SUPA_URL, SUPA_KEY);
-    client.auth.getSession().then(function(res) { updateNav(res.data.session); });
+    client.auth.getSession().then(function(res) {
+      updateNav(res.data.session);
+      maybeShowNameModal(res.data.session);
+    });
     client.auth.onAuthStateChange(function(_e, session) {
       updateNav(session);
       if (session) closeModal();
+      maybeShowNameModal(session);
+    });
+
+    function maybeShowNameModal(session) {
+      if (!session || !session.user) return;
+      var hasName = session.user.user_metadata && session.user.user_metadata.full_name;
+      if (!hasName) document.getElementById('name-modal').classList.add('open');
+    }
+
+    document.getElementById('name-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      var name = document.getElementById('name-input').value.trim();
+      var errEl = document.getElementById('name-error');
+      errEl.style.display = 'none';
+      if (!name) return;
+      client.auth.updateUser({ data: { full_name: name } }).then(function(res) {
+        if (res.error) {
+          errEl.textContent = res.error.message;
+          errEl.style.display = 'block';
+        } else {
+          document.getElementById('name-modal').classList.remove('open');
+          client.auth.getSession().then(function(s) { updateNav(s.data.session); });
+        }
+      });
     });
 
     /* nav button wiring */
     var loginBtn = document.getElementById('btn-login');
-    if (loginBtn) loginBtn.addEventListener('click', function() { openModal('login'); });
-    var signupBtn = document.getElementById('btn-signup');
-    if (signupBtn) signupBtn.addEventListener('click', function() { openModal('signup'); });
+    if (loginBtn) loginBtn.addEventListener('click', function() { openModal(); });
     var logoutBtn = document.getElementById('btn-logout');
     if (logoutBtn) logoutBtn.addEventListener('click', function() { client.auth.signOut(); });
 
@@ -785,26 +824,18 @@ document.getElementById('cases-modal').addEventListener('click', function(e) {
     document.getElementById('auth-modal').addEventListener('click', function(e) {
       if (e.target === this) closeModal();
     });
-    document.getElementById('modal-toggle').addEventListener('click', function() {
-      setMode(mode === 'login' ? 'signup' : 'login');
-    });
-
     document.getElementById('auth-form').addEventListener('submit', function(e) {
       e.preventDefault();
       var email = document.getElementById('modal-email').value;
       var password = document.getElementById('modal-password').value;
-      var name = document.getElementById('modal-name').value.trim();
       var errEl = document.getElementById('modal-error');
       var submitBtn = document.getElementById('modal-submit');
       errEl.style.display = 'none';
       submitBtn.disabled = true;
       submitBtn.textContent = '...';
-      var promise = mode === 'login'
-        ? client.auth.signInWithPassword({ email: email, password: password })
-        : client.auth.signUp({ email: email, password: password, options: { data: { full_name: name } } });
-      promise.then(function(result) {
+      client.auth.signInWithPassword({ email: email, password: password }).then(function(result) {
         submitBtn.disabled = false;
-        submitBtn.textContent = mode === 'login' ? 'כניסה' : 'הרשמה';
+        submitBtn.textContent = 'כניסה';
         if (result.error) {
           errEl.textContent = translateError(result.error.message);
           errEl.style.display = 'block';
