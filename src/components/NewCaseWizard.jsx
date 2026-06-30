@@ -60,6 +60,24 @@ export default function NewCaseWizard({ onComplete, onCancel }) {
     setUploading(false);
   }
 
+  async function removeFile(index) {
+    const file = processedFiles[index];
+    if (!file) return;
+    setProcessedFiles(prev => prev.filter((_, i) => i !== index));
+    setUploadedNames(prev => prev.filter((_, i) => i !== index));
+    if (file.storagePath) {
+      const { data: { session } } = await supabase.auth.getSession();
+      await fetch("/api/delete-document", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ storagePath: file.storagePath }),
+      });
+    }
+  }
+
   // ── Advance step 2 → 3 (pre-intake in background) ────────────
   async function advanceFromStep2() {
     setLoadingPreIntake(true);
@@ -218,7 +236,15 @@ export default function NewCaseWizard({ onComplete, onCancel }) {
                   {uploadedNames.length > 0 && (
                     <div className="flex flex-wrap justify-center gap-1.5 mt-1">
                       {uploadedNames.map((n, i) => (
-                        <span key={i} className="text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full px-2.5 py-0.5 font-medium">{n}</span>
+                        <span key={i} className="inline-flex items-center gap-1 text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full px-2.5 py-0.5 font-medium">
+                          {n}
+                          <button
+                            type="button"
+                            onClick={e => { e.preventDefault(); e.stopPropagation(); removeFile(i); }}
+                            className="text-indigo-400 hover:text-red-500 leading-none"
+                            aria-label={`הסר ${n}`}
+                          >×</button>
+                        </span>
                       ))}
                     </div>
                   )}
