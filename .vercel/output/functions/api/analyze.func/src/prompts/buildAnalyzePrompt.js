@@ -1,50 +1,42 @@
-import { successAssessmentPrompt } from "../lib/successAssessmentPrompt.js";
-export default function buildAnalyzePrompt({
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = buildAnalyzePrompt;
+var _successAssessmentPrompt = require("../lib/successAssessmentPrompt.js");
+function buildAnalyzePrompt({
   caseText,
   documentText,
   files = [],
   legalPacks = [],
   precedents = [],
-  clientName = "",
+  clientName = ""
 }) {
   const MAX_DOCUMENT_CHARS = 22000;
   const MAX_CASE_CHARS = 6000;
   const MAX_TOTAL_FILES_CHARS = 26000;
-
   const MAX_CHUNKS_PER_FILE = 3;
   const MAX_CHUNK_CHARS = 1600;
-
   const MAX_PRECEDENTS = 8;
   const MAX_PRECEDENT_TEXT_CHARS = 1800;
-
   function limitText(text, maxChars) {
     if (!text) return "";
-
     if (text.length <= maxChars) {
       return text;
     }
-
-    return (
-      text.slice(0, maxChars) +
-      "\n\n[הטקסט קוצר לצורך ניתוח הדמו.]"
-    );
+    return text.slice(0, maxChars) + "\n\n[הטקסט קוצר לצורך ניתוח הדמו.]";
   }
-
   function formatFileForPrompt(file, index) {
     const profile = file?.documentProfile || {};
-
-    const chunks = (file?.chunks || [])
-      .slice(0, MAX_CHUNKS_PER_FILE)
-      .map((chunk) => {
-        return `
+    const chunks = (file?.chunks || []).slice(0, MAX_CHUNKS_PER_FILE).map(chunk => {
+      return `
 [Chunk ${chunk.index}]
 Chunk ID: ${chunk.id}
 
 ${limitText(chunk.text, MAX_CHUNK_CHARS)}
 `;
-      })
-      .join("\n\n");
-
+    }).join("\n\n");
     return `
 ====================
 מסמך ${index + 1}
@@ -78,18 +70,10 @@ ${profile?.keyDates?.join(", ") || "לא זוהו"}
 ${profile?.keyPeople?.join(", ") || "לא זוהו"}
 
 סימני סיכון:
-${
-  profile?.riskSignals?.length
-    ? profile.riskSignals.map((s) => `- ${s}`).join("\n")
-    : "לא זוהו"
-}
+${profile?.riskSignals?.length ? profile.riskSignals.map(s => `- ${s}`).join("\n") : "לא זוהו"}
 
 אינדיקציות למסמכים חסרים:
-${
-  profile?.missingAttachmentSignals?.length
-    ? profile.missingAttachmentSignals.map((s) => `- ${s}`).join("\n")
-    : "לא זוהו"
-}
+${profile?.missingAttachmentSignals?.length ? profile.missingAttachmentSignals.map(s => `- ${s}`).join("\n") : "לא זוהו"}
 
 Preview:
 ${limitText(file?.preview || "", 900)}
@@ -98,32 +82,20 @@ Chunks:
 ${chunks || "[אין chunks זמינים]"}
 `;
   }
-
   function buildFilesText() {
-    const processedFiles = (files || []).filter((file) =>
-      file?.text?.trim()
-    );
-
+    const processedFiles = (files || []).filter(file => file?.text?.trim());
     if (!processedFiles.length) {
       return limitText(documentText, MAX_DOCUMENT_CHARS);
     }
-
-    const formatted = processedFiles
-      .map((file, index) => formatFileForPrompt(file, index))
-      .join("\n\n-----------------------------------\n\n");
-
+    const formatted = processedFiles.map((file, index) => formatFileForPrompt(file, index)).join("\n\n-----------------------------------\n\n");
     return limitText(formatted, MAX_TOTAL_FILES_CHARS);
   }
-
   function formatPrecedentsForPrompt() {
     if (!precedents?.length) {
       return "לא נטענה פסיקה מהמאגר.";
     }
-
-    return precedents
-      .slice(0, MAX_PRECEDENTS)
-      .map((p, index) => {
-        return `
+    return precedents.slice(0, MAX_PRECEDENTS).map((p, index) => {
+      return `
 ====================
 פסק דין ${index + 1}
 ====================
@@ -144,18 +116,10 @@ ${p.shortName || "לא זוהה"}
 ${p.court || "לא זוהתה"}
 
 חקיקה:
-${
-  p.statutes?.length
-    ? p.statutes.map((s) => `- ${s}`).join("\n")
-    : "לא זוהתה"
-}
+${p.statutes?.length ? p.statutes.map(s => `- ${s}`).join("\n") : "לא זוהתה"}
 
 סוגיות:
-${
-  p.issues?.length
-    ? p.issues.map((issue) => `- ${issue}`).join("\n")
-    : "לא זוהו"
-}
+${p.issues?.length ? p.issues.map(issue => `- ${issue}`).join("\n") : "לא זוהו"}
 
 מיני-רציו / תקציר:
 ${limitText(p.miniRatio || p.rawPreview || "", MAX_PRECEDENT_TEXT_CHARS)}
@@ -163,19 +127,12 @@ ${limitText(p.miniRatio || p.rawPreview || "", MAX_PRECEDENT_TEXT_CHARS)}
 סטטוס חילוץ:
 ${p.extractionStatus || "unknown"}
 `;
-      })
-      .join("\n\n");
+    }).join("\n\n");
   }
-
   const safeCaseText = limitText(caseText, MAX_CASE_CHARS);
   const safeDocumentsText = buildFilesText();
-
-  const knowledgeText = legalPacks
-    .map((pack) => formatLegalPack(pack))
-    .join("\n\n");
-
+  const knowledgeText = legalPacks.map(pack => formatLegalPack(pack)).join("\n\n");
   const precedentsText = formatPrecedentsForPrompt();
-
   return `
 אתה עורך דין ליטיגציה מסחרית בכיר בישראל.
 
@@ -285,7 +242,7 @@ ${knowledgeText}
 
 פסיקה רלוונטית מתוך המאגר:
 ${precedentsText}
-${successAssessmentPrompt}
+${_successAssessmentPrompt.successAssessmentPrompt}
 בנוסף למבנים הקיימים, החזר גם מערך issues.
 כל issue צריך להיות יחידת מחלוקת עצמאית.
 יש למפות לכל issue:
@@ -297,10 +254,7 @@ ${successAssessmentPrompt}
 - צעדים ליטיגטוריים ממוקדים
 
 לשדה legalAssessment.strength: הערכת סיכויי הטענה מנקודת מבטו של הלקוח שלנו — עד כמה טובה עמדתו במחלוקת זו. השתמש בסקלה: very_strong / strong / medium_strong / medium / medium_weak / weak / very_weak / unclear. השאר null אם אין מספיק מידע להערכה.
-${clientName
-  ? `לשדה clientRole: הלקוח שלנו הוא ${clientName}. קבע האם ${clientName} הוא הצד שיזם את ההליך ("claimant") או הצד המגיב ("defendant") על פי חומר התיק. אין לנחש — הסתמך על שם הצד בחומר. אם לא ניתן לקבוע בוודאות — בחר לפי ההגיון המשפטי.`
-  : `לשדה clientRole: זהה מי הצד שאנחנו מייצגים על פי הצגת התיק — אם הלקוח הוא זה שיזם את ההליך/הגיש את התביעה → "claimant". אם הלקוח הוא הצד המגיב → "defendant". אם לא ברור → "claimant".`
-}
+${clientName ? `לשדה clientRole: הלקוח שלנו הוא ${clientName}. קבע האם ${clientName} הוא הצד שיזם את ההליך ("claimant") או הצד המגיב ("defendant") על פי חומר התיק. אין לנחש — הסתמך על שם הצד בחומר. אם לא ניתן לקבוע בוודאות — בחר לפי ההגיון המשפטי.` : `לשדה clientRole: זהה מי הצד שאנחנו מייצגים על פי הצגת התיק — אם הלקוח הוא זה שיזם את ההליך/הגיש את התביעה → "claimant". אם הלקוח הוא הצד המגיב → "defendant". אם לא ברור → "claimant".`}
 לשדה caseSnapshot.parties: רשום את שמות הצדדים האמיתיים כפי שמופיעים בחומר התיק (שמות פרטיים, שמות חברות, גופים) — לא "תובע"/"נתבע". דוגמה: ["חברת ABC בע\"מ", "יוסי כהן"]. אם השמות אינם ידועים — השאר מערך ריק.
 לשדה partyPositions: כתוב עמדות בשפה עובדתית ישירה. הימנע ממילים "תובע" ו"נתבע" — השתמש בשם הצד או ב"הצד הראשון"/"הצד השני".
 לשדה challengePoints: רשימה של הטיעונים, הסיכונים והאתגרים המרכזיים שהצד שכנגד יעלה כנגד המחלוקת הזו — ראיות, עובדות, טענות או חוסרים שמחלישים את עמדת הלקוח. לא גנריים, ספציפיים לעובדות התיק. לדוגמה: "חוסר בחתימה על ההסכם", "העד המרכזי בעל ניגוד עניינים". מחרוזות קצרות לכל פריט.
@@ -453,30 +407,21 @@ ${safeCaseText}
 ${safeDocumentsText}
 `;
 }
-
 function formatLegalPack(pack) {
   return `
 תחום: ${pack.title}
 
 כללי חשיבה:
-${(pack.reasoningRules || []).map((rule) => `- ${rule}`).join("\n")}
+${(pack.reasoningRules || []).map(rule => `- ${rule}`).join("\n")}
 
 חקיקה:
-${(pack.statutes || [])
-  .map((s) => `- ${s.source} ${s.section}: ${s.title} — ${s.summary}`)
-  .join("\n")}
+${(pack.statutes || []).map(s => `- ${s.source} ${s.section}: ${s.title} — ${s.summary}`).join("\n")}
 
 פסיקה:
-${(pack.cases || [])
-  .map(
-    (c) =>
-      `- ${c.name}: ${c.doctrine}. מסייע: ${c.helpsWhen} מזיק: ${c.hurtsWhen}`
-  )
-  .join("\n")}
+${(pack.cases || []).map(c => `- ${c.name}: ${c.doctrine}. מסייע: ${c.helpsWhen} מזיק: ${c.hurtsWhen}`).join("\n")}
 
 יוריסטיקות:
-${(pack.heuristics || [])
-  .map((h) => `- ${h.hebrewTitle}: ${h.pattern} שימוש: ${h.litigationUse}`)
-  .join("\n")}
+${(pack.heuristics || []).map(h => `- ${h.hebrewTitle}: ${h.pattern} שימוש: ${h.litigationUse}`).join("\n")}
 `;
 }
+//# sourceMappingURL=buildAnalyzePrompt.js.map

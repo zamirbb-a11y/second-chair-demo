@@ -8,13 +8,13 @@ export async function uploadFileViaStorage(file, accessToken) {
   }
 
   // Step 1: get a signed upload URL from the server
-  const urlRes = await fetch("/api/get-upload-url", {
+  const urlRes = await fetch("/api/storage", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${accessToken}`,
     },
-    body: JSON.stringify({ filename: file.name }),
+    body: JSON.stringify({ action: "get-url", filename: file.name }),
   });
   if (!urlRes.ok) {
     const body = await urlRes.json().catch(() => null);
@@ -29,13 +29,13 @@ export async function uploadFileViaStorage(file, accessToken) {
   if (uploadErr) throw new Error(`העלאה נכשלה: ${uploadErr.message}`);
 
   // Step 3: process the uploaded file (text extraction, profile, etc.)
-  const procRes = await fetch("/api/process-document", {
+  const procRes = await fetch("/api/storage", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${accessToken}`,
     },
-    body: JSON.stringify({ storagePath }),
+    body: JSON.stringify({ action: "process", storagePath }),
   });
   if (!procRes.ok) {
     const body = await procRes.json().catch(() => null);

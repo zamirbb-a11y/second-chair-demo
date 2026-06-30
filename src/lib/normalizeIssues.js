@@ -19,26 +19,15 @@ function toTextList(value) {
   return [String(value)];
 }
 
-function normalizeIssues(rawIssues = []) {
+export function normalizeIssues(rawIssues = []) {
   const normalized = new Set();
-
   for (const rawIssue of toTextList(rawIssues)) {
     const lower = rawIssue.toLowerCase();
-
     for (const issue of issueTaxonomy) {
-      if (
-        issue.synonyms.some((synonym) =>
-          lower.includes(String(synonym).toLowerCase())
-        )
-      ) {
+      if (issue.synonyms.some((synonym) => lower.includes(String(synonym).toLowerCase()))) {
         normalized.add(issue.id);
       }
     }
   }
-
   return Array.from(normalized);
 }
-
-module.exports = {
-  normalizeIssues,
-};

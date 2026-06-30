@@ -67,13 +67,13 @@ export default function NewCaseWizard({ onComplete, onCancel }) {
     setUploadedNames(prev => prev.filter((_, i) => i !== index));
     if (file.storagePath) {
       const { data: { session } } = await supabase.auth.getSession();
-      await fetch("/api/delete-document", {
-        method: "DELETE",
+      await fetch("/api/storage", {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session?.access_token}`,
         },
-        body: JSON.stringify({ storagePath: file.storagePath }),
+        body: JSON.stringify({ action: "delete", storagePath: file.storagePath }),
       });
     }
   }
