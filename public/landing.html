@@ -694,10 +694,16 @@ function updateCardStates() {}
 });
 
 /* ── Cases modal ───────────────────────────────────────────── */
+var _isLoggedIn = false;
 function openCasesModal() {
   var list = document.getElementById('cases-list');
   if (!list) return;
   list.innerHTML = '';
+  if (!_isLoggedIn) {
+    list.innerHTML = '<div class="cases-empty">יש להתחבר כדי לראות תיקים קיימים</div>';
+    document.getElementById('cases-modal').classList.add('open');
+    return;
+  }
   var cases = [];
   try { cases = JSON.parse(localStorage.getItem('secondChair.cases.index') || '[]'); } catch(e) {}
   cases = Array.isArray(cases) ? cases : [];
@@ -736,6 +742,7 @@ document.getElementById('cases-modal').addEventListener('click', function(e) {
 
   /* nav state */
   function updateNav(session) {
+    _isLoggedIn = !!(session && session.user);
     var out = document.getElementById('nav-logged-out');
     var inn = document.getElementById('nav-logged-in');
     var uname = document.getElementById('nav-username');
