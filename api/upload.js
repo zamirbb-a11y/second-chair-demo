@@ -693,6 +693,8 @@ function parseForm(req) {
   const form = formidable({
     multiples: true,
     keepExtensions: true,
+    uploadDir: process.env.VERCEL ? "/tmp" : undefined,
+    maxFileSize: 4 * 1024 * 1024,
   });
 
   return new Promise((resolve, reject) => {

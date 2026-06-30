@@ -1,4 +1,15 @@
 {
+  "functions": {
+    "api/upload.js": {
+      "maxDuration": 30
+    },
+    "api/analyze.js": {
+      "maxDuration": 60
+    },
+    "api/reanalyze.js": {
+      "maxDuration": 60
+    }
+  },
   "rewrites": [
     {
       "source": "/((?!api/|landing\\.html).*)",
