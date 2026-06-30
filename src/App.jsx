@@ -54,6 +54,7 @@ import { buildLiveCaseState } from "./utils/buildLiveCaseState";
 import { createEvent, hasIntakeEvent, computeCaseState } from "./lib/caseEvents";
 import { normalizeTimelineDate } from "./utils/normalizeTimelineDate";
 import { normalizeDeltaIssueLinks } from "./utils/normalizeDeltaIssueLinks";
+import posthog from "posthog-js";
 
 function buildIssueAnalysisResult(issueId, issueTitle, result, isNew = true) {
   const id = () => `overlay-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -321,6 +322,7 @@ export default function App() {
 
   useEffect(() => {
     if (!session?.user?.id) return;
+    posthog.identify(session.user.id, { email: session.user.email });
     syncFromSupabase(session.user.id).then(() => setSavedCases(listCases()));
   }, [session?.user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1254,6 +1256,8 @@ ${updatesText}
         ? `${baseCaseText}\n\n---\n\nמידע נוסף שהתקבל לפני הניתוח:\n${extraText}`
         : baseCaseText;
 
+      posthog.capture("analysis_started", { clientName: effectiveClientName });
+
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: {
@@ -2176,7 +2180,7 @@ default:
         {/* RTL: first in DOM = rightmost on screen */}
         <AppNav
           activeView={activeView}
-          onChangeView={setActiveView}
+          onChangeView={(v) => { posthog.capture("view_changed", { view: v }); setActiveView(v); }}
           session={session}
           onSwitchUser={() => setSwitchUserModal(true)}
           onLogout={async () => { await supabase?.auth.signOut(); window.location.href = '/landing.html'; }}
