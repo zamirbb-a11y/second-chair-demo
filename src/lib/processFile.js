@@ -15,9 +15,14 @@ export async function processFileBuffer(buffer, filename) {
     extractedText = result.value || "";
     extractionMethod = "mammoth";
   } else if (extension === "pdf") {
-    const result = await pdfParse(buffer);
-    extractedText = result.text || "";
-    extractionMethod = "pdf-parse";
+    try {
+      const result = await pdfParse(buffer);
+      extractedText = result.text || "";
+      extractionMethod = "pdf-parse";
+    } catch (_pdfErr) {
+      extractedText = "";
+      extractionMethod = "pdf-parse-failed";
+    }
 
     if (normalizeText(extractedText).length < 300) {
       needsOcr = true;

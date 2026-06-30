@@ -1,5 +1,8 @@
 {
   "functions": {
+    "api/storage.js": {
+      "maxDuration": 30
+    },
     "api/upload.js": {
       "maxDuration": 30
     },
