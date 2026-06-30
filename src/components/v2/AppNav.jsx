@@ -1,10 +1,11 @@
 import { useState } from "react";
 
 const NAV_ITEMS = [
-  { id: "case-map",  icon: "⚖",  label: "מחלוקות" },
-  { id: "timeline",  icon: "◷",  label: "ציר זמן"  },
-  { id: "pleadings", icon: "◻",  label: "מסמכים"   },
-  { id: "discovery", icon: "◈",  label: "עדים"     },
+  { id: "case-map",      icon: "⚖",  label: "מחלוקות"      },
+  { id: "legal-briefs",  icon: "§",  label: "כתבי טענות"   },
+  { id: "timeline",      icon: "◷",  label: "ציר זמן"       },
+  { id: "pleadings",     icon: "◻",  label: "מסמכים"        },
+  { id: "discovery",     icon: "◈",  label: "עדים"          },
 ];
 
 export default function AppNav({

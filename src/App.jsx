@@ -2087,8 +2087,22 @@ function removeAcceptedWorkItem(itemId) {
 
   function renderWorkspaceView() {
     switch (activeView) {
+      case "legal-briefs":
+        return (
+          <div className="flex items-center justify-center rounded-2xl bg-white border border-slate-200 shadow-sm" style={{ minHeight: 220 }} dir="rtl">
+            <p className="text-slate-400 text-base text-center px-8">ניתוח מעמיק של כתבי טענות וסיוע בהכנת כתבי טענות — בגרסה המלאה</p>
+          </div>
+        );
+
       case "pleadings":
-        return <EvidenceView overlays={overlays} onRollback={rollbackOverlay} />;
+        return (
+          <div className="space-y-4" dir="rtl">
+            <div className="rounded-2xl bg-white border border-slate-200 shadow-sm px-6 py-4 text-center text-slate-400 text-sm">
+              מחסן המסמכים — בגרסה המלאה
+            </div>
+            <EvidenceView overlays={overlays} onRollback={rollbackOverlay} />
+          </div>
+        );
 
       case "discovery":
         return <WitnessesView />;
@@ -2192,7 +2206,7 @@ default:
 
           {/* Demo banner */}
           <div className="bg-amber-50 border-b border-amber-100 text-center py-1.5 shrink-0" dir="rtl">
-            <span className="text-xs text-amber-700 font-medium">גרסת דמו. המערכת אומנה על דיני חוזים בלבד; המאגר המשפטי קטן מאוד.</span>
+            <span className="text-xs text-amber-700 font-medium">גרסת דמו. המערכת אומנה על דיני חוזים בלבד; המאגר המשפטי קטן.</span>
           </div>
 
           {/* Top bar */}
