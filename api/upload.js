@@ -62,9 +62,12 @@ export default async function handler(req, res) {
 }
 
 async function processFile(file) {
-  const filePath = file.filepath;
-  const buffer = fs.readFileSync(filePath);
-  const extension = getExtension(file.originalFilename);
+  const buffer = fs.readFileSync(file.filepath);
+  return processFileBuffer(buffer, file.originalFilename);
+}
+
+export async function processFileBuffer(buffer, filename) {
+  const extension = getExtension(filename);
 
   let extractedText = "";
   let status = "נטען";
@@ -108,13 +111,13 @@ ${parsed.text || ""}
   }
 
   const cleanText = normalizeText(extractedText);
-  const id = createFileId(file.originalFilename);
+  const id = createFileId(filename);
   const chunks = buildChunks(cleanText, id);
 
   return {
     id,
-    name: file.originalFilename,
-    size: file.size,
+    name: filename,
+    size: buffer.length,
     type: extension,
     status,
     extractionMethod,
@@ -124,7 +127,7 @@ ${parsed.text || ""}
     preview: cleanText.slice(0, 700),
     chunks,
     documentProfile: buildDocumentProfile({
-      fileName: file.originalFilename,
+      fileName: filename,
       extension,
       text: cleanText,
       status,

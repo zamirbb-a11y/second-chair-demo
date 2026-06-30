@@ -55,6 +55,7 @@ import { createEvent, hasIntakeEvent, computeCaseState } from "./lib/caseEvents"
 import { normalizeTimelineDate } from "./utils/normalizeTimelineDate";
 import { normalizeDeltaIssueLinks } from "./utils/normalizeDeltaIssueLinks";
 import posthog from "posthog-js";
+import { uploadFileViaStorage, uploadFilesViaStorage } from "./utils/uploadViaStorage";
 
 function buildIssueAnalysisResult(issueId, issueTitle, result, isNew = true) {
   const id = () => `overlay-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -969,35 +970,11 @@ export default function App() {
     const files = Array.from(event.target.files || []);
     if (!files.length) return;
 
-    const MAX_FILE_BYTES = 4 * 1024 * 1024; // 4 MB — Vercel body limit is 4.5 MB total
-    const oversized = files.filter((f) => f.size > MAX_FILE_BYTES);
-    if (oversized.length) {
-      setError(`הקובץ "${oversized[0].name}" גדול מדי (מקסימום 4MB לקובץ). אפשר לחלק לקבצים קטנים יותר.`);
-      event.target.value = "";
-      return;
-    }
-
     setStatus("מעלה ומעבד את הקבצים...");
     setError("");
 
     try {
-      const formData = new FormData();
-
-      files.forEach((file) => {
-        formData.append("files", file);
-      });
-
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error("Upload failed");
-      }
-
-      const data = await response.json();
-      const processedFiles = data.files || [];
+      const processedFiles = await uploadFilesViaStorage(files, session?.access_token);
 
       const nextCaseFiles = [...caseFiles, ...processedFiles];
 
@@ -1094,24 +1071,11 @@ async function handleInfoAndReanalyze(update) {
 }
 
 async function handleIssueFileUpload(file, issueId, contextTitle) {
-  const MAX_FILE_BYTES = 4 * 1024 * 1024;
-  if (file.size > MAX_FILE_BYTES) {
-    setError(`הקובץ "${file.name}" גדול מדי (מקסימום 4MB). אפשר לחלק לקבצים קטנים יותר.`);
-    return;
-  }
   setLoading(true);
   setLoadingMode("update");
   setError("");
   try {
-    const formData = new FormData();
-    formData.append("files", file);
-    const res = await fetch("/api/upload", { method: "POST", body: formData });
-    if (!res.ok) {
-      const body = await res.json().catch(() => null);
-      throw new Error(body?.error || `Upload failed (${res.status})`);
-    }
-    const data = await res.json();
-    const processed = data.files?.[0];
+    const processed = await uploadFileViaStorage(file, session?.access_token);
     if (!processed?.text?.trim()) {
       setError("לא הצלחתי לחלץ טקסט מהקובץ.");
       setLoading(false);

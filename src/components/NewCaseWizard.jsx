@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { supabase } from "../lib/supabaseClient";
+import { uploadFilesViaStorage } from "../utils/uploadViaStorage";
 
 const STEPS = [
   { label: "שם התיק",     sub: "זהות התיק" },
@@ -44,31 +46,16 @@ export default function NewCaseWizard({ onComplete, onCancel }) {
   async function uploadFiles(fileList) {
     const files = Array.from(fileList).filter(Boolean);
     if (!files.length) return;
-
-    const MAX = 4 * 1024 * 1024;
-    const oversized = files.find(f => f.size > MAX);
-    if (oversized) {
-      setUploadError(`הקובץ "${oversized.name}" גדול מדי — מקסימום 4MB לקובץ.`);
-      return;
-    }
-
     setUploadError("");
     setUploading(true);
     try {
-      const formData = new FormData();
-      files.forEach(f => formData.append("files", f));
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        setUploadError(body?.error || `שגיאה בהעלאה (${res.status}) — נסה שוב.`);
-      } else {
-        const data = await res.json();
-        const pf = data.files || [];
-        setProcessedFiles(prev => [...prev, ...pf]);
-        setUploadedNames(prev => [...prev, ...pf.map(f => f.name)]);
-      }
+      const { data: { session } } = await supabase.auth.getSession();
+      const pf = await uploadFilesViaStorage(files, session?.access_token);
+      const processed = Array.isArray(pf) ? pf.filter(Boolean) : [pf].filter(Boolean);
+      setProcessedFiles(prev => [...prev, ...processed]);
+      setUploadedNames(prev => [...prev, ...processed.map(f => f.name)]);
     } catch (err) {
-      setUploadError("לא הצלחנו להעלות את הקובץ — בדוק חיבור לאינטרנט ונסה שוב.");
+      setUploadError(err.message || "לא הצלחנו להעלות את הקובץ — נסה שוב.");
     }
     setUploading(false);
   }
