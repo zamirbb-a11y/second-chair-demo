@@ -25,7 +25,7 @@ export default function AdminPanel() {
       if (!res.ok) {
         setStatus({ error: json.error || "שגיאה ביצירת הקישור" });
       } else {
-        setStatus({ link: json.link });
+        setStatus({ sent: true, link: json.link });
         setInviteEmail("");
       }
     } catch (err) {
@@ -70,25 +70,30 @@ export default function AdminPanel() {
           </button>
         </form>
 
-        {status?.link && (
+        {status?.sent && (
           <div className="mt-4">
-            <p className="text-xs text-slate-500 mb-1">קישור הזמנה — שלח למשתמש בכל אמצעי:</p>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                readOnly
-                value={status.link}
-                className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-xs text-left bg-slate-50 outline-none"
-                dir="ltr"
-                onClick={e => e.target.select()}
-              />
-              <button
-                onClick={handleCopy}
-                className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold hover:bg-slate-100 cursor-pointer transition-colors"
-              >
-                {copied ? "✓ הועתק" : "העתק"}
-              </button>
-            </div>
+            <p className="mt-1 text-sm text-emerald-600">✓ ההזמנה נשלחה במייל</p>
+            {status.link && (
+              <div className="mt-3">
+                <p className="text-xs text-slate-500 mb-1">לינק גיבוי — אם המייל לא הגיע:</p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={status.link}
+                    className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-xs text-left bg-slate-50 outline-none"
+                    dir="ltr"
+                    onClick={e => e.target.select()}
+                  />
+                  <button
+                    onClick={handleCopy}
+                    className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold hover:bg-slate-100 cursor-pointer transition-colors"
+                  >
+                    {copied ? "✓ הועתק" : "העתק"}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
