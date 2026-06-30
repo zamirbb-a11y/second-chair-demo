@@ -37,7 +37,7 @@ export default async function handler(req, res) {
   if (action === "get-url") {
     if (!filename) return res.status(400).json({ error: "filename required" });
 
-    const safe = filename.replace(/[^a-z0-9א-ת._\-]/gi, "_").slice(0, 120);
+    const safe = filename.replace(/[^a-z0-9._\-]/gi, "_").slice(0, 120);
     const path = `${user.id}/${Date.now()}_${safe}`;
 
     const { data, error } = await serviceClient.storage
