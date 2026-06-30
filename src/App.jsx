@@ -28,6 +28,7 @@ import DeltaNotificationPanel from "./components/DeltaNotificationPanel";
 import PreIntakePanel from "./components/PreIntakePanel";
 import NewCaseWizard from "./components/NewCaseWizard";
 import CaseChatPanel from "./components/CaseChatPanel";
+import FeedbackModal from "./components/FeedbackModal";
 import AuthScreen from "./components/AuthScreen";
 import { useAuthSession } from "./hooks/useAuthSession";
 import { supabase } from "./lib/supabaseClient";
@@ -284,6 +285,7 @@ export default function App() {
 
   // Case chat
   const [showCaseChat, setShowCaseChat] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
   const [chatIssueContext, setChatIssueContext] = useState(null); // { id, title } | null
   const [caseChatHistory, setCaseChatHistory] = useState([]);
   const [chatLoading, setChatLoading] = useState(false);
@@ -2406,6 +2408,22 @@ default:
 
         </div>
       </div>
+
+      {/* Floating feedback button */}
+      <button
+        onClick={() => setShowFeedback(true)}
+        className="fixed bottom-5 left-5 z-[9998] rounded-full bg-slate-800 text-white text-[12px] font-medium px-4 py-2 shadow-lg hover:bg-slate-700 border-0 cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
+        title="שלח פידבק או דווח על בעיה"
+      >
+        פידבק / בעיה
+      </button>
+
+      {showFeedback && (
+        <FeedbackModal
+          onClose={() => setShowFeedback(false)}
+          userEmail={session?.user?.email || ""}
+        />
+      )}
     </div>
   );
   function DeltaMetric({ label, value }) {
