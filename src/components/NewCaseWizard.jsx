@@ -23,6 +23,7 @@ export default function NewCaseWizard({ onComplete, onCancel }) {
   const [processedFiles, setProcessedFiles] = useState([]);
   const [uploadedNames, setUploadedNames]   = useState([]);
   const [uploading, setUploading]           = useState(false);
+  const [uploadError, setUploadError]       = useState("");
   const [dragOver, setDragOver]             = useState(false);
 
   // Step 3 — populated after pre-intake
@@ -43,18 +44,32 @@ export default function NewCaseWizard({ onComplete, onCancel }) {
   async function uploadFiles(fileList) {
     const files = Array.from(fileList).filter(Boolean);
     if (!files.length) return;
+
+    const MAX = 4 * 1024 * 1024;
+    const oversized = files.find(f => f.size > MAX);
+    if (oversized) {
+      setUploadError(`הקובץ "${oversized.name}" גדול מדי — מקסימום 4MB לקובץ.`);
+      return;
+    }
+
+    setUploadError("");
     setUploading(true);
     try {
       const formData = new FormData();
       files.forEach(f => formData.append("files", f));
       const res = await fetch("/api/upload", { method: "POST", body: formData });
-      if (res.ok) {
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        setUploadError(body?.error || `שגיאה בהעלאה (${res.status}) — נסה שוב.`);
+      } else {
         const data = await res.json();
         const pf = data.files || [];
         setProcessedFiles(prev => [...prev, ...pf]);
         setUploadedNames(prev => [...prev, ...pf.map(f => f.name)]);
       }
-    } catch {}
+    } catch (err) {
+      setUploadError("לא הצלחנו להעלות את הקובץ — בדוק חיבור לאינטרנט ונסה שוב.");
+    }
     setUploading(false);
   }
 
@@ -222,6 +237,12 @@ export default function NewCaseWizard({ onComplete, onCancel }) {
                   )}
                   <input type="file" accept=".docx,.txt,.pdf" multiple className="hidden" onChange={e => uploadFiles(e.target.files)} disabled={uploading} />
                 </label>
+
+                {uploadError && (
+                  <p className="text-[11px] text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2 -mt-2">
+                    {uploadError}
+                  </p>
+                )}
               </div>
             )}
 
