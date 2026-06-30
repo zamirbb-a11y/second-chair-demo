@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { config } from "dotenv";
 import { resolve } from "path";
-import { processFileBuffer } from "./upload.js";
+import { processFileBuffer } from "./lib/processFile.js";
 
 config({ path: resolve(process.cwd(), ".env.local") });
 
