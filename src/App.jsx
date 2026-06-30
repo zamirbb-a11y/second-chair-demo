@@ -2294,7 +2294,7 @@ default:
                 <div className="flex items-center gap-3 mt-2">
                   <button
                     onClick={handleCaseTextUpdateAndReanalyze}
-                    disabled={loading || !additionalInfoText.trim()}
+                    disabled={loading || (!additionalInfoText.trim() && !workspaceUpdates.some(u => u.status === "pending_analysis"))}
                     className="rounded-lg bg-slate-900 text-white px-4 py-2 text-[13px] font-semibold disabled:opacity-40 hover:bg-slate-800 border-0 cursor-pointer"
                   >
                     {loading ? "מנתח…" : "⟳ עדכן ניתוח"}
