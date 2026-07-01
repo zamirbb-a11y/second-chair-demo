@@ -1,6 +1,4 @@
 import { useState } from "react";
-import { supabase } from "../lib/supabaseClient";
-import { uploadFilesViaStorage } from "../utils/uploadViaStorage";
 
 const STEPS = [
   { label: "שם התיק",     sub: "זהות התיק" },
@@ -49,9 +47,12 @@ export default function NewCaseWizard({ onComplete, onCancel }) {
     setUploadError("");
     setUploading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const pf = await uploadFilesViaStorage(files, session?.access_token);
-      const processed = Array.isArray(pf) ? pf.filter(Boolean) : [pf].filter(Boolean);
+      const form = new FormData();
+      files.forEach(f => form.append("files", f));
+      const res = await fetch("/api/upload", { method: "POST", body: form });
+      if (!res.ok) throw new Error("שגיאה בהעלאת הקובץ");
+      const data = await res.json();
+      const processed = (data.files || []).filter(Boolean);
       setProcessedFiles(prev => [...prev, ...processed]);
       setUploadedNames(prev => [...prev, ...processed.map(f => f.name)]);
     } catch (err) {
@@ -60,22 +61,9 @@ export default function NewCaseWizard({ onComplete, onCancel }) {
     setUploading(false);
   }
 
-  async function removeFile(index) {
-    const file = processedFiles[index];
-    if (!file) return;
+  function removeFile(index) {
     setProcessedFiles(prev => prev.filter((_, i) => i !== index));
     setUploadedNames(prev => prev.filter((_, i) => i !== index));
-    if (file.storagePath) {
-      const { data: { session } } = await supabase.auth.getSession();
-      await fetch("/api/storage", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session?.access_token}`,
-        },
-        body: JSON.stringify({ action: "delete", storagePath: file.storagePath }),
-      });
-    }
   }
 
   // ── Advance step 2 → 3 (pre-intake in background) ────────────
