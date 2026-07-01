@@ -54,7 +54,7 @@ ${caseText.slice(0, 3000)}
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
     body: JSON.stringify({
-      model: "gpt-4.1-mini",
+      model: "gpt-4.1",
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: `אתה עורך דין יריב ישראלי מנוסה. תפקידך לתקוף את עמדת ${clientLabel} בכל מחלוקת ולחשוף חולשות אמיתיות בלבד. החזר JSON תקין בלבד.` },
@@ -228,11 +228,23 @@ export default async function handler(req, res) {
 
       const effectiveClientRole = parsed.clientRole ?? "claimant";
 
+      let adversarialReviews = {};
+      try {
+        adversarialReviews = await runAdversarialPass(
+          parsed.issues ?? [],
+          caseText,
+          clientName,
+          effectiveClientRole
+        );
+      } catch (e) {
+        console.warn("Adversarial pass failed (silent):", e.message);
+      }
+
       return res.status(200).json({
         ...parsed,
         clientRole: effectiveClientRole,
         retrievedPrecedents: mergedPrecedents,
-        adversarialReviews: {},
+        adversarialReviews,
       });
     } catch (parseError) {
       console.error("Failed to parse model JSON:", parseError);
