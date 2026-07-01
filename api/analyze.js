@@ -228,23 +228,11 @@ export default async function handler(req, res) {
 
       const effectiveClientRole = parsed.clientRole ?? "claimant";
 
-      let adversarialReviews = {};
-      try {
-        adversarialReviews = await runAdversarialPass(
-          parsed.issues ?? [],
-          caseText,
-          clientName,
-          effectiveClientRole
-        );
-      } catch (e) {
-        console.warn("Adversarial pass failed (silent):", e.message);
-      }
-
       return res.status(200).json({
         ...parsed,
         clientRole: effectiveClientRole,
         retrievedPrecedents: mergedPrecedents,
-        adversarialReviews,
+        adversarialReviews: {},
       });
     } catch (parseError) {
       console.error("Failed to parse model JSON:", parseError);
