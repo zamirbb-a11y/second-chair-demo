@@ -95,7 +95,7 @@ export default function AnalysisLoadingOverlay({ mode = "initial", caseName, cli
         </div>
 
         <p className="text-[11px] text-slate-700">
-          זה עשוי לקחת עד דקה
+          {isUpdate ? "זה עשוי לקחת עד דקה" : "ניתוח ראשוני עשוי לארוך מספר דקות"}
         </p>
       </div>
 
