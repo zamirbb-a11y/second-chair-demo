@@ -7,10 +7,10 @@
       "maxDuration": 30
     },
     "api/analyze.js": {
-      "maxDuration": 60
+      "maxDuration": 300
     },
     "api/reanalyze.js": {
-      "maxDuration": 60
+      "maxDuration": 300
     }
   },
   "rewrites": [
