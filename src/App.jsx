@@ -1175,6 +1175,7 @@ ${updatesText}
 }
 
   async function runAnalysis() {
+    setClientRole("claimant");
     setPreIntakeLoading(true);
     setError("");
     try {
