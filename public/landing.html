@@ -84,6 +84,8 @@ body{font-family:var(--font);direction:rtl;background:var(--ground);color:var(--
 /* ─── NAME MODAL (post-invite) ───────── */
 #name-modal{display:none;position:fixed;inset:0;z-index:300;background:rgba(11,17,32,.78);backdrop-filter:blur(10px);align-items:center;justify-content:center;padding:24px}
 #name-modal.open{display:flex}
+#invite-modal{display:none;position:fixed;inset:0;z-index:400;background:rgba(11,17,32,.88);backdrop-filter:blur(10px);align-items:center;justify-content:center;padding:24px}
+#invite-modal.open{display:flex}
 
 /* ─── HERO ─────────────────────────── */
 .hero{
@@ -499,6 +501,22 @@ footer{
   </div>
 </div>
 
+<div id="invite-modal">
+  <div class="auth-card">
+    <div class="auth-hd">
+      <div class="auth-hd-title">ברוכים הבאים!</div>
+      <div class="auth-hd-sub">הגדר סיסמה להפעלת חשבונך</div>
+    </div>
+    <form id="invite-form" class="auth-form" novalidate>
+      <input id="invite-name" type="text" placeholder="שם מלא" class="auth-inp" autocomplete="name" />
+      <input id="invite-password" type="password" placeholder="סיסמה (לפחות 6 תווים)" class="auth-inp" required minlength="6" autocomplete="new-password" />
+      <input id="invite-password2" type="password" placeholder="אימות סיסמה" class="auth-inp" required autocomplete="new-password" />
+      <p id="invite-error" class="auth-err" style="display:none"></p>
+      <button type="submit" id="invite-submit" class="auth-btn">הצטרף</button>
+    </form>
+  </div>
+</div>
+
 <script>
 (function(){
 'use strict';
@@ -782,6 +800,17 @@ document.getElementById('cases-modal').addEventListener('click', function(e) {
     return msg;
   }
 
+  /* ── Invite / recovery hash detection ──────────────────────── */
+  function parseHashParams() {
+    var params = {};
+    window.location.hash.slice(1).split('&').forEach(function(p) {
+      var i = p.indexOf('=');
+      if (i > 0) params[p.slice(0, i)] = decodeURIComponent(p.slice(i + 1));
+    });
+    return params;
+  }
+  var hashType = parseHashParams().type; // 'invite' | 'recovery' | undefined
+
   /* load Supabase */
   var script = document.createElement('script');
   script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
@@ -793,6 +822,12 @@ document.getElementById('cases-modal').addEventListener('click', function(e) {
     });
     client.auth.onAuthStateChange(function(_e, session) {
       updateNav(session);
+      if (session && (hashType === 'invite' || hashType === 'recovery')) {
+        document.getElementById('invite-modal').classList.add('open');
+        window.history.replaceState({}, '', window.location.pathname + window.location.search);
+        hashType = null;
+        return;
+      }
       if (session) closeModal();
       maybeShowNameModal(session);
     });
@@ -815,6 +850,34 @@ document.getElementById('cases-modal').addEventListener('click', function(e) {
           errEl.style.display = 'block';
         } else {
           document.getElementById('name-modal').classList.remove('open');
+          client.auth.getSession().then(function(s) { updateNav(s.data.session); });
+        }
+      });
+    });
+
+    /* invite form wiring */
+    document.getElementById('invite-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      var name = document.getElementById('invite-name').value.trim();
+      var pw = document.getElementById('invite-password').value;
+      var pw2 = document.getElementById('invite-password2').value;
+      var errEl = document.getElementById('invite-error');
+      var submitBtn = document.getElementById('invite-submit');
+      errEl.style.display = 'none';
+      if (pw !== pw2) { errEl.textContent = 'הסיסמאות אינן תואמות'; errEl.style.display = 'block'; return; }
+      if (pw.length < 6) { errEl.textContent = 'הסיסמה חייבת להכיל לפחות 6 תווים'; errEl.style.display = 'block'; return; }
+      submitBtn.disabled = true;
+      submitBtn.textContent = '...';
+      var updates = { password: pw };
+      if (name) updates.data = { full_name: name };
+      client.auth.updateUser(updates).then(function(result) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'הצטרף';
+        if (result.error) {
+          errEl.textContent = result.error.message;
+          errEl.style.display = 'block';
+        } else {
+          document.getElementById('invite-modal').classList.remove('open');
           client.auth.getSession().then(function(s) { updateNav(s.data.session); });
         }
       });
