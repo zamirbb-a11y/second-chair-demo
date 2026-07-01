@@ -20,7 +20,7 @@ export default function PreIntakePanel({
   const [selectedIdx, setSelectedIdx] = useState(
     detectedParties.length > 0 && initialClientName
       ? detectedParties.findIndex((p) => p === initialClientName)
-      : detectedParties.length > 0 ? null : null
+      : detectedParties.length > 0 ? 0 : null
   );
   const [customName, setCustomName]   = useState(initialClientName || "");
   const [role, setRole]               = useState(initialClientRole);
