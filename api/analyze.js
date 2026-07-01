@@ -54,7 +54,7 @@ ${caseText.slice(0, 3000)}
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
     body: JSON.stringify({
-      model: "gpt-4.1",
+      model: "gpt-4.1-mini",
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: `אתה עורך דין יריב ישראלי מנוסה. תפקידך לתקוף את עמדת ${clientLabel} בכל מחלוקת ולחשוף חולשות אמיתיות בלבד. החזר JSON תקין בלבד.` },
