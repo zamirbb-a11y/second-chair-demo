@@ -2148,7 +2148,7 @@ default:
   return (
     <div dir="rtl" className="h-screen bg-[#eef0f4] text-slate-900 flex flex-col overflow-hidden">
       {loading && <AnalysisLoadingOverlay mode={loadingMode} caseName={caseName} clientName={clientName} />}
-      {!!analysis && !session && <AuthScreen isModal paywallMode initialMode="signup" />}
+      {!!analysis && !session && <AuthScreen isModal paywallMode initialMode="login" />}
       {switchUserModal && <AuthScreen isModal initialMode="login" onDone={() => setSwitchUserModal(false)} />}
 
       {showWizard && (

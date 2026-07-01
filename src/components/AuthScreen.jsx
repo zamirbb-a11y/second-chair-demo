@@ -98,15 +98,20 @@ export default function AuthScreen({ isModal = false, initialMode = "login", pay
         </button>
       </form>
 
-      <p className="text-center text-sm text-slate-500">
-        {isLogin ? "אין לך חשבון עדיין?" : "יש לך כבר חשבון?"}{" "}
-        <button
-          onClick={() => { setMode(isLogin ? "signup" : "login"); setError(""); }}
-          className="text-indigo-600 font-semibold hover:underline cursor-pointer bg-transparent border-0"
-        >
-          {isLogin ? "הרשמה" : "כניסה"}
-        </button>
-      </p>
+      {!paywallMode && (
+        <p className="text-center text-sm text-slate-500">
+          {isLogin ? "אין לך חשבון עדיין?" : "יש לך כבר חשבון?"}{" "}
+          <button
+            onClick={() => { setMode(isLogin ? "signup" : "login"); setError(""); }}
+            className="text-indigo-600 font-semibold hover:underline cursor-pointer bg-transparent border-0"
+          >
+            {isLogin ? "הרשמה" : "כניסה"}
+          </button>
+        </p>
+      )}
+      {paywallMode && (
+        <p className="text-center text-xs text-slate-400">גישה למערכת בהזמנה בלבד</p>
+      )}
     </div>
   );
 
@@ -122,7 +127,7 @@ export default function AuthScreen({ isModal = false, initialMode = "login", pay
         {paywallMode && (
           <div className="text-center mb-5">
             <p className="text-white text-xl font-bold mb-1">הניתוח מוכן</p>
-            <p className="text-white/60 text-sm">הירשם כדי לצפות בתוצאות המלאות</p>
+            <p className="text-white/60 text-sm">כנס לחשבון שלך כדי לצפות בתוצאות</p>
           </div>
         )}
         {card}
