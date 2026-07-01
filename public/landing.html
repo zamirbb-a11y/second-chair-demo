@@ -90,15 +90,15 @@ body{font-family:var(--font);direction:rtl;background:var(--ground);color:var(--
 /* ─── HERO ─────────────────────────── */
 .hero{
   background:var(--hero);
-  padding:0 36px;
+  padding:clamp(48px,9vh,96px) 36px 0;
   min-height:calc(100vh - 54px);
-  display:flex;align-items:center;
+  display:flex;align-items:flex-start;
   overflow:hidden
 }
 .hero-in{
   max-width:1080px;margin:0 auto;width:100%;
   display:grid;grid-template-columns:1fr min(500px,44%);
-  gap:clamp(24px,4vw,56px);align-items:center
+  gap:clamp(16px,2vw,28px);align-items:flex-start
 }
 
 .hero-name{font-size:14px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.28);margin-bottom:10px}
