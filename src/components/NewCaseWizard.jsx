@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const STEPS = [
   { label: "שם התיק",     sub: "זהות התיק" },
@@ -34,6 +34,12 @@ export default function NewCaseWizard({ onComplete, onCancel }) {
   const [answers, setAnswers]                   = useState({});
   const [dismissed, setDismissed]               = useState(new Set());
   const [loadingPreIntake, setLoadingPreIntake] = useState(false);
+
+  useEffect(() => {
+    if (detectedParties.length > 0 && selectedPartyIdx === null) {
+      setSelectedPartyIdx(0);
+    }
+  }, [detectedParties]);
 
   const resolvedClientName =
     selectedPartyIdx !== null && detectedParties[selectedPartyIdx]
