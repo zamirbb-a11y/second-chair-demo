@@ -800,17 +800,6 @@ document.getElementById('cases-modal').addEventListener('click', function(e) {
     return msg;
   }
 
-  /* ── Invite / recovery hash detection ──────────────────────── */
-  function parseHashParams() {
-    var params = {};
-    window.location.hash.slice(1).split('&').forEach(function(p) {
-      var i = p.indexOf('=');
-      if (i > 0) params[p.slice(0, i)] = decodeURIComponent(p.slice(i + 1));
-    });
-    return params;
-  }
-  var hashType = parseHashParams().type; // 'invite' | 'recovery' | undefined
-
   /* load Supabase */
   var script = document.createElement('script');
   script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
@@ -822,20 +811,22 @@ document.getElementById('cases-modal').addEventListener('click', function(e) {
     });
     client.auth.onAuthStateChange(function(_e, session) {
       updateNav(session);
-      if (session && (hashType === 'invite' || hashType === 'recovery')) {
-        document.getElementById('invite-modal').classList.add('open');
-        window.history.replaceState({}, '', window.location.pathname + window.location.search);
-        hashType = null;
-        return;
-      }
       if (session) closeModal();
       maybeShowNameModal(session);
     });
 
     function maybeShowNameModal(session) {
       if (!session || !session.user) return;
-      var hasName = session.user.user_metadata && session.user.user_metadata.full_name;
-      if (!hasName) document.getElementById('name-modal').classList.add('open');
+      var meta = session.user.user_metadata || {};
+      var hasName = !!meta.full_name;
+      if (hasName) return;
+      // Invited users need to set a password too — use the invite modal
+      var isInvited = !!session.user.invited_at;
+      if (isInvited) {
+        document.getElementById('invite-modal').classList.add('open');
+      } else {
+        document.getElementById('name-modal').classList.add('open');
+      }
     }
 
     document.getElementById('name-form').addEventListener('submit', function(e) {
