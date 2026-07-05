@@ -18,6 +18,9 @@ import DisputeDetail from "./views/v2/DisputeDetail";
 import IssuesView from "./views/IssuesView";
 import EvidenceView from "./views/EvidenceView";
 import WitnessesView from "./views/WitnessesView";
+import PleadingView from "./views/PleadingView";
+import PleadingNavigator from "./components/v2/PleadingNavigator";
+import mockPleadingBundles from "./mock/mockPleadingData";
 
 import PrecedentBankManager from "./admin/PrecedentBankManager";
 import AdminPanel from "./admin/AdminPanel";
@@ -281,6 +284,10 @@ export default function App() {
 
   // v2: selected dispute (null = overview)
   const [selectedIssueId, setSelectedIssueId] = useState(null);
+  const [selectedBundleId, setSelectedBundleId] = useState(null);
+  const [selectedPleadingId, setSelectedPleadingId] = useState(null);
+  const [selectedClaimId, setSelectedClaimId] = useState(null);
+  const [pleadingBundles, setPleadingBundles] = useState(mockPleadingBundles);
 
 
   // Case chat
@@ -289,6 +296,7 @@ export default function App() {
   const [chatIssueContext, setChatIssueContext] = useState(null); // { id, title } | null
   const [caseChatHistory, setCaseChatHistory] = useState([]);
   const [chatLoading, setChatLoading] = useState(false);
+  const [chatPendingPrompt, setChatPendingPrompt] = useState(null); // { text, id } — pre-fills chat input
 
   const chatSendingRef = useRef(false); // prevents double-send before isLoading propagates
 
@@ -2075,11 +2083,21 @@ function removeAcceptedWorkItem(itemId) {
   function renderWorkspaceView() {
     switch (activeView) {
       case "legal-briefs":
-        return (
-          <div className="flex items-center justify-center rounded-2xl bg-white border border-slate-200 shadow-sm" style={{ minHeight: 220 }} dir="rtl">
-            <p className="text-slate-400 text-base text-center px-8">ניתוח מעמיק של כתבי טענות וסיוע בהכנת כתבי טענות — בגרסה המלאה</p>
-          </div>
-        );
+        return <PleadingView
+          bundles={pleadingBundles}
+          selectedBundleId={selectedBundleId}
+          selectedPleadingId={selectedPleadingId}
+          selectedClaimId={selectedClaimId}
+          onSelectBundle={(id) => { setSelectedBundleId(id); setSelectedPleadingId(null); setSelectedClaimId(null); }}
+          onSelectPleading={(bundleId, pleadingId) => { setSelectedBundleId(bundleId); setSelectedPleadingId(pleadingId); setSelectedClaimId(null); }}
+          onSelectClaim={(bundleId, pleadingId, claimId) => { setSelectedBundleId(bundleId); setSelectedPleadingId(pleadingId); setSelectedClaimId(claimId); }}
+          onAskAI={(text) => {
+            setChatIssueContext(null);
+            setChatPendingPrompt({ text, id: Date.now() });
+            setShowCaseChat(true);
+          }}
+          onUpdateBundles={setPleadingBundles}
+        />;
 
       case "pleadings":
         return (
@@ -2149,7 +2167,7 @@ default:
   return (
     <div dir="rtl" className="h-screen bg-[#eef0f4] text-slate-900 flex flex-col overflow-hidden">
       {loading && <AnalysisLoadingOverlay mode={loadingMode} caseName={caseName} clientName={clientName} />}
-      {!!analysis && !session && <AuthScreen isModal paywallMode initialMode="login" />}
+      {!!analysis && !session && window.location.hostname !== "localhost" && <AuthScreen isModal paywallMode initialMode="login" />}
       {switchUserModal && <AuthScreen isModal initialMode="login" onDone={() => setSwitchUserModal(false)} />}
 
       {showWizard && (
@@ -2173,6 +2191,20 @@ default:
           onOpenCase={openSavedCase}
           onDeleteCase={removeSavedCase}
         />
+
+        {/* Pleading navigator — only in legal-briefs view */}
+        {activeView === "legal-briefs" && (
+          <PleadingNavigator
+            bundles={pleadingBundles}
+            selectedBundleId={selectedBundleId}
+            selectedPleadingId={selectedPleadingId}
+            selectedClaimId={selectedClaimId}
+            onSelectBundle={(id) => { setSelectedBundleId(id); setSelectedPleadingId(null); setSelectedClaimId(null); }}
+            onSelectPleading={(bundleId, pleadingId) => { setSelectedBundleId(bundleId); setSelectedPleadingId(pleadingId); setSelectedClaimId(null); }}
+            onSelectClaim={(bundleId, pleadingId, claimId) => { setSelectedBundleId(bundleId); setSelectedPleadingId(pleadingId); setSelectedClaimId(claimId); }}
+            onUpdateBundles={setPleadingBundles}
+          />
+        )}
 
         {/* Dispute navigator — only in case-map view */}
         {activeView === "case-map" && (
@@ -2395,7 +2427,7 @@ default:
           </div>
 
           {/* Chat panel — anchored to bottom of main content column */}
-          {analysis && showCaseChat && (
+          {(analysis || activeView === "legal-briefs") && showCaseChat && (
             <CaseChatPanel
               issueContext={chatIssueContext}
               chatHistory={caseChatHistory}
@@ -2404,6 +2436,7 @@ default:
               onRejectUpdate={handleRejectChatUpdate}
               onClose={() => setShowCaseChat(false)}
               isLoading={chatLoading}
+              pendingPrompt={chatPendingPrompt}
             />
           )}
 

@@ -45,6 +45,7 @@ export default function CaseChatPanel({
   onRejectUpdate,
   onClose,
   isLoading,
+  pendingPrompt = null, // { text: string, id: number } — set by parent to pre-fill input
 }) {
   const [input, setInput]         = useState("");
   const [expanded, setExpanded]   = useState(false);
@@ -89,6 +90,14 @@ export default function CaseChatPanel({
   useEffect(() => {
     if (expanded) setTimeout(() => inputRef.current?.focus(), 60);
   }, [expanded]);
+
+  // Apply pending prompt from parent (e.g. AI button on a claim card)
+  useEffect(() => {
+    if (!pendingPrompt?.text) return;
+    setInput(pendingPrompt.text);
+    setExpanded(true);
+    setTimeout(() => inputRef.current?.focus(), 80);
+  }, [pendingPrompt?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Force scrollbar to the right regardless of inherited RTL direction
   useEffect(() => {
