@@ -511,6 +511,46 @@ function DetailPaneView({ pane, onBack, zones, accordions, issue, onWorkspaceUpd
   );
 }
 
+// ─── Assessment history (collapsed) ──────────────────────────────────────────
+// Superseded assessment summaries, tucked behind a toggle so the audit trail
+// doesn't push the current analysis down after several accepted updates.
+
+function AssessmentHistory({ changes }) {
+  const [open, setOpen] = useState(false);
+  if (!changes.length) return null;
+
+  return (
+    <div className="mt-2 mb-4">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="text-xs text-slate-500 hover:text-slate-700 bg-transparent border-0 cursor-pointer p-0 transition-colors"
+      >
+        {open ? "▴ " : "▾ "}
+        {changes.length === 1
+          ? "גרסה קודמת של ההערכה"
+          : `גרסאות קודמות של ההערכה (${changes.length})`}
+      </button>
+      {open && (
+        <div className="mt-2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 space-y-3">
+          {changes.map((o, i) => (
+            <div key={i} className={i > 0 ? "pt-3 border-t border-slate-200" : ""}>
+              <p className="text-sm text-slate-500 leading-[1.7]">{o.patch.previousValue}</p>
+              {o.patch.reason && (
+                <p className="text-xs text-slate-500 mt-1">
+                  <span className="font-semibold">סיבת העדכון: </span>
+                  {o.patch.reason}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function DisputeDetail({
@@ -808,17 +848,11 @@ export default function DisputeDetail({
         {/* ── Full analysis tab ────────────────────────────────────────────── */}
         {activeTab === "full" && (
           <>
-            {/* Assessment history */}
-            {(issue.overlays?.assessmentChanges ?? [])
-              .filter(o => o.patch?.field === "legalAssessment.summary" && o.patch?.previousValue)
-              .map((o, i) => (
-                <div key={i} className="mt-2 mb-4 border-r-2 border-amber-300 pr-3 py-1">
-                  <div className="text-xs font-bold text-amber-700 mb-0.5">הסיכום הקודם</div>
-                  <p className="text-sm text-slate-500 leading-[1.7] line-through">{o.patch.previousValue}</p>
-                  {o.patch.reason && <p className="text-xs text-amber-600 mt-0.5">סיבה: {o.patch.reason}</p>}
-                </div>
-              ))
-            }
+            <AssessmentHistory
+              changes={(issue.overlays?.assessmentChanges ?? []).filter(
+                o => o.patch?.field === "legalAssessment.summary" && o.patch?.previousValue
+              )}
+            />
 
             {/* Three columns */}
             <div className="grid grid-cols-3 gap-6 mb-6 mt-6">
