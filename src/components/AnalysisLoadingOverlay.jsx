@@ -35,7 +35,7 @@ export default function AnalysisLoadingOverlay({ mode = "initial", caseName, cli
 
       <div className="relative flex flex-col items-center gap-10 px-8 text-center max-w-sm w-full">
         {/* Brand */}
-        <p className="text-[9px] text-slate-600 uppercase tracking-[0.22em]">Second Chair</p>
+        <p className="text-xs text-slate-500 uppercase tracking-[0.22em]">Second Chair</p>
 
         {/* Case name */}
         <div className="flex flex-col gap-2">

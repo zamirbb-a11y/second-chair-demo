@@ -70,10 +70,10 @@ function Section({ icon, title, count, defaultOpen = true, children }) {
         onClick={() => setOpen(v => !v)}
         className="flex items-center gap-2 w-full text-right py-2 border-b border-slate-200 text-slate-600 hover:text-slate-800 transition-colors bg-transparent border-t-0 border-l-0 border-r-0 cursor-pointer"
       >
-        <span className="text-[12px]">{icon}</span>
-        <span className="flex-1 text-[11px] font-bold uppercase tracking-wider">{title}</span>
+        <span className="text-xs">{icon}</span>
+        <span className="flex-1 text-xs font-semibold">{title}</span>
         {count !== undefined && (
-          <span className="text-[10px] text-slate-400 font-normal normal-case">{count}</span>
+          <span className="text-xs text-slate-500 font-normal">{count}</span>
         )}
         <span className="text-[9px] text-slate-300">{open ? "▲" : "▼"}</span>
       </button>
@@ -88,7 +88,7 @@ function BulletList({ items }) {
       {items.map((item, i) => (
         <li key={i} className="flex items-start gap-2.5 rounded-lg bg-white border border-slate-100 px-3 py-2">
           <span className="w-1 h-1 rounded-full bg-slate-400 mt-[6px] flex-shrink-0" />
-          <span className="text-[12.5px] text-slate-700 leading-relaxed">{item}</span>
+          <span className="text-sm text-slate-700 leading-relaxed">{item}</span>
         </li>
       ))}
     </ul>
@@ -148,29 +148,29 @@ function ClaimCard({
               if (e.key === "Enter") commitRename();
               if (e.key === "Escape") { setEditValue(claim.title); setEditing(false); }
             }}
-            className="text-[13px] font-semibold w-full border border-blue-300 rounded px-2 py-0.5 outline-none focus:ring-1 focus:ring-blue-200 bg-white"
+            className="text-sm font-semibold w-full border border-blue-300 rounded px-2 py-0.5 outline-none focus:ring-1 focus:ring-blue-200 bg-white"
             onClick={e => e.stopPropagation()}
           />
         ) : (
-          <p className={`text-[13px] font-semibold leading-snug ${isPending ? "text-slate-500" : "text-slate-800"}`}>
+          <p className={`text-sm font-semibold leading-snug ${isPending ? "text-slate-500" : "text-slate-800"}`}>
             {claim.title}
           </p>
         )}
         {!isPending && claim.qa?.answer && !editing && (
-          <p className="text-[11.5px] text-slate-400 mt-0.5 leading-snug line-clamp-2">{claim.qa.answer}</p>
+          <p className="text-xs text-slate-500 mt-0.5 leading-snug line-clamp-2">{claim.qa.answer}</p>
         )}
         {isPending && !editing && (
-          <p className="text-[11px] text-slate-400 mt-0.5 italic">ממתין לניתוח AI</p>
+          <p className="text-xs text-slate-500 mt-0.5 italic">ממתין לניתוח AI</p>
         )}
       </div>
 
       <div className="flex items-center gap-1 flex-shrink-0 pt-0.5">
         {isMergeTarget ? (
-          <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-100 border border-emerald-200 rounded-full px-2 py-0.5">
+          <span className="text-xs font-semibold text-emerald-700 bg-emerald-100 border border-emerald-200 rounded-full px-2 py-0.5">
             מזג לכאן ←
           </span>
         ) : isSourceForMerge ? (
-          <span className="text-[11px] font-semibold text-amber-700 bg-amber-100 border border-amber-200 rounded-full px-2 py-0.5">
+          <span className="text-xs font-semibold text-amber-700 bg-amber-100 border border-amber-200 rounded-full px-2 py-0.5">
             מקור המיזוג
           </span>
         ) : (
@@ -181,22 +181,22 @@ function ClaimCard({
                 <button
                   title="שנה שם"
                   onClick={() => { setEditing(true); setTimeout(() => inputRef.current?.focus(), 0); }}
-                  className="w-5 h-5 flex items-center justify-center rounded text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors bg-transparent border-0 cursor-pointer text-[11px]"
+                  className="w-5 h-5 flex items-center justify-center rounded text-slate-500 hover:text-slate-700 hover:bg-slate-200 transition-colors bg-transparent border-0 cursor-pointer text-[11px]"
                 >✎</button>
                 <button
                   title="פצל לשתי טענות"
                   onClick={() => onSplit?.()}
-                  className="w-5 h-5 flex items-center justify-center rounded text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors bg-transparent border-0 cursor-pointer text-[11px]"
+                  className="w-5 h-5 flex items-center justify-center rounded text-slate-500 hover:text-slate-700 hover:bg-slate-200 transition-colors bg-transparent border-0 cursor-pointer text-[11px]"
                 >⟊</button>
                 <button
                   title="מזג עם טענה אחרת"
                   onClick={() => onStartMerge?.()}
-                  className="w-5 h-5 flex items-center justify-center rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors bg-transparent border-0 cursor-pointer text-[11px] font-bold"
+                  className="w-5 h-5 flex items-center justify-center rounded text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors bg-transparent border-0 cursor-pointer text-[11px] font-bold"
                 >⊕</button>
                 <button
                   title="מחק טענה"
                   onClick={() => { if (window.confirm(`למחוק את הטענה "${claim.title}"?`)) onDelete?.(); }}
-                  className="w-5 h-5 flex items-center justify-center rounded text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors bg-transparent border-0 cursor-pointer text-[12px] leading-none"
+                  className="w-5 h-5 flex items-center justify-center rounded text-slate-500 hover:text-red-500 hover:bg-red-50 transition-colors bg-transparent border-0 cursor-pointer text-[12px] leading-none"
                 >×</button>
               </div>
             )}
@@ -230,7 +230,7 @@ function ClaimDetail({ claim, onAskAI, onRename, onDelete, onSplit }) {
     setRenamingTitle(false);
   }
 
-  const ACTION_BTN = "text-[11px] px-2 py-0.5 rounded border border-slate-200 text-slate-400 hover:text-slate-700 hover:border-slate-300 hover:bg-white transition-all cursor-pointer bg-transparent";
+  const ACTION_BTN = "text-xs px-2 py-0.5 rounded border border-slate-200 text-slate-500 hover:text-slate-700 hover:border-slate-300 hover:bg-white transition-all cursor-pointer bg-transparent";
   const ACTION_BTN_RED = `${ACTION_BTN} hover:!text-red-500 hover:!border-red-200 hover:!bg-red-50`;
 
   // ── Pending claim ─────────────────────────────────────────────────────────────
@@ -239,7 +239,7 @@ function ClaimDetail({ claim, onAskAI, onRename, onDelete, onSplit }) {
       <div className="space-y-4" dir="rtl">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
-            <p className="text-[11px] text-slate-400 font-medium mb-1">
+            <p className="text-xs text-slate-500 font-medium mb-1">
               {claim.type === "main" ? "טענה מרכזית" : "טענת משנה"}
               {" · "}
               {side === "opposing" ? "כתב הצד שכנגד" : "כתב טענות שלנו"}
@@ -256,10 +256,10 @@ function ClaimDetail({ claim, onAskAI, onRename, onDelete, onSplit }) {
                   if (e.key === "Enter") commitRename();
                   if (e.key === "Escape") { setRenameValue(claim.title); setRenamingTitle(false); }
                 }}
-                className="text-[18px] font-bold text-slate-900 w-full border-b-2 border-blue-400 outline-none bg-transparent pb-0.5"
+                className="text-lg font-bold text-slate-900 w-full border-b-2 border-blue-400 outline-none bg-transparent pb-0.5"
               />
             ) : (
-              <h2 className="text-[19px] font-bold text-slate-900 leading-snug">{claim.title}</h2>
+              <h2 className="text-xl font-bold text-slate-900 leading-snug">{claim.title}</h2>
             )}
           </div>
           <div className="flex items-center gap-1 flex-shrink-0 pt-1">
@@ -279,8 +279,8 @@ function ClaimDetail({ claim, onAskAI, onRename, onDelete, onSplit }) {
         </div>
 
         <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 px-6 py-10 text-center space-y-1">
-          <p className="text-[13px] text-slate-500 font-medium">ממתין לניתוח AI</p>
-          <p className="text-[12px] text-slate-400 leading-relaxed">
+          <p className="text-sm text-slate-500 font-medium">ממתין לניתוח AI</p>
+          <p className="text-sm text-slate-600 leading-relaxed">
             הטענה נוצרה ידנית. ניתוח אוטומטי יתווסף בגרסה הבאה של המערכת.
           </p>
         </div>
@@ -310,7 +310,7 @@ function ClaimDetail({ claim, onAskAI, onRename, onDelete, onSplit }) {
 
       {/* ── Header ── */}
       <div className="space-y-2">
-        <p className="text-[11px] text-slate-400 font-medium">
+        <p className="text-xs text-slate-500 font-medium">
           {claim.type === "main" ? "טענה מרכזית" : "טענת משנה"}
           {" · "}
           {side === "opposing" ? "כתב הצד שכנגד" : "כתב טענות שלנו"}
@@ -328,18 +328,18 @@ function ClaimDetail({ claim, onAskAI, onRename, onDelete, onSplit }) {
               if (e.key === "Enter") commitRename();
               if (e.key === "Escape") { setRenameValue(claim.title); setRenamingTitle(false); }
             }}
-            className="text-[19px] font-bold text-slate-900 w-full border-b-2 border-blue-400 outline-none bg-transparent pb-0.5"
+            className="text-xl font-bold text-slate-900 w-full border-b-2 border-blue-400 outline-none bg-transparent pb-0.5"
           />
         ) : (
-          <h2 className="text-[19px] font-bold text-slate-900 leading-snug">{claim.title}</h2>
+          <h2 className="text-xl font-bold text-slate-900 leading-snug">{claim.title}</h2>
         )}
 
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3 flex-wrap">
-            <span className="text-[11px] text-slate-500 border border-slate-200 rounded-full px-2.5 py-0.5">
+            <span className="text-xs text-slate-500 border border-slate-200 rounded-full px-2.5 py-0.5">
               {importance.label}
             </span>
-            <span className="flex items-center gap-1.5 text-[11px] text-slate-500 border border-slate-200 rounded-full px-2.5 py-0.5">
+            <span className="flex items-center gap-1.5 text-xs text-slate-500 border border-slate-200 rounded-full px-2.5 py-0.5">
               <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${strength.dot}`} />
               {strength.label}
             </span>
@@ -368,12 +368,12 @@ function ClaimDetail({ claim, onAskAI, onRename, onDelete, onSplit }) {
               <>
                 <button
                   onClick={() => onAskAI(buildPrompt("counter"))}
-                  className="text-[11px] px-2.5 py-1 rounded-full border border-slate-200 text-slate-500 hover:text-indigo-700 hover:border-indigo-200 hover:bg-indigo-50 transition-all cursor-pointer bg-white"
+                  className="text-xs px-2.5 py-1 rounded-full border border-slate-200 text-slate-500 hover:text-indigo-700 hover:border-indigo-200 hover:bg-indigo-50 transition-all cursor-pointer bg-white"
                   title="בקש מהבינה המלאכותית לנסח תגובה לטענה זו"
                 >💬 נסח תגובה</button>
                 <button
                   onClick={() => onAskAI(buildPrompt("improve"))}
-                  className="text-[11px] px-2.5 py-1 rounded-full border border-slate-200 text-slate-500 hover:text-indigo-700 hover:border-indigo-200 hover:bg-indigo-50 transition-all cursor-pointer bg-white"
+                  className="text-xs px-2.5 py-1 rounded-full border border-slate-200 text-slate-500 hover:text-indigo-700 hover:border-indigo-200 hover:bg-indigo-50 transition-all cursor-pointer bg-white"
                   title="בקש מהבינה המלאכותית לשפר את ניסוח הטענה"
                 >✏️ שפר ניסוח</button>
               </>
@@ -384,8 +384,8 @@ function ClaimDetail({ claim, onAskAI, onRename, onDelete, onSplit }) {
 
       {/* ── QA — full width ── */}
       <div className="rounded-xl border border-slate-200 bg-white px-4 py-3.5 space-y-1.5">
-        <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{claim.qa?.question}</p>
-        <p className="text-[13px] text-slate-800 leading-relaxed">{claim.qa?.answer}</p>
+        <p className="text-xs font-semibold text-slate-500">{claim.qa?.question}</p>
+        <p className="text-sm text-slate-800 leading-relaxed">{claim.qa?.answer}</p>
       </div>
 
       {/* ── Two-column grid ── */}
@@ -416,9 +416,9 @@ function ClaimDetail({ claim, onAskAI, onRename, onDelete, onSplit }) {
             <Section icon={cfg.quotes.icon} title={cfg.quotes.title} count={claim.sourceSpans.length} defaultOpen={true}>
               <div className="space-y-2">
                 {claim.sourceSpans.map((s, i) => (
-                  <blockquote key={i} className="rounded-lg bg-white border border-slate-100 border-r-2 border-r-slate-400 px-3 py-2 text-[12.5px] text-slate-600 italic leading-relaxed">
+                  <blockquote key={i} className="rounded-lg bg-white border border-slate-100 border-r-2 border-r-slate-400 px-3 py-2 text-sm text-slate-600 italic leading-relaxed">
                     "{s.text}"
-                    <span className="block text-[10.5px] text-slate-400 not-italic mt-0.5">סעיף {s.paragraph}</span>
+                    <span className="block text-xs text-slate-500 not-italic mt-0.5">סעיף {s.paragraph}</span>
                   </blockquote>
                 ))}
               </div>
@@ -436,7 +436,7 @@ function ClaimDetail({ claim, onAskAI, onRename, onDelete, onSplit }) {
                         {AUTHORITY_SIDE_LABEL[a.side] ?? ""}
                       </span>
                     </div>
-                    <p className="text-[11.5px] text-slate-500 leading-snug">{a.relevance}</p>
+                    <p className="text-sm text-slate-500 leading-snug">{a.relevance}</p>
                   </div>
                 ))}
               </div>
@@ -475,38 +475,38 @@ function PleadingDetail({ pleading, onSelectClaim, onAddClaim, onRenameClaim, on
       <div className={`rounded-2xl border p-4 ${isOpp ? "bg-red-50 border-red-100" : "bg-emerald-50 border-emerald-100"}`}>
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className={`text-[10px] font-bold uppercase tracking-wider mb-0.5 ${isOpp ? "text-red-600" : "text-emerald-700"}`}>
+            <p className={`text-xs font-semibold mb-0.5 ${isOpp ? "text-red-600" : "text-emerald-700"}`}>
               {isOpp ? "כתב הצד שכנגד" : "כתב טענות שלנו"}
             </p>
-            <p className="text-[16px] font-bold text-slate-900">{pleading.docType}</p>
+            <p className="text-base font-bold text-slate-900">{pleading.docType}</p>
             {pleading.filedBy && (
-              <p className="text-[11px] text-slate-500 mt-0.5">{pleading.filedBy} · הוגש {pleading.filedAt}</p>
+              <p className="text-xs text-slate-500 mt-0.5">{pleading.filedBy} · הוגש {pleading.filedAt}</p>
             )}
           </div>
           <div className="flex gap-4 flex-shrink-0">
             <div className="text-center">
-              <p className="text-[20px] font-bold text-slate-800 tabular-nums">{mainClaims.length}</p>
-              <p className="text-[9px] text-slate-400">טענות</p>
+              <p className="text-xl font-bold text-slate-800 tabular-nums">{mainClaims.length}</p>
+              <p className="text-xs text-slate-600">טענות</p>
             </div>
             <div className="text-center">
-              <p className="text-[20px] font-bold text-blue-600 tabular-nums">{central.length}</p>
-              <p className="text-[9px] text-slate-400">מרכזיות</p>
+              <p className="text-xl font-bold text-blue-600 tabular-nums">{central.length}</p>
+              <p className="text-xs text-slate-600">מרכזיות</p>
             </div>
           </div>
         </div>
         {pleading.summary && (
-          <p className="text-[12.5px] text-slate-600 leading-relaxed mt-3">{pleading.summary}</p>
+          <p className="text-sm text-slate-600 leading-relaxed mt-3">{pleading.summary}</p>
         )}
       </div>
 
       {/* ── Claims list ── */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <p className="text-[10.5px] text-slate-400 font-bold uppercase tracking-wider">טענות</p>
+          <p className="text-xs text-slate-500 font-semibold">טענות</p>
           {mergingClaimId && (
             <button
               onClick={() => setMergingClaimId(null)}
-              className="text-[11px] text-slate-400 hover:text-slate-600 cursor-pointer bg-transparent border-0 flex items-center gap-1"
+              className="text-xs text-slate-500 hover:text-slate-600 cursor-pointer bg-transparent border-0 flex items-center gap-1"
             >
               × ביטול מיזוג
             </button>
@@ -535,7 +535,7 @@ function PleadingDetail({ pleading, onSelectClaim, onAddClaim, onRenameClaim, on
             />
           ))
         ) : (
-          <p className="text-[12px] text-slate-400 text-center py-3">אין טענות עדיין</p>
+          <p className="text-xs text-slate-500 text-center py-3">אין טענות עדיין</p>
         )}
 
         {/* Add claim row */}
@@ -552,22 +552,22 @@ function PleadingDetail({ pleading, onSelectClaim, onAddClaim, onRenameClaim, on
                 if (e.key === "Escape") { setNewClaimTitle(""); setAddingClaim(false); }
               }}
               placeholder="כותרת הטענה…"
-              className="flex-1 text-[13px] border border-blue-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-200 bg-white"
+              className="flex-1 text-sm border border-blue-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-200 bg-white"
             />
             <button
               onClick={handleAddClaim}
               disabled={!newClaimTitle.trim()}
-              className="px-3 py-2 text-[12px] font-semibold bg-slate-900 text-white rounded-lg disabled:opacity-30 cursor-pointer border-0 hover:bg-slate-700 transition-colors"
+              className="px-3 py-2 text-xs font-semibold bg-slate-900 text-white rounded-lg disabled:opacity-30 cursor-pointer border-0 hover:bg-slate-700 transition-colors"
             >הוסף</button>
             <button
               onClick={() => { setNewClaimTitle(""); setAddingClaim(false); }}
-              className="px-3 py-2 text-[12px] text-slate-500 hover:text-slate-700 bg-transparent border-0 cursor-pointer"
+              className="px-3 py-2 text-xs text-slate-500 hover:text-slate-700 bg-transparent border-0 cursor-pointer"
             >ביטול</button>
           </div>
         ) : (
           <button
             onClick={() => setAddingClaim(true)}
-            className="w-full py-2 border border-dashed border-slate-200 rounded-xl text-[12px] text-slate-400 hover:border-slate-300 hover:text-slate-600 hover:bg-slate-50 transition-all bg-transparent cursor-pointer mt-1"
+            className="w-full py-2 border border-dashed border-slate-200 rounded-xl text-xs text-slate-500 hover:border-slate-300 hover:text-slate-600 hover:bg-slate-50 transition-all bg-transparent cursor-pointer mt-1"
           >
             + הוסף טענה
           </button>
@@ -586,14 +586,14 @@ function BundleDetail({ bundle, onSelectPleading }) {
   return (
     <div className="space-y-4" dir="rtl">
       <div>
-        <p className="text-[11px] text-slate-400 font-medium uppercase tracking-wider mb-1">אגד כתבי טענות</p>
-        <h2 className="text-[18px] font-bold text-slate-900">{bundle.label}</h2>
-        <p className="text-[12px] text-slate-500 mt-0.5">{uploaded.length} מתוך {bundle.pleadings.length} הועלו</p>
+        <p className="text-xs text-slate-500 font-semibold mb-1">אגד כתבי טענות</p>
+        <h2 className="text-lg font-bold text-slate-900">{bundle.label}</h2>
+        <p className="text-xs text-slate-500 mt-0.5">{uploaded.length} מתוך {bundle.pleadings.length} הועלו</p>
       </div>
 
       {uploaded.length > 0 && (
         <div className="space-y-2">
-          <p className="text-[10.5px] text-slate-400 font-bold uppercase tracking-wider">הועלו ונותחו</p>
+          <p className="text-xs text-slate-500 font-semibold">הועלו ונותחו</p>
           {uploaded.map(p => {
             const isOpp = p.side === "opposing";
             const mainCount = p.claims.filter(c => c.type === "main" || !c.parentId).length;
@@ -604,16 +604,16 @@ function BundleDetail({ bundle, onSelectPleading }) {
                 onClick={() => onSelectPleading(bundle.id, p.id)}
               >
                 <div className="flex-1">
-                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isOpp ? "text-red-600" : "text-emerald-700"}`}>
+                  <span className={`text-xs font-semibold ${isOpp ? "text-red-600" : "text-emerald-700"}`}>
                     {isOpp ? "שכנגד" : "שלנו"}
                   </span>
-                  <p className="text-[13.5px] font-bold text-slate-900">{p.docType}</p>
-                  {p.filedBy && <p className="text-[11px] text-slate-500 mt-0.5">{p.filedBy} · {p.filedAt}</p>}
-                  {p.summary && <p className="text-[11.5px] text-slate-600 mt-1 leading-snug line-clamp-2">{p.summary}</p>}
+                  <p className="text-sm font-bold text-slate-900">{p.docType}</p>
+                  {p.filedBy && <p className="text-xs text-slate-500 mt-0.5">{p.filedBy} · {p.filedAt}</p>}
+                  {p.summary && <p className="text-xs text-slate-600 mt-1 leading-snug line-clamp-2">{p.summary}</p>}
                 </div>
                 <div className="text-center flex-shrink-0">
-                  <p className="text-[20px] font-bold text-slate-700 tabular-nums">{mainCount}</p>
-                  <p className="text-[9px] text-slate-400">טענות</p>
+                  <p className="text-xl font-bold text-slate-700 tabular-nums">{mainCount}</p>
+                  <p className="text-xs text-slate-600">טענות</p>
                 </div>
               </div>
             );
@@ -623,18 +623,18 @@ function BundleDetail({ bundle, onSelectPleading }) {
 
       {pending.length > 0 && (
         <div className="space-y-2">
-          <p className="text-[10.5px] text-slate-400 font-bold uppercase tracking-wider">ממתינים להעלאה</p>
+          <p className="text-xs text-slate-500 font-semibold">ממתינים להעלאה</p>
           {pending.map(p => {
             const isOpp = p.side === "opposing";
             return (
               <div key={p.id} className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-3.5 flex items-center gap-3">
                 <div className="flex-1">
-                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isOpp ? "text-red-400" : "text-emerald-500"}`}>
+                  <span className={`text-xs font-semibold ${isOpp ? "text-red-400" : "text-emerald-500"}`}>
                     {isOpp ? "שכנגד" : "שלנו"}
                   </span>
-                  <p className="text-[13px] text-slate-500 font-medium mt-0.5">{p.docType}</p>
+                  <p className="text-sm text-slate-500 font-medium mt-0.5">{p.docType}</p>
                 </div>
-                <button className="rounded-lg bg-slate-900 text-white text-[11px] font-semibold px-3 py-1.5 hover:bg-slate-700 transition-colors border-0 cursor-pointer flex-shrink-0">
+                <button className="rounded-lg bg-slate-900 text-white text-xs font-semibold px-3 py-1.5 hover:bg-slate-700 transition-colors border-0 cursor-pointer flex-shrink-0">
                   העלה
                 </button>
               </div>
@@ -651,7 +651,7 @@ function BundleDetail({ bundle, onSelectPleading }) {
 function BundlesOverview({ bundles, onSelectBundle, onSelectPleading }) {
   return (
     <div className="space-y-5" dir="rtl">
-      <p className="text-[11px] text-slate-400 font-medium uppercase tracking-wider">כתבי טענות — סקירה</p>
+      <p className="text-xs text-slate-500 font-semibold">כתבי טענות — סקירה</p>
       {bundles.map(bundle => {
         const uploaded = bundle.pleadings.filter(p => p.status === "analyzed").length;
         const total    = bundle.pleadings.length;

@@ -63,7 +63,7 @@ export default function AuthScreen({ isModal = false, initialMode = "login", pay
             placeholder="שם מלא"
             required
             autoFocus
-            className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 placeholder:text-slate-400"
+            className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 placeholder:text-slate-500"
           />
         )}
         <input
@@ -73,7 +73,7 @@ export default function AuthScreen({ isModal = false, initialMode = "login", pay
           placeholder="כתובת אימייל"
           required
           autoFocus={isLogin}
-          className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 placeholder:text-slate-400"
+          className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 placeholder:text-slate-500"
         />
         <input
           type="password"
@@ -82,7 +82,7 @@ export default function AuthScreen({ isModal = false, initialMode = "login", pay
           placeholder="סיסמה"
           required
           minLength={6}
-          className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 placeholder:text-slate-400"
+          className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 placeholder:text-slate-500"
         />
 
         {error && (
@@ -110,7 +110,7 @@ export default function AuthScreen({ isModal = false, initialMode = "login", pay
         </p>
       )}
       {paywallMode && (
-        <p className="text-center text-xs text-slate-400">גישה למערכת בהזמנה בלבד</p>
+        <p className="text-center text-xs text-slate-500">גישה למערכת בהזמנה בלבד</p>
       )}
     </div>
   );
@@ -127,7 +127,7 @@ export default function AuthScreen({ isModal = false, initialMode = "login", pay
         {paywallMode && (
           <div className="text-center mb-5">
             <p className="text-white text-xl font-bold mb-1">הניתוח מוכן</p>
-            <p className="text-white/60 text-sm">כנס לחשבון שלך כדי לצפות בתוצאות</p>
+            <p className="text-white/70 text-sm">כנס לחשבון שלך כדי לצפות בתוצאות</p>
           </div>
         )}
         {card}

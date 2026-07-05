@@ -183,7 +183,7 @@ export default function CaseChatPanel({
                 <button
                   key={p}
                   onClick={() => { setInput(p); inputRef.current?.focus(); }}
-                  className="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-full px-3 py-1 hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-700 transition-colors cursor-pointer"
+                  className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-full px-3 py-1 hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-700 transition-colors cursor-pointer"
                 >
                   {p}
                 </button>
@@ -221,13 +221,13 @@ export default function CaseChatPanel({
         onClick={() => !expanded && setExpanded(true)}
       >
         {/* Collapse / icon */}
-        <span className="text-indigo-500 shrink-0 text-[16px] leading-none">
+        <span className="text-indigo-500 shrink-0 text-base leading-none">
           {expanded ? "💬" : "💬"}
         </span>
 
         {/* Issue pill */}
         {issueContext && (
-          <span className="shrink-0 text-[10px] font-semibold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 max-w-[140px] truncate">
+          <span className="shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 max-w-[140px] truncate">
             {issueContext.title}
           </span>
         )}
@@ -246,7 +246,7 @@ export default function CaseChatPanel({
             : "שאל שאלה על התיק או על המערכת…"
           }
           disabled={isLoading}
-          className="flex-1 bg-transparent text-[13.5px] text-slate-800 placeholder:text-slate-400 focus:outline-none disabled:opacity-50 cursor-text"
+          className="flex-1 bg-transparent text-sm text-slate-800 placeholder:text-slate-500 focus:outline-none disabled:opacity-50 cursor-text"
         />
 
         {/* Loading dots */}
@@ -272,7 +272,7 @@ export default function CaseChatPanel({
         {expanded && (
           <button
             onClick={(e) => { e.stopPropagation(); setExpanded(false); }}
-            className="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-slate-700 cursor-pointer bg-transparent border-0 text-base leading-none"
+            className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-slate-700 cursor-pointer bg-transparent border-0 text-base leading-none"
             title="כווץ"
           >
             ▾
@@ -282,7 +282,7 @@ export default function CaseChatPanel({
         {/* Close */}
         <button
           onClick={(e) => { e.stopPropagation(); onClose(); }}
-          className="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-slate-700 cursor-pointer bg-transparent border-0 text-xl leading-none"
+          className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-slate-700 cursor-pointer bg-transparent border-0 text-xl leading-none"
           title="סגור"
         >
           ×
@@ -317,7 +317,7 @@ function ChatMessage({ message, dismissedIds, onAcceptUpdate, onRejectUpdate, on
   if (message.role === "user") {
     return (
       <div className="flex justify-start">
-        <div className="bg-slate-900 text-white text-[13px] px-4 py-2.5 rounded-2xl rounded-br-sm leading-relaxed"
+        <div className="bg-slate-900 text-white text-sm px-4 py-2.5 rounded-2xl rounded-br-sm leading-relaxed"
           style={{ overflowWrap: "break-word", wordBreak: "break-word" }}>
           {message.content}
         </div>
@@ -328,7 +328,7 @@ function ChatMessage({ message, dismissedIds, onAcceptUpdate, onRejectUpdate, on
   if (message.errorText) {
     return (
       <div className="flex justify-end">
-        <div className="bg-red-50 border border-red-200 text-red-700 text-[12px] px-4 py-2.5 rounded-2xl rounded-bl-sm leading-relaxed w-full"
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-2.5 rounded-2xl rounded-bl-sm leading-relaxed w-full"
           style={{ overflowWrap: "break-word", wordBreak: "break-word" }}>
           <span className="font-semibold">שגיאה: </span>{message.errorText}
         </div>
@@ -345,7 +345,7 @@ function ChatMessage({ message, dismissedIds, onAcceptUpdate, onRejectUpdate, on
 
         {sections.length > 0 && (
           <div className="bg-white border border-slate-200 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm shadow-slate-100">
-            <p className="text-[13px] text-slate-800 leading-[1.8] whitespace-pre-wrap"
+            <p className="text-sm text-slate-800 leading-[1.8] whitespace-pre-wrap"
               style={{ overflowWrap: "break-word", wordBreak: "break-word" }}>
               {sections.map(s => s.content).join("\n\n")}
             </p>
@@ -356,18 +356,18 @@ function ChatMessage({ message, dismissedIds, onAcceptUpdate, onRejectUpdate, on
           <div className="flex gap-1.5 self-start">
             {sources.length > 0 && (
               <div className="relative group">
-                <span className="text-[10px] text-slate-400 hover:text-indigo-600 bg-slate-100 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 cursor-default select-none transition-colors rounded-full px-2 py-0.5 inline-block">
+                <span className="text-xs text-slate-600 hover:text-indigo-600 bg-slate-100 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 cursor-default select-none transition-colors rounded-full px-2 py-0.5 inline-block">
                   מקורות
                 </span>
                 <div className="absolute bottom-full right-0 mb-2 w-72 bg-white border border-slate-200 rounded-xl shadow-xl p-3 hidden group-hover:block z-20 text-right" dir="rtl">
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1.5">מקורות</p>
+                  <p className="text-xs font-semibold text-slate-500 mb-1.5">מקורות</p>
                   <div className="flex flex-col gap-1.5">
                     {sources.map((src, i) => (
                       <div key={i} className="flex items-start gap-1.5">
-                        <span className="shrink-0 text-[11px]">{SOURCE_ICON[src.type] ?? "📌"}</span>
-                        <span className="text-[11px] text-slate-700 leading-snug">
+                        <span className="shrink-0 text-xs">{SOURCE_ICON[src.type] ?? "📌"}</span>
+                        <span className="text-xs text-slate-700 leading-snug">
                           <span className="font-medium">{src.label}</span>
-                          {src.excerpt && <span className="text-slate-400"> — {src.excerpt}</span>}
+                          {src.excerpt && <span className="text-slate-500"> — {src.excerpt}</span>}
                         </span>
                       </div>
                     ))}
@@ -377,14 +377,14 @@ function ChatMessage({ message, dismissedIds, onAcceptUpdate, onRejectUpdate, on
             )}
             {limitations.length > 0 && (
               <div className="relative group">
-                <span className="text-[10px] text-slate-400 hover:text-amber-600 bg-slate-100 hover:bg-amber-50 border border-slate-200 hover:border-amber-300 cursor-default select-none transition-colors rounded-full px-2 py-0.5 inline-block">
+                <span className="text-xs text-slate-600 hover:text-amber-600 bg-slate-100 hover:bg-amber-50 border border-slate-200 hover:border-amber-300 cursor-default select-none transition-colors rounded-full px-2 py-0.5 inline-block">
                   הערות
                 </span>
                 <div className="absolute bottom-full right-0 mb-2 w-72 bg-white border border-slate-200 rounded-xl shadow-xl p-3 hidden group-hover:block z-20 text-right" dir="rtl">
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide mb-1.5">הערות</p>
+                  <p className="text-xs font-semibold text-slate-500 mb-1.5">הערות</p>
                   <div className="flex flex-col gap-1">
                     {limitations.map((lim, i) => (
-                      <p key={i} className="text-[11px] text-slate-500 leading-snug">{lim}</p>
+                      <p key={i} className="text-xs text-slate-500 leading-snug">{lim}</p>
                     ))}
                   </div>
                 </div>
@@ -400,14 +400,14 @@ function ChatMessage({ message, dismissedIds, onAcceptUpdate, onRejectUpdate, on
               <div className="flex items-start gap-2">
                 <span className="text-sm shrink-0 mt-0.5">{cfg.icon}</span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[9px] font-bold uppercase tracking-wide opacity-60 mb-0.5">{cfg.label} מוצעת</p>
-                  <p className="text-[12px] leading-snug" style={{ overflowWrap: "break-word" }}>{update.description}</p>
+                  <p className="text-xs font-semibold opacity-80 mb-0.5">{cfg.label} מוצעת</p>
+                  <p className="text-sm leading-snug" style={{ overflowWrap: "break-word" }}>{update.description}</p>
                 </div>
                 <div className="flex gap-1.5 shrink-0">
                   <button onClick={() => { onAcceptUpdate(update); onRejectUpdate(update.id); }}
-                    className="text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-white border border-current hover:opacity-80 cursor-pointer">אשר</button>
+                    className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-white border border-current hover:opacity-80 cursor-pointer">אשר</button>
                   <button onClick={() => onRejectUpdate(update.id)}
-                    className="text-[11px] px-2 py-1 rounded-lg bg-white/60 border border-current opacity-50 hover:opacity-30 cursor-pointer">×</button>
+                    className="text-xs px-2 py-1 rounded-lg bg-white/60 border border-current opacity-50 hover:opacity-30 cursor-pointer">×</button>
                 </div>
               </div>
             </div>
@@ -420,7 +420,7 @@ function ChatMessage({ message, dismissedIds, onAcceptUpdate, onRejectUpdate, on
               <button
                 key={i}
                 onClick={() => onQuickAction?.(action)}
-                className="text-[10.5px] text-indigo-600 bg-indigo-50 border border-indigo-200 rounded-full px-3 py-1 hover:bg-indigo-100 hover:border-indigo-400 transition-colors cursor-pointer"
+                className="text-xs text-indigo-600 bg-indigo-50 border border-indigo-200 rounded-full px-3 py-1 hover:bg-indigo-100 hover:border-indigo-400 transition-colors cursor-pointer"
               >
                 {action}
               </button>

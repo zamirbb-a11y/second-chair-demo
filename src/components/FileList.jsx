@@ -40,7 +40,7 @@ export default function FileList({
                       {file.name}
                     </div>
 
-                    <div className="text-[11px] text-slate-500 mt-1">
+                    <div className="text-xs text-slate-500 mt-1">
                       {formatType(
                         file.type
                       )}{" "}
@@ -49,7 +49,7 @@ export default function FileList({
                         file.size
                       )}
                       {file.needsOcr && (
-  <div className="mt-1 text-[11px] text-amber-700">
+  <div className="mt-1 text-xs text-amber-700">
     PDF סרוק / לא חולץ טקסט — נדרש OCR
   </div>
 )}
@@ -58,7 +58,7 @@ export default function FileList({
                 </div>
 
                 <div
-                  className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${statusStyle}`}
+                  className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${statusStyle}`}
                 >
                   {file.status}
                 </div>

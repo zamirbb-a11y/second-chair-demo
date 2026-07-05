@@ -28,7 +28,7 @@ function strengthTextClass(strength) {
   if (strength === "medium")                          return "text-slate-500";
   if (strength === "medium_weak")                     return "text-amber-700";
   if (["weak", "very_weak"].includes(strength))       return "text-orange-700";
-  return "text-slate-400";
+  return "text-slate-500";
 }
 
 // Case-level pending: caseAssessmentChange
@@ -38,17 +38,17 @@ function CasePendingDelta({ delta, onAccept, onReject }) {
 
   return (
     <div className="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4 mb-6">
-      <div className="text-[10px] font-bold text-amber-700 tracking-[0.07em] uppercase mb-2">
+      <div className="text-xs font-semibold text-amber-800 mb-2">
         עדכון ממתין — הערכת סיכויי התיק
       </div>
-      <div className="text-[14px] text-amber-900 leading-relaxed mb-1">
+      <div className="text-sm text-amber-900 leading-relaxed mb-1">
         הערכת הסיכויים הכוללת השתנתה:{" "}
         <span className="font-semibold">{change.previousLevel}</span>
         {" → "}
         <span className="font-semibold">{change.newLevel}</span>
       </div>
       {change.reason && (
-        <div className="text-[12.5px] text-amber-700 leading-relaxed mb-3">
+        <div className="text-sm text-amber-800 leading-relaxed mb-3">
           {change.reason}
         </div>
       )}

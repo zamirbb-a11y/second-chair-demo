@@ -120,8 +120,8 @@ export default function NewCaseWizard({ onComplete, onCancel }) {
         <aside className="w-52 bg-slate-900 flex flex-col shrink-0 py-8 px-6">
           {/* Branding */}
           <div className="mb-10">
-            <p className="text-[9px] text-slate-500 uppercase tracking-[0.18em] mb-1.5">Second Chair</p>
-            <p className="text-white font-bold text-[15px] leading-tight">פתיחת<br/>תיק חדש</p>
+            <p className="text-xs text-slate-400 uppercase tracking-[0.18em] mb-1.5">Second Chair</p>
+            <p className="text-white font-bold text-base leading-tight">פתיחת<br/>תיק חדש</p>
           </div>
 
           {/* Step list */}
@@ -138,7 +138,7 @@ export default function NewCaseWizard({ onComplete, onCancel }) {
                   className={`relative flex items-center gap-3 rounded-xl px-3 py-3 transition-all ${active ? "bg-white/10" : ""}`}
                 >
                   {/* Circle */}
-                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 z-10 transition-all ring-2 ${
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 z-10 transition-all ring-2 ${
                     done   ? "bg-emerald-400 text-white ring-emerald-400/30" :
                     active ? "bg-white text-slate-900 ring-white/20" :
                              "bg-slate-800 text-slate-400 ring-slate-800"
@@ -146,8 +146,8 @@ export default function NewCaseWizard({ onComplete, onCancel }) {
                     {done ? "✓" : i + 1}
                   </div>
                   <div>
-                    <p className={`text-[12px] font-semibold leading-tight transition-colors ${
-                      active ? "text-white" : done ? "text-slate-300" : "text-slate-500"
+                    <p className={`text-xs font-semibold leading-tight transition-colors ${
+                      active ? "text-white" : done ? "text-slate-300" : "text-slate-400"
                     }`}>{s.label}</p>
                     <p className="text-[10px] text-slate-600 mt-0.5">{s.sub}</p>
                   </div>
@@ -158,7 +158,7 @@ export default function NewCaseWizard({ onComplete, onCancel }) {
 
           {/* Footer tagline */}
           <div className="mt-auto">
-            <p className="text-[10px] text-slate-600 leading-relaxed">
+            <p className="text-xs text-slate-400 leading-relaxed">
               המידע שתספק משפר את<br/>איכות הניתוח הראשוני.
             </p>
           </div>
@@ -174,9 +174,9 @@ export default function NewCaseWizard({ onComplete, onCancel }) {
             {step === 0 && (
               <div className="flex flex-col gap-7 h-full">
                 <div>
-                  <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-2">שלב 1 מתוך 3</p>
-                  <h2 className="text-[24px] font-bold text-slate-900 leading-tight">שם התיק</h2>
-                  <p className="text-[13px] text-slate-400 mt-2 leading-relaxed">
+                  <p className="text-xs font-semibold text-slate-500 mb-2">שלב 1 מתוך 3</p>
+                  <h2 className="text-2xl font-bold text-slate-900 leading-tight">שם התיק</h2>
+                  <p className="text-sm text-slate-600 mt-2 leading-relaxed">
                     בחר שם שיזהה את התיק בקלות — לרוב שמות הצדדים.
                   </p>
                 </div>
@@ -186,7 +186,7 @@ export default function NewCaseWizard({ onComplete, onCancel }) {
                   onChange={e => setCaseName(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && caseName.trim() && setStep(1)}
                   placeholder="לדוגמה: אלפא טכנולוגיות נ׳ יואב כהן"
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 text-[15px] text-slate-900 px-5 py-4 focus:outline-none focus:ring-2 focus:ring-indigo-300 placeholder:text-slate-300"
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 text-base text-slate-900 px-5 py-4 focus:outline-none focus:ring-2 focus:ring-indigo-300 placeholder:text-slate-500"
                 />
               </div>
             )}
@@ -195,9 +195,9 @@ export default function NewCaseWizard({ onComplete, onCancel }) {
             {step === 1 && (
               <div className="flex flex-col gap-5">
                 <div>
-                  <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-2">שלב 2 מתוך 3</p>
-                  <h2 className="text-[24px] font-bold text-slate-900 leading-tight">חומר ראשוני</h2>
-                  <p className="text-[13px] text-slate-400 mt-2 leading-relaxed">
+                  <p className="text-xs font-semibold text-slate-500 mb-2">שלב 2 מתוך 3</p>
+                  <h2 className="text-2xl font-bold text-slate-900 leading-tight">חומר ראשוני</h2>
+                  <p className="text-sm text-slate-600 mt-2 leading-relaxed">
                     תאר את המחלוקת, העלה מסמכים, או שניהם.
                   </p>
                 </div>
@@ -208,7 +208,7 @@ export default function NewCaseWizard({ onComplete, onCancel }) {
                   onChange={e => setCaseText(e.target.value)}
                   placeholder="תיאור קצר של המחלוקת, העובדות הרלוונטיות, ותפקיד הלקוח…"
                   rows={6}
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 text-[13px] text-slate-800 px-5 py-4 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-300 placeholder:text-slate-300 leading-relaxed"
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 text-sm text-slate-800 px-5 py-4 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-300 placeholder:text-slate-500 leading-relaxed"
                 />
 
                 {/* File upload zone */}
@@ -223,19 +223,19 @@ export default function NewCaseWizard({ onComplete, onCancel }) {
                   }`}
                 >
                   <span className="text-xl opacity-60">{uploading ? "⏳" : "📎"}</span>
-                  <span className="text-[12px] font-medium text-slate-500">
+                  <span className="text-xs font-medium text-slate-500">
                     {uploading ? "מעלה קבצים…" : "גרור קבצים לכאן, או לחץ להעלאה"}
                   </span>
-                  <span className="text-[10px] text-slate-400">DOCX · PDF · TXT</span>
+                  <span className="text-xs text-slate-500">DOCX · PDF · TXT</span>
                   {uploadedNames.length > 0 && (
                     <div className="flex flex-wrap justify-center gap-1.5 mt-1">
                       {uploadedNames.map((n, i) => (
-                        <span key={i} className="inline-flex items-center gap-1 text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full px-2.5 py-0.5 font-medium">
+                        <span key={i} className="inline-flex items-center gap-1 text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full px-2.5 py-0.5 font-medium">
                           {n}
                           <button
                             type="button"
                             onClick={e => { e.preventDefault(); e.stopPropagation(); removeFile(i); }}
-                            className="text-indigo-400 hover:text-red-500 leading-none"
+                            className="text-indigo-600 hover:text-red-500 leading-none"
                             aria-label={`הסר ${n}`}
                           >×</button>
                         </span>
@@ -246,7 +246,7 @@ export default function NewCaseWizard({ onComplete, onCancel }) {
                 </label>
 
                 {uploadError && (
-                  <p className="text-[11px] text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2 -mt-2">
+                  <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2 -mt-2">
                     {uploadError}
                   </p>
                 )}
@@ -257,9 +257,9 @@ export default function NewCaseWizard({ onComplete, onCancel }) {
             {step === 2 && (
               <div className="flex flex-col gap-5">
                 <div>
-                  <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-2">שלב 3 מתוך 3</p>
-                  <h2 className="text-[24px] font-bold text-slate-900 leading-tight">הצדדים</h2>
-                  <p className="text-[13px] text-slate-400 mt-2">מי הלקוח שאנו מייצגים?</p>
+                  <p className="text-xs font-semibold text-slate-500 mb-2">שלב 3 מתוך 3</p>
+                  <h2 className="text-2xl font-bold text-slate-900 leading-tight">הצדדים</h2>
+                  <p className="text-sm text-slate-600 mt-2">מי הלקוח שאנו מייצגים?</p>
                 </div>
 
                 {/* Party buttons or text input */}
@@ -269,7 +269,7 @@ export default function NewCaseWizard({ onComplete, onCancel }) {
                       <button
                         key={i}
                         onClick={() => { setSelectedPartyIdx(i); setCustomName(""); }}
-                        className={`flex-1 rounded-2xl border-2 text-[13px] font-semibold py-3.5 px-4 transition-all text-right ${
+                        className={`flex-1 rounded-2xl border-2 text-sm font-semibold py-3.5 px-4 transition-all text-right ${
                           selectedPartyIdx === i
                             ? "border-indigo-500 bg-indigo-50 text-indigo-800 shadow-sm"
                             : "border-slate-200 bg-white text-slate-600 hover:border-indigo-300 hover:bg-slate-50"
@@ -285,7 +285,7 @@ export default function NewCaseWizard({ onComplete, onCancel }) {
                     value={customName}
                     onChange={e => { setCustomName(e.target.value); setSelectedPartyIdx(null); }}
                     placeholder="שם הלקוח / הצד שאנו מייצגים"
-                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 text-[14px] text-slate-800 px-5 py-3.5 focus:outline-none focus:ring-2 focus:ring-indigo-300 placeholder:text-slate-300"
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 text-sm text-slate-800 px-5 py-3.5 focus:outline-none focus:ring-2 focus:ring-indigo-300 placeholder:text-slate-500"
                   />
                 )}
 
@@ -293,25 +293,25 @@ export default function NewCaseWizard({ onComplete, onCancel }) {
                 {questions.length > 0 && (
                   <>
                     <hr className="border-slate-100" />
-                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest -mb-2">פרטים משלימים</p>
+                    <p className="text-xs font-semibold text-slate-500 -mb-2">פרטים משלימים</p>
                     {questions.map((q, i) => {
                       if (dismissed.has(i)) return null;
                       const cfg = ACTION_CFG[q.suggestedAction] ?? ACTION_CFG.answer;
                       return (
                         <div key={i} className="bg-slate-50 rounded-2xl border border-slate-200 p-4 flex flex-col gap-2.5">
                           <div className="flex items-start gap-2">
-                            <p className="flex-1 text-[13px] font-semibold text-slate-800 leading-snug">{q.question}</p>
-                            <span className={`flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.text}`}>{cfg.label}</span>
+                            <p className="flex-1 text-sm font-semibold text-slate-800 leading-snug">{q.question}</p>
+                            <span className={`flex-shrink-0 text-xs font-bold px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.text}`}>{cfg.label}</span>
                           </div>
                           <textarea
                             rows={2}
                             placeholder="הקלד תשובה…"
                             value={answers[i] ?? ""}
                             onChange={e => setAnswers(prev => ({ ...prev, [i]: e.target.value }))}
-                            className="w-full rounded-xl border border-slate-200 bg-white text-[13px] text-slate-800 p-2.5 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-300 placeholder:text-slate-300"
+                            className="w-full rounded-xl border border-slate-200 bg-white text-sm text-slate-800 p-2.5 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-300 placeholder:text-slate-500"
                           />
                           <button
-                            className="text-[11px] text-slate-400 hover:text-slate-600 self-start"
+                            className="text-xs text-slate-500 hover:text-slate-700 self-start"
                             onClick={() => setDismissed(p => new Set([...p, i]))}
                           >דלג ›</button>
                         </div>

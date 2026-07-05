@@ -432,7 +432,7 @@ export default function App() {
   if (session === undefined) {
     return (
       <div className="min-h-screen bg-[#eef0f4] flex items-center justify-center">
-        <div className="text-slate-400 text-sm">טוען…</div>
+        <div className="text-slate-500 text-sm">טוען…</div>
       </div>
     );
   }
@@ -966,7 +966,7 @@ export default function App() {
           <div className="pt-2 text-center">
             <button
               onClick={() => { window.location.href = '/landing.html'; }}
-              className="text-sm text-slate-400 hover:text-slate-600 transition"
+              className="text-sm text-slate-500 hover:text-slate-700 transition"
             >
               ← חזור לדף הבית
             </button>
@@ -2102,7 +2102,7 @@ function removeAcceptedWorkItem(itemId) {
       case "pleadings":
         return (
           <div className="space-y-4" dir="rtl">
-            <div className="rounded-2xl bg-white border border-slate-200 shadow-sm px-6 py-4 text-center text-slate-400 text-sm">
+            <div className="rounded-2xl bg-white border border-slate-200 shadow-sm px-6 py-4 text-center text-slate-500 text-sm">
               מחסן המסמכים — בגרסה המלאה
             </div>
             <EvidenceView overlays={overlays} onRollback={rollbackOverlay} />
@@ -2234,7 +2234,7 @@ default:
             {/* Right: case title */}
             <div className="flex-1 flex items-center justify-start min-w-0 pointer-events-none select-none">
               {caseName && (
-                <span className="text-[18px] font-semibold text-slate-900 truncate">{caseName}</span>
+                <span className="text-lg font-semibold text-slate-900 truncate">{caseName}</span>
               )}
             </div>
 
@@ -2265,13 +2265,13 @@ default:
 
             {/* Client name label */}
             {analysis && clientName && (
-              <span className="shrink-0 flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-500">
+              <span className="shrink-0 flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-500">
                 <span>מייצגים:</span>
                 <span className="font-semibold text-slate-700">{clientName}</span>
                 <button
                   onClick={() => setClientRole(r => r === "claimant" ? "defendant" : "claimant")}
                   title={`תפקיד נוכחי: ${clientRole === "claimant" ? "תובע" : "נתבע"} — לחץ להחליף`}
-                  className="text-slate-400 hover:text-slate-700 cursor-pointer bg-transparent border-0 p-0 leading-none"
+                  className="text-slate-500 hover:text-slate-700 cursor-pointer bg-transparent border-0 p-0 leading-none"
                 >
                   ({clientRole === "claimant" ? "תובע" : "נתבע"} ⇄)
                 </button>
@@ -2281,30 +2281,30 @@ default:
             {/* Left: sync indicator + username */}
             <div className="flex items-center gap-2 shrink-0">
               {syncStatus.state === "syncing" && (
-                <span className="text-[10px] text-slate-400 flex items-center gap-1 select-none">
+                <span className="text-xs text-slate-500 flex items-center gap-1 select-none">
                   <span className="inline-block animate-spin">↻</span>
                   מסנכרן...
                 </span>
               )}
               {syncStatus.state === "saved" && showSaved && (
-                <span className="text-[10px] text-emerald-500 select-none">✓ נשמר בענן</span>
+                <span className="text-xs text-emerald-600 select-none">✓ נשמר בענן</span>
               )}
               {syncStatus.state === "failed" && (
                 <span
-                  className="text-[10px] text-red-500 select-none cursor-default"
+                  className="text-xs text-red-600 select-none cursor-default"
                   title="השמירה לענן נכשלה. מנסה שוב אוטומטית..."
                 >
                   ⚠ השמירה לענן נכשלה
                 </span>
               )}
               {session ? (
-                <span className="text-[11px] text-slate-400 px-1 max-w-[120px] truncate">
+                <span className="text-xs text-slate-500 px-1 max-w-[120px] truncate">
                   {session.user?.user_metadata?.full_name || session.user?.email}
                 </span>
               ) : (
                 <button
                   onClick={() => setAuthModal('login')}
-                  className="text-[11px] text-slate-400 hover:text-slate-700 cursor-pointer bg-transparent border-0 px-2 py-1"
+                  className="text-xs text-slate-500 hover:text-slate-700 cursor-pointer bg-transparent border-0 px-2 py-1"
                 >
                   התחבר
                 </button>
@@ -2316,7 +2316,7 @@ default:
           {analysis && intakeExpanded && (
             <div className="bg-slate-50 border-b border-slate-200 px-5 py-4 flex-shrink-0">
               <div className="max-w-[760px]">
-                <div className="text-[11px] font-bold text-slate-400 tracking-[0.07em] uppercase mb-2">
+                <div className="text-xs font-semibold text-slate-500 mb-2">
                   הוספת מידע חדש לתיק
                 </div>
                 <textarea
@@ -2324,22 +2324,22 @@ default:
                   onChange={(e) => setAdditionalInfoText(e.target.value)}
                   placeholder="הוסף מסמך, עדות, עדכון עובדתי, או כל מידע רלבנטי חדש…"
                   rows={4}
-                  className="w-full text-[13px] border border-slate-300 rounded-xl px-4 py-3 outline-none focus:border-blue-400 bg-white resize-none leading-relaxed"
+                  className="w-full text-sm border border-slate-300 rounded-xl px-4 py-3 outline-none focus:border-blue-400 bg-white resize-none leading-relaxed"
                 />
                 <div className="flex items-center gap-3 mt-2">
                   <button
                     onClick={handleCaseTextUpdateAndReanalyze}
                     disabled={loading || (!additionalInfoText.trim() && !workspaceUpdates.some(u => u.status === "pending_analysis"))}
-                    className="rounded-lg bg-slate-900 text-white px-4 py-2 text-[13px] font-semibold disabled:opacity-40 hover:bg-slate-800 border-0 cursor-pointer"
+                    className="rounded-lg bg-slate-900 text-white px-4 py-2 text-sm font-semibold disabled:opacity-40 hover:bg-slate-800 border-0 cursor-pointer"
                   >
                     {loading ? "מנתח…" : "⟳ עדכן ניתוח"}
                   </button>
-                  <label className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-[13px] text-slate-600 hover:bg-slate-50 cursor-pointer">
+                  <label className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 cursor-pointer">
                     + העלה קובץ
                     <input type="file" accept=".docx,.txt,.pdf" className="hidden" onChange={handleWordUpload} />
                   </label>
                   {uploadedFiles.length > 0 && (
-                    <span className="text-[12px] text-slate-400">
+                    <span className="text-xs text-slate-500">
                       {uploadedFiles.length} קבצים מצורפים
                     </span>
                   )}
@@ -2446,7 +2446,7 @@ default:
       {/* Floating feedback button */}
       <button
         onClick={() => setShowFeedback(true)}
-        className="fixed bottom-5 left-5 z-[9998] rounded-full bg-slate-800 text-white text-[12px] font-medium px-4 py-2 shadow-lg hover:bg-slate-700 border-0 cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
+        className="fixed bottom-5 left-5 z-[9998] rounded-full bg-slate-800 text-white text-xs font-medium px-4 py-2 shadow-lg hover:bg-slate-700 border-0 cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
         title="שלח פידבק או דווח על בעיה"
       >
         פידבק / בעיה
@@ -2525,7 +2525,7 @@ function UnscopedFallback({
             <button
               type="button"
               onClick={() => onRollbackOverlay?.(overlay.id)}
-              className="shrink-0 text-xs text-slate-400 hover:text-red-500"
+              className="shrink-0 text-xs text-slate-500 hover:text-red-500"
             >
               בטל
             </button>
@@ -2546,7 +2546,7 @@ function UnscopedFallback({
             <button
               type="button"
               onClick={() => onRemoveWorkItem?.(item.id)}
-              className="shrink-0 text-xs text-slate-400 hover:text-red-500"
+              className="shrink-0 text-xs text-slate-500 hover:text-red-500"
             >
               מחק
             </button>
@@ -2574,7 +2574,7 @@ function UnscopedFallback({
             <button
               type="button"
               onClick={() => onRollbackOverlay?.(overlay.id)}
-              className="shrink-0 text-xs text-slate-400 hover:text-red-500"
+              className="shrink-0 text-xs text-slate-500 hover:text-red-500"
             >
               בטל
             </button>

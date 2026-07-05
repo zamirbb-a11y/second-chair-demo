@@ -8,18 +8,18 @@ const CHIP_STYLES = {
   פסיקה:        { bg: "bg-purple-50",  text: "text-purple-600"  },
   חקיקה:        { bg: "bg-violet-50",  text: "text-violet-700"  },
   עד:           { bg: "bg-teal-50",    text: "text-teal-700"    },
-  מסמך:         { bg: "bg-slate-100",  text: "text-slate-500"   },
-  "פער ראייתי": { bg: "bg-orange-50",  text: "text-orange-600"  },
+  מסמך:         { bg: "bg-slate-100",  text: "text-slate-600"   },
+  "פער ראייתי": { bg: "bg-orange-50",  text: "text-orange-700"  },
   פער:          { bg: "bg-amber-50",   text: "text-amber-700"   },
   מחזק:         { bg: "bg-emerald-50", text: "text-emerald-700" },
-  מקשה:         { bg: "bg-red-50",     text: "text-red-600"     },
+  מקשה:         { bg: "bg-red-50",     text: "text-red-700"     },
   "שאלה ללקוח": { bg: "bg-amber-50",   text: "text-amber-800"   },
-  "ראיה להשגה": { bg: "bg-sky-50",     text: "text-sky-600"     },
+  "ראיה להשגה": { bg: "bg-sky-50",     text: "text-sky-700"     },
   פעולה:        { bg: "bg-indigo-50",  text: "text-indigo-600"  },
-  "פער משפטי":  { bg: "bg-rose-50",    text: "text-rose-600"    },
+  "פער משפטי":  { bg: "bg-rose-50",    text: "text-rose-700"    },
   "מחקר משפטי": { bg: "bg-violet-50",  text: "text-violet-600"  },
   כיוון:        { bg: "bg-indigo-50",  text: "text-indigo-600"  },
-  "לא ברור":    { bg: "bg-slate-100",  text: "text-slate-500"   },
+  "לא ברור":    { bg: "bg-slate-100",  text: "text-slate-600"   },
 };
 const STRENGTH_LABELS = {
   very_strong: "גבוה מאוד", strong: "גבוה", medium_strong: "בינוני-גבוה",
@@ -37,7 +37,7 @@ function strengthBadgeClass(s) {
   if (s === "medium")        return "bg-slate-100 text-slate-600 border-slate-200";
   if (s === "medium_weak")   return "bg-amber-100 text-amber-700 border-amber-200";
   if (["weak","very_weak"].includes(s)) return "bg-orange-100 text-orange-700 border-orange-200";
-  return "bg-slate-100 text-slate-500 border-slate-200";
+  return "bg-slate-100 text-slate-600 border-slate-200";
 }
 const STATUTE_RE = /^(חוק|תקנות?|פקודת?|חוקה|הוראות?|צו)\s/;
 function legalChip(t) { return STATUTE_RE.test(String(t)) ? mkChip("חקיקה") : mkChip("פסיקה"); }
@@ -72,13 +72,13 @@ function HoverItem({ chipConfig, text, tooltip, isNew }) {
     <div className="py-2 border-b border-slate-100 last:border-0">
       <div className="flex items-start gap-1.5">
         {chipConfig && (
-          <span className={`text-[9px] font-bold px-1.5 py-[3px] rounded flex-shrink-0 mt-0.5 leading-none ${chipConfig.bg} ${chipConfig.text}`}>
+          <span className={`text-xs font-bold px-1.5 py-[3px] rounded flex-shrink-0 mt-0.5 leading-tight ${chipConfig.bg} ${chipConfig.text}`}>
             {chipConfig.name}
           </span>
         )}
         <p
           className={[
-            "text-[12.5px] text-slate-700 leading-snug font-medium flex-1 min-w-0 break-words",
+            "text-sm text-slate-700 leading-snug font-medium flex-1 min-w-0 break-words",
             tooltip ? "underline underline-offset-2 decoration-slate-300 cursor-help" : "",
           ].join(" ")}
           onMouseEnter={tooltip ? (e) => setTipPos({ x: e.clientX, y: e.clientY }) : undefined}
@@ -87,13 +87,13 @@ function HoverItem({ chipConfig, text, tooltip, isNew }) {
         >
           {text}
           {isNew && (
-            <span className="inline-block mr-1.5 text-[9px] font-bold px-1.5 py-[2px] rounded bg-amber-100 text-amber-700 border border-amber-200 leading-none align-middle">חדש</span>
+            <span className="inline-block mr-1.5 text-xs font-bold px-1.5 py-[2px] rounded bg-amber-100 text-amber-700 border border-amber-200 leading-tight align-middle">חדש</span>
           )}
         </p>
       </div>
       {tipPos && tooltip && (
         <div
-          className="z-[9999] bg-slate-900 text-white text-[11px] rounded-xl px-3 py-2.5 leading-relaxed shadow-xl pointer-events-none"
+          className="z-[9999] bg-slate-900 text-white text-xs rounded-xl px-3 py-2.5 leading-relaxed shadow-xl pointer-events-none"
           style={{ position: "fixed", top: tipPos.y - 8, left: tipLeft, transform: "translateY(-100%)", maxWidth: 280, minWidth: 160 }}
         >
           {tooltip}
@@ -110,7 +110,7 @@ function SectionBlock({ label, items, limit }) {
   const shown = limit ? items.slice(0, limit) : items;
   return (
     <div className="mt-3">
-      <div className="text-[9px] font-bold text-slate-400 tracking-[0.08em] uppercase mb-0.5">{label}</div>
+      <div className="text-xs font-semibold text-slate-500 mb-0.5">{label}</div>
       <div>{shown.map((item, i) => <HoverItem key={i} {...item} />)}</div>
     </div>
   );
@@ -132,10 +132,10 @@ function AccordionPanel({ title, count, accentColor, children }) {
         onClick={() => has && setOpen((v) => !v)}
         className={`w-full flex items-center justify-between px-4 py-3 ${ac.head} border-0 ${has ? "cursor-pointer" : "cursor-default opacity-50"} transition-opacity`}
       >
-        <span className={`text-[12.5px] font-semibold ${ac.label}`}>{title}</span>
+        <span className={`text-sm font-semibold ${ac.label}`}>{title}</span>
         <div className="flex items-center gap-2">
-          {has && <span className={`text-[10px] font-bold rounded-full px-2 py-0.5 ${ac.badge}`}>{count}</span>}
-          {has && <span className={`text-[11px] ${ac.label} opacity-60`}>{open ? "▴" : "▾"}</span>}
+          {has && <span className={`text-xs font-bold rounded-full px-2 py-0.5 ${ac.badge}`}>{count}</span>}
+          {has && <span className={`text-xs ${ac.label} opacity-60`}>{open ? "▴" : "▾"}</span>}
         </div>
       </button>
       {open && has && <div className="px-4 py-3 bg-white">{children}</div>}
@@ -174,10 +174,10 @@ function ClientQuestions({ items, issueId, onAddInfo, onIssueFileUpload, onMarkA
         return (
           <div key={i} className="py-2.5 border-b border-slate-100 last:border-0">
             <div className="flex items-start gap-2 mb-1.5">
-              <span className={`text-[9px] font-bold px-1.5 py-[3px] rounded flex-shrink-0 mt-0.5 leading-none ${cs.bg} ${cs.text}`}>שאלה ללקוח</span>
-              <p className="text-[12.5px] text-slate-700 leading-snug font-medium">
+              <span className={`text-xs font-bold px-1.5 py-[3px] rounded flex-shrink-0 mt-0.5 leading-tight ${cs.bg} ${cs.text}`}>שאלה ללקוח</span>
+              <p className="text-sm text-slate-700 leading-snug font-medium">
                 {qText}
-                {q.isNew && <span className="inline-block mr-1.5 text-[9px] font-bold px-1.5 py-[2px] rounded bg-amber-100 text-amber-700 border border-amber-200 leading-none align-middle">חדש</span>}
+                {q.isNew && <span className="inline-block mr-1.5 text-xs font-bold px-1.5 py-[2px] rounded bg-amber-100 text-amber-700 border border-amber-200 leading-tight align-middle">חדש</span>}
               </p>
             </div>
             {s.mode === "answering" ? (
@@ -241,13 +241,13 @@ function ClickableInfoItem({ chipConfig, text, isNew, issueId, onAddInfo, onIssu
     <div className="py-2 border-b border-slate-100 last:border-0">
       <div className="flex items-start gap-1.5 cursor-pointer" onClick={() => setOpen((v) => !v)}>
         {chipConfig && (
-          <span className={`text-[9px] font-bold px-1.5 py-[3px] rounded flex-shrink-0 mt-0.5 leading-none ${chipConfig.bg} ${chipConfig.text}`}>
+          <span className={`text-xs font-bold px-1.5 py-[3px] rounded flex-shrink-0 mt-0.5 leading-tight ${chipConfig.bg} ${chipConfig.text}`}>
             {chipConfig.name}
           </span>
         )}
         <p className="text-[12.5px] text-slate-700 leading-snug font-medium flex-1 min-w-0 break-words underline underline-offset-2 decoration-amber-300">
           {text}
-          {isNew && <span className="inline-block mr-1.5 text-[9px] font-bold px-1.5 py-[2px] rounded bg-amber-100 text-amber-700 border border-amber-200 leading-none align-middle">חדש</span>}
+          {isNew && <span className="inline-block mr-1.5 text-xs font-bold px-1.5 py-[2px] rounded bg-amber-100 text-amber-700 border border-amber-200 leading-tight align-middle">חדש</span>}
         </p>
         <span className="text-[11px] text-slate-400 flex-shrink-0 mt-0.5">{open ? "▴" : "▾"}</span>
       </div>
