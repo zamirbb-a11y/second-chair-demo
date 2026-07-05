@@ -20,8 +20,6 @@ export default function AnalysisLoadingOverlay({ mode = "initial", caseName, cli
     return () => { clearTimeout(show); clearInterval(tick); };
   }, []);
 
-  const progress = ((stepIndex + 1) / STEPS.length) * 100;
-
   return (
     <div
       className={`fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-950 transition-opacity duration-300 ${visible ? "opacity-100" : "opacity-0"}`}
@@ -69,28 +67,12 @@ export default function AnalysisLoadingOverlay({ mode = "initial", caseName, cli
             {STEPS[stepIndex]}
           </p>
 
-          {/* Progress bar */}
-          <div className="w-full h-0.5 bg-slate-800 rounded-full overflow-hidden">
+          {/* Indeterminate activity bar — honest: no fake completion percentage */}
+          <div className="w-full h-0.5 bg-slate-800 rounded-full overflow-hidden" dir="ltr">
             <div
-              className="h-full bg-indigo-500 rounded-full transition-all duration-[1800ms] ease-out"
-              style={{ width: `${progress}%` }}
+              className="h-full w-1/3 bg-indigo-500 rounded-full"
+              style={{ animation: "sweep 1.6s ease-in-out infinite" }}
             />
-          </div>
-
-          {/* Step dots */}
-          <div className="flex justify-center gap-1.5">
-            {STEPS.map((_, i) => (
-              <div
-                key={i}
-                className={`rounded-full transition-all duration-300 ${
-                  i === stepIndex
-                    ? "w-4 h-1.5 bg-indigo-400"
-                    : i < stepIndex
-                    ? "w-1.5 h-1.5 bg-slate-600"
-                    : "w-1.5 h-1.5 bg-slate-800"
-                }`}
-              />
-            ))}
           </div>
         </div>
 
@@ -103,6 +85,10 @@ export default function AnalysisLoadingOverlay({ mode = "initial", caseName, cli
         @keyframes pulse-dot {
           0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
           40%            { opacity: 1;   transform: scale(1.1); }
+        }
+        @keyframes sweep {
+          0%   { transform: translateX(-300%); }
+          100% { transform: translateX(400%); }
         }
       `}</style>
     </div>

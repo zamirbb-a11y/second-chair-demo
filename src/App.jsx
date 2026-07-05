@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import AnalysisLoadingOverlay from "./components/AnalysisLoadingOverlay";
+import UpdateStatusPill from "./components/UpdateStatusPill";
 import CaseIntake from "./components/CaseIntake";
 import CollapsedCaseHeader from "./components/CollapsedCaseHeader";
 
@@ -258,6 +259,8 @@ export default function App() {
 
   const [loading, setLoading] = useState(false);
   const [loadingMode, setLoadingMode] = useState("initial"); // "initial" | "update"
+  const [updating, setUpdating] = useState(false); // incremental update in flight (non-modal)
+  const updateAbortRef = useRef(null);
   const [adversarialLoading, setAdversarialLoading] = useState(new Set());
   const [preIntakeLoading, setPreIntakeLoading] = useState(false);
   const [preIntakeQuestions, setPreIntakeQuestions] = useState([]);
@@ -1081,14 +1084,13 @@ async function handleInfoAndReanalyze(update) {
 }
 
 async function handleIssueFileUpload(file, issueId, contextTitle) {
-  setLoading(true);
-  setLoadingMode("update");
+  setUpdating(true);
   setError("");
   try {
     const processed = await uploadFileViaStorage(file, session?.access_token);
     if (!processed?.text?.trim()) {
       setError("לא הצלחתי לחלץ טקסט מהקובץ.");
-      setLoading(false);
+      setUpdating(false);
       return;
     }
     const update = {
@@ -1108,7 +1110,7 @@ async function handleIssueFileUpload(file, issueId, contextTitle) {
   } catch (err) {
     console.error(err);
     setError("לא הצלחתי להעלות את הקובץ.");
-    setLoading(false);
+    setUpdating(false);
   }
 }
 
@@ -1379,8 +1381,9 @@ async function runIncrementalAnalysis(updatesOverride = null) {
     )
   );
 
-  setLoading(true);
-  setLoadingMode("update");
+  const controller = new AbortController();
+  updateAbortRef.current = controller;
+  setUpdating(true);
   setError("");
 
   try {
@@ -1402,6 +1405,7 @@ const pendingUpdates = effectiveUpdates.filter(
 
     const response = await fetch("/api/reanalyze", {
       method: "POST",
+      signal: controller.signal,
       headers: {
         "Content-Type": "application/json",
       },
@@ -1467,11 +1471,20 @@ const nextUpdates = effectiveUpdates.map((update) => {
 
     console.log("REANALYSIS RESULT:", delta);
   } catch (err) {
-    console.error(err);
-    setError("עדכון הניתוח נכשל.");
+    if (err.name === "AbortError") {
+      setStatus("עדכון הניתוח בוטל. המידע שהוזן נשמר וימתין לעדכון הבא.");
+    } else {
+      console.error(err);
+      setError("עדכון הניתוח נכשל.");
+    }
   } finally {
-    setLoading(false);
+    updateAbortRef.current = null;
+    setUpdating(false);
   }
+}
+
+function cancelIncrementalUpdate() {
+  updateAbortRef.current?.abort();
 }
 
   function handleAddInfo() {
@@ -2167,6 +2180,7 @@ default:
   return (
     <div dir="rtl" className="h-screen bg-[#eef0f4] text-slate-900 flex flex-col overflow-hidden">
       {loading && <AnalysisLoadingOverlay mode={loadingMode} caseName={caseName} clientName={clientName} />}
+      {updating && !loading && <UpdateStatusPill onCancel={cancelIncrementalUpdate} />}
       {!!analysis && !session && window.location.hostname !== "localhost" && <AuthScreen isModal paywallMode initialMode="login" />}
       {switchUserModal && <AuthScreen isModal initialMode="login" onDone={() => setSwitchUserModal(false)} />}
 
@@ -2329,10 +2343,10 @@ default:
                 <div className="flex items-center gap-3 mt-2">
                   <button
                     onClick={handleCaseTextUpdateAndReanalyze}
-                    disabled={loading || (!additionalInfoText.trim() && !workspaceUpdates.some(u => u.status === "pending_analysis"))}
+                    disabled={loading || updating || (!additionalInfoText.trim() && !workspaceUpdates.some(u => u.status === "pending_analysis"))}
                     className="rounded-lg bg-slate-900 text-white px-4 py-2 text-sm font-semibold disabled:opacity-40 hover:bg-slate-800 border-0 cursor-pointer"
                   >
-                    {loading ? "מנתח…" : "⟳ עדכן ניתוח"}
+                    {updating ? "מעדכן…" : loading ? "מנתח…" : "⟳ עדכן ניתוח"}
                   </button>
                   <label className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 cursor-pointer">
                     + העלה קובץ
