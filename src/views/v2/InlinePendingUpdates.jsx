@@ -44,25 +44,25 @@ function workItemInsight(item) {
 function PendingItem({ typeLabel, insight, source, onAccept, onReject }) {
   return (
     <div className="px-5 py-4 border-b border-amber-100 last:border-0">
-      <div className="text-[10px] font-bold text-amber-700 tracking-[0.06em] uppercase mb-1.5">
+      <div className="text-xs font-bold text-amber-700 mb-1.5">
         {typeLabel}
       </div>
-      <div className="text-[13.5px] text-amber-900 leading-relaxed mb-1">
+      <div className="text-sm text-amber-900 leading-relaxed mb-1">
         {insight}
       </div>
       {source && (
-        <div className="text-[11px] text-amber-600 mb-2.5">{source}</div>
+        <div className="text-xs text-amber-600 mb-2.5">{source}</div>
       )}
       <div className="flex gap-2">
         <button
           onClick={onAccept}
-          className="bg-emerald-700 text-white border-0 rounded-lg px-4 py-1.5 text-[11.5px] font-bold cursor-pointer hover:bg-emerald-800"
+          className="bg-emerald-700 text-white border-0 rounded-lg px-4 py-1.5 text-xs font-bold cursor-pointer hover:bg-emerald-800"
         >
           ✓ אשר
         </button>
         <button
           onClick={onReject}
-          className="bg-white text-slate-500 border border-slate-200 rounded-lg px-4 py-1.5 text-[11.5px] font-semibold cursor-pointer hover:bg-slate-50"
+          className="bg-white text-slate-500 border border-slate-200 rounded-lg px-4 py-1.5 text-xs font-semibold cursor-pointer hover:bg-slate-50"
         >
           דחה
         </button>
@@ -128,12 +128,12 @@ export default function InlinePendingUpdates({
     >
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-3 bg-amber-100/60 border-b border-amber-200">
-        <div className="text-[10.5px] font-bold text-amber-800 tracking-[0.07em] uppercase">
+        <div className="text-xs font-bold text-amber-800">
           עדכונים שמשנים את התמונה ({totalCount})
         </div>
         <button
           onClick={handleApproveAll}
-          className="text-[11.5px] font-semibold text-amber-800 underline underline-offset-2 cursor-pointer bg-transparent border-0 hover:text-amber-900"
+          className="text-xs font-semibold text-amber-800 underline underline-offset-2 cursor-pointer bg-transparent border-0 hover:text-amber-900"
         >
           אשר הכל
         </button>

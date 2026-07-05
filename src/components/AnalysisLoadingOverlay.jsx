@@ -38,14 +38,14 @@ export default function AnalysisLoadingOverlay({ mode = "initial", caseName, cli
         {/* Case name */}
         <div className="flex flex-col gap-2">
           {caseName && (
-            <h1 className="text-[20px] font-bold text-white leading-snug">
+            <h1 className="text-xl font-bold text-white leading-snug">
               {caseName}
             </h1>
           )}
           {clientName && (
-            <p className="text-[12px] text-slate-500">לקוח: {clientName}</p>
+            <p className="text-xs text-slate-500">לקוח: {clientName}</p>
           )}
-          <p className="text-[13px] text-slate-400 mt-1">
+          <p className="text-sm text-slate-500 mt-1">
             {isUpdate ? "מעדכן ניתוח…" : "מנתח את התיק…"}
           </p>
         </div>
@@ -63,7 +63,7 @@ export default function AnalysisLoadingOverlay({ mode = "initial", caseName, cli
 
         {/* Current step */}
         <div className="flex flex-col gap-3 w-full">
-          <p className="text-[14px] text-slate-200 font-medium min-h-[1.5em]">
+          <p className="text-sm text-slate-200 font-medium min-h-[1.5em]">
             {STEPS[stepIndex]}
           </p>
 
@@ -76,7 +76,7 @@ export default function AnalysisLoadingOverlay({ mode = "initial", caseName, cli
           </div>
         </div>
 
-        <p className="text-[11px] text-slate-700">
+        <p className="text-xs text-slate-500">
           {isUpdate ? "זה עשוי לקחת עד דקה" : "ניתוח ראשוני עשוי לארוך מספר דקות"}
         </p>
       </div>

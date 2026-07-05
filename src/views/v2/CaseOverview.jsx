@@ -55,13 +55,13 @@ function CasePendingDelta({ delta, onAccept, onReject }) {
       <div className="flex gap-2">
         <button
           onClick={() => onAccept?.(change)}
-          className="bg-emerald-700 text-white border-0 rounded-lg px-4 py-1.5 text-[12px] font-bold cursor-pointer hover:bg-emerald-800"
+          className="bg-emerald-700 text-white border-0 rounded-lg px-4 py-1.5 text-xs font-bold cursor-pointer hover:bg-emerald-800"
         >
           ✓ אשר עדכון
         </button>
         <button
           onClick={() => onReject?.()}
-          className="bg-white text-slate-500 border border-slate-200 rounded-lg px-4 py-1.5 text-[12px] font-semibold cursor-pointer hover:bg-slate-50"
+          className="bg-white text-slate-500 border border-slate-200 rounded-lg px-4 py-1.5 text-xs font-semibold cursor-pointer hover:bg-slate-50"
         >
           דחה
         </button>
@@ -129,7 +129,7 @@ export default function CaseOverview({
       {assessment && (
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-1">
-            <div className="text-[10.5px] font-bold text-slate-400 tracking-[0.07em] uppercase">
+            <div className="text-xs font-bold text-slate-500">
               הערכת מצב
             </div>
             <div className="flex-1 h-px bg-slate-100" />
@@ -140,7 +140,7 @@ export default function CaseOverview({
               הערכת סיכויי התביעה
             </div>
             {assessment.level && (
-              <div className="border border-slate-200 bg-white rounded-lg px-3 py-1 text-[13px] font-bold text-slate-700 flex-shrink-0">
+              <div className="border border-slate-200 bg-white rounded-lg px-3 py-1 text-sm font-bold text-slate-700 flex-shrink-0">
                 {assessment.level}
               </div>
             )}
@@ -165,7 +165,7 @@ export default function CaseOverview({
       {issues.length > 0 && (
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">
-            <div className="text-[10.5px] font-bold text-slate-400 tracking-[0.07em] uppercase">
+            <div className="text-xs font-bold text-slate-500">
               מחלוקות
             </div>
             <div className="flex-1 h-px bg-slate-100" />
@@ -184,7 +184,7 @@ export default function CaseOverview({
 
       {/* Empty state */}
       {!analysis && (
-        <div className="text-[14px] text-slate-400 mt-8">
+        <div className="text-sm text-slate-500 mt-8">
           טרם נטען תיק. השתמש בטופס הקלט כדי להוסיף חומר.
         </div>
       )}

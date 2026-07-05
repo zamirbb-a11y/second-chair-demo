@@ -182,9 +182,9 @@ function ClientQuestions({ items, issueId, onAddInfo, onIssueFileUpload, onMarkA
             </div>
             {s.mode === "answering" ? (
               <div className="mr-[46px] space-y-1.5">
-                <textarea value={s.text ?? ""} onChange={(e) => setState((st) => ({ ...st, [i]: { ...s, text: e.target.value } }))} rows={2} autoFocus placeholder="תשובת הלקוח..." className="w-full text-[12px] border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-blue-400 resize-none bg-white leading-relaxed" />
+                <textarea value={s.text ?? ""} onChange={(e) => setState((st) => ({ ...st, [i]: { ...s, text: e.target.value } }))} rows={2} autoFocus placeholder="תשובת הלקוח..." className="w-full text-xs border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-blue-400 resize-none bg-white leading-relaxed" />
                 {onIssueFileUpload && (
-                  <label className={["flex items-center gap-1.5 text-[11px] cursor-pointer border rounded-lg px-3 py-1.5 transition-colors", s.uploading ? "border-slate-200 bg-slate-50 text-slate-400" : "border-dashed border-amber-300 text-amber-600 hover:border-amber-400"].join(" ")}>
+                  <label className={["flex items-center gap-1.5 text-xs cursor-pointer border rounded-lg px-3 py-1.5 transition-colors", s.uploading ? "border-slate-200 bg-slate-50 text-slate-500" : "border-dashed border-amber-300 text-amber-600 hover:border-amber-400"].join(" ")}>
                     {s.uploading ? "מעלה..." : s.fileName ? `✓ ${s.fileName}` : "+ צרף קובץ"}
                     <input type="file" accept=".docx,.txt,.pdf" className="hidden" disabled={s.uploading}
                       onChange={async (e) => {
@@ -197,12 +197,12 @@ function ClientQuestions({ items, issueId, onAddInfo, onIssueFileUpload, onMarkA
                   </label>
                 )}
                 <div className="flex gap-2">
-                  <button onClick={() => submitText(i, qText)} disabled={!s.text?.trim()} className="text-[11px] bg-slate-900 text-white px-3 py-1.5 rounded-lg border-0 cursor-pointer disabled:opacity-40 hover:bg-slate-800">שמור תשובה</button>
-                  <button onClick={() => setState((st) => ({ ...st, [i]: { mode: null } }))} className="text-[11px] text-slate-400 bg-transparent border-0 cursor-pointer">ביטול</button>
+                  <button onClick={() => submitText(i, qText)} disabled={!s.text?.trim()} className="text-xs bg-slate-900 text-white px-3 py-1.5 rounded-lg border-0 cursor-pointer disabled:opacity-40 hover:bg-slate-800">שמור תשובה</button>
+                  <button onClick={() => setState((st) => ({ ...st, [i]: { mode: null } }))} className="text-xs text-slate-500 bg-transparent border-0 cursor-pointer">ביטול</button>
                 </div>
               </div>
             ) : (
-              <button onClick={() => setState((st) => ({ ...st, [i]: { mode: "answering", text: "" } }))} className="text-[11px] text-blue-500 hover:text-blue-600 bg-transparent border-0 cursor-pointer p-0 mr-[46px]">✎ הכנס תשובה</button>
+              <button onClick={() => setState((st) => ({ ...st, [i]: { mode: "answering", text: "" } }))} className="text-xs text-blue-500 hover:text-blue-600 bg-transparent border-0 cursor-pointer p-0 mr-[46px]">✎ הכנס תשובה</button>
             )}
           </div>
         );
@@ -254,11 +254,11 @@ function ClickableInfoItem({ chipConfig, text, isNew, issueId, onAddInfo, onIssu
             {chipConfig.name}
           </span>
         )}
-        <p className="text-[12.5px] text-slate-700 leading-snug font-medium flex-1 min-w-0 break-words underline underline-offset-2 decoration-amber-300">
+        <p className="text-sm text-slate-700 leading-snug font-medium flex-1 min-w-0 break-words underline underline-offset-2 decoration-amber-300">
           {text}
           {isNew && <span className="inline-block mr-1.5 text-xs font-bold px-1.5 py-[2px] rounded bg-amber-100 text-amber-700 border border-amber-200 leading-tight align-middle">חדש</span>}
         </p>
-        <span className="text-[11px] text-slate-400 flex-shrink-0 mt-0.5">{open ? "▴" : "▾"}</span>
+        <span className="text-xs text-slate-500 flex-shrink-0 mt-0.5">{open ? "▴" : "▾"}</span>
       </div>
       {open && (
         <div className="mt-2 bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
@@ -268,15 +268,15 @@ function ClickableInfoItem({ chipConfig, text, isNew, issueId, onAddInfo, onIssu
             onChange={(e) => setAnswer(e.target.value)}
             rows={3}
             placeholder={placeholder}
-            className="w-full text-[12px] border border-amber-200 rounded-lg px-3 py-2 outline-none focus:border-amber-400 resize-none bg-white leading-relaxed"
+            className="w-full text-xs border border-amber-200 rounded-lg px-3 py-2 outline-none focus:border-amber-400 resize-none bg-white leading-relaxed"
           />
-          <label className={["flex items-center gap-1.5 text-[11px] cursor-pointer border rounded-lg px-3 py-1.5 transition-colors", fileState.uploading ? "border-slate-200 bg-slate-50 text-slate-400" : fileState.name ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-dashed border-amber-300 text-amber-600 hover:border-amber-400"].join(" ")}>
+          <label className={["flex items-center gap-1.5 text-xs cursor-pointer border rounded-lg px-3 py-1.5 transition-colors", fileState.uploading ? "border-slate-200 bg-slate-50 text-slate-500" : fileState.name ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-dashed border-amber-300 text-amber-600 hover:border-amber-400"].join(" ")}>
             {fileState.uploading ? "מעלה..." : fileState.name ? `✓ ${fileState.name}` : "+ צרף קובץ"}
             <input type="file" accept=".docx,.txt,.pdf" className="hidden" disabled={fileState.uploading} onChange={handleFile} />
           </label>
           <div className="flex gap-2">
-            <button onClick={handleSubmitText} disabled={!answer.trim() || fileState.uploading} className="flex-1 py-1.5 bg-slate-900 text-white rounded-lg text-[11px] font-bold disabled:opacity-40 cursor-pointer border-0">{saveLabel}</button>
-            <button onClick={() => setOpen(false)} className="py-1.5 px-3 text-[11px] text-slate-400 bg-transparent border-0 cursor-pointer">סגור</button>
+            <button onClick={handleSubmitText} disabled={!answer.trim() || fileState.uploading} className="flex-1 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-bold disabled:opacity-40 cursor-pointer border-0">{saveLabel}</button>
+            <button onClick={() => setOpen(false)} className="py-1.5 px-3 text-xs text-slate-500 bg-transparent border-0 cursor-pointer">סגור</button>
           </div>
         </div>
       )}
@@ -317,7 +317,7 @@ function AdversarialReviewPanel({ review, isLoading, onRetry }) {
   if (!review) {
     if (isLoading) {
       return (
-        <div className="mt-4 mb-1 flex items-center gap-2 text-[11.5px] text-slate-400">
+        <div className="mt-4 mb-1 flex items-center gap-2 text-xs text-slate-500">
           <span className="animate-spin inline-block">⏳</span>
           מנתח עמדת הצד שכנגד…
         </div>
@@ -328,7 +328,7 @@ function AdversarialReviewPanel({ review, isLoading, onRetry }) {
       <div className="mt-4 mb-1">
         <button
           onClick={onRetry}
-          className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-[11px] text-slate-400 bg-slate-50 hover:bg-slate-100 hover:text-slate-600 transition-colors cursor-pointer"
+          className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-500 bg-slate-50 hover:bg-slate-100 hover:text-slate-600 transition-colors cursor-pointer"
         >
           ⟳ נסה שוב
         </button>
@@ -353,32 +353,32 @@ function AdversarialReviewPanel({ review, isLoading, onRetry }) {
       >
         <div className="flex items-center gap-2.5">
           <span className={`w-2 h-2 rounded-full ${colors.dot} flex-shrink-0`} />
-          <span className={`text-[12.5px] font-semibold ${colors.label}`}>ניתוח הצד שכנגד</span>
+          <span className={`text-sm font-semibold ${colors.label}`}>ניתוח הצד שכנגד</span>
           {isMaterial && (
-            <span className={`text-[9.5px] font-bold px-2 py-0.5 rounded-full ${colors.badge}`}>{impact.text}</span>
+            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${colors.badge}`}>{impact.text}</span>
           )}
         </div>
-        <span className={`text-[11px] ${colors.label} opacity-60`}>{open ? "▴" : "▾"}</span>
+        <span className={`text-xs ${colors.label} opacity-60`}>{open ? "▴" : "▾"}</span>
       </button>
 
       {open && (
         <div className="px-5 py-4 bg-white space-y-3">
           {review.strongestAttack && (
             <div>
-              <div className="text-[9px] font-bold text-slate-400 tracking-[0.08em] uppercase mb-1">למה אנחנו עלולים להפסיד?</div>
-              <p className="text-[13px] text-slate-800 leading-relaxed">{review.strongestAttack}</p>
+              <div className="text-xs font-bold text-slate-500 mb-1">למה אנחנו עלולים להפסיד?</div>
+              <p className="text-sm text-slate-800 leading-relaxed">{review.strongestAttack}</p>
             </div>
           )}
           {review.opposingCounselLikelyArgument && (
             <div>
-              <div className="text-[9px] font-bold text-slate-400 tracking-[0.08em] uppercase mb-1">מה הצד השני יטען?</div>
-              <p className="text-[13px] text-slate-700 leading-relaxed">{review.opposingCounselLikelyArgument}</p>
+              <div className="text-xs font-bold text-slate-500 mb-1">מה הצד השני יטען?</div>
+              <p className="text-sm text-slate-700 leading-relaxed">{review.opposingCounselLikelyArgument}</p>
             </div>
           )}
           {review.recommendedNextStep && (
             <div>
-              <div className="text-[9px] font-bold text-slate-400 tracking-[0.08em] uppercase mb-1">מה צריך להשיג כדי לחזק את התיק?</div>
-              <p className="text-[13px] text-slate-700 font-medium leading-relaxed">{review.recommendedNextStep}</p>
+              <div className="text-xs font-bold text-slate-500 mb-1">מה צריך להשיג כדי לחזק את התיק?</div>
+              <p className="text-sm text-slate-700 font-medium leading-relaxed">{review.recommendedNextStep}</p>
             </div>
           )}
 
@@ -386,7 +386,7 @@ function AdversarialReviewPanel({ review, isLoading, onRetry }) {
             <div className="pt-2 border-t border-slate-100">
               <button
                 onClick={() => setFullOpen((v) => !v)}
-                className="text-[11px] text-slate-400 hover:text-slate-600 bg-transparent border-0 cursor-pointer p-0"
+                className="text-xs text-slate-500 hover:text-slate-600 bg-transparent border-0 cursor-pointer p-0"
               >
                 {fullOpen ? "הסתר ניתוח מלא ▴" : "הצג ניתוח מלא ▾"}
               </button>
@@ -395,10 +395,10 @@ function AdversarialReviewPanel({ review, isLoading, onRetry }) {
                 <div className="mt-3 space-y-3">
                   {review.vulnerableAssumptions?.length > 0 && (
                     <div>
-                      <div className="text-[9px] font-bold text-slate-400 tracking-[0.08em] uppercase mb-1">הנחות שניתן לקעקע</div>
+                      <div className="text-xs font-bold text-slate-500 mb-1">הנחות שניתן לקעקע</div>
                       <ul className="space-y-1">
                         {review.vulnerableAssumptions.map((a, i) => (
-                          <li key={i} className="text-[12.5px] text-slate-700 flex items-start gap-1.5">
+                          <li key={i} className="text-sm text-slate-700 flex items-start gap-1.5">
                             <span className="text-slate-300 mt-[3px] flex-shrink-0">—</span>{a}
                           </li>
                         ))}
@@ -407,10 +407,10 @@ function AdversarialReviewPanel({ review, isLoading, onRetry }) {
                   )}
                   {review.adverseEvidence?.length > 0 && (
                     <div>
-                      <div className="text-[9px] font-bold text-slate-400 tracking-[0.08em] uppercase mb-1">ראיות שסותרות</div>
+                      <div className="text-xs font-bold text-slate-500 mb-1">ראיות שסותרות</div>
                       <ul className="space-y-1">
                         {review.adverseEvidence.map((e, i) => (
-                          <li key={i} className="text-[12.5px] text-slate-700 flex items-start gap-1.5">
+                          <li key={i} className="text-sm text-slate-700 flex items-start gap-1.5">
                             <span className="text-slate-300 mt-[3px] flex-shrink-0">—</span>{e}
                           </li>
                         ))}
@@ -419,10 +419,10 @@ function AdversarialReviewPanel({ review, isLoading, onRetry }) {
                   )}
                   {review.missingEvidenceThatMatters?.length > 0 && (
                     <div>
-                      <div className="text-[9px] font-bold text-slate-400 tracking-[0.08em] uppercase mb-1">ראיות חסרות שמחלישות</div>
+                      <div className="text-xs font-bold text-slate-500 mb-1">ראיות חסרות שמחלישות</div>
                       <ul className="space-y-1">
                         {review.missingEvidenceThatMatters.map((m, i) => (
-                          <li key={i} className="text-[12.5px] text-slate-700 flex items-start gap-1.5">
+                          <li key={i} className="text-sm text-slate-700 flex items-start gap-1.5">
                             <span className="text-slate-300 mt-[3px] flex-shrink-0">—</span>{m}
                           </li>
                         ))}
@@ -431,8 +431,8 @@ function AdversarialReviewPanel({ review, isLoading, onRetry }) {
                   )}
                   {review.judgeConcern && (
                     <div>
-                      <div className="text-[9px] font-bold text-slate-400 tracking-[0.08em] uppercase mb-1">חשש פוטנציאלי של השופט</div>
-                      <p className="text-[13px] text-slate-700 leading-relaxed">{review.judgeConcern}</p>
+                      <div className="text-xs font-bold text-slate-500 mb-1">חשש פוטנציאלי של השופט</div>
+                      <p className="text-sm text-slate-700 leading-relaxed">{review.judgeConcern}</p>
                     </div>
                   )}
                 </div>
@@ -452,9 +452,9 @@ function DetailLink({ moreCount, onClick }) {
   return (
     <button
       onClick={onClick}
-      className="mt-3 text-[11px] text-blue-500 hover:text-blue-700 bg-transparent border-0 cursor-pointer p-0 flex items-center gap-1"
+      className="mt-3 text-xs text-blue-500 hover:text-blue-700 bg-transparent border-0 cursor-pointer p-0 flex items-center gap-1"
     >
-      <span className="text-slate-400">ועוד {moreCount} —</span>
+      <span className="text-slate-500">ועוד {moreCount} —</span>
       <span className="font-semibold underline underline-offset-2">פירוט</span>
     </button>
   );
@@ -472,18 +472,18 @@ function DetailPaneView({ pane, onBack, zones, accordions, issue, onWorkspaceUpd
       {/* Back */}
       <button
         onClick={onBack}
-        className="mb-5 self-start flex items-center gap-1.5 text-[12px] text-slate-500 hover:text-slate-800 bg-transparent border-0 cursor-pointer p-0"
+        className="mb-5 self-start flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 bg-transparent border-0 cursor-pointer p-0"
       >
-        <span className="text-[14px]">←</span> חזור
+        <span className="text-sm">←</span> חזור
       </button>
 
       {/* Column header */}
       <div className={`h-[3px] rounded-full ${accentClasses[pane]} mb-3`} />
-      <div className={`text-[14px] font-bold mb-4 ${labelClasses[pane]}`}>{z.label}</div>
+      <div className={`text-sm font-bold mb-4 ${labelClasses[pane]}`}>{z.label}</div>
 
       {/* Narrative */}
       {z.narrative && (
-        <p className="text-[14px] text-slate-700 leading-[1.75] mb-4">{z.narrative}</p>
+        <p className="text-sm text-slate-700 leading-[1.75] mb-4">{z.narrative}</p>
       )}
 
       {/* All sections — no limit */}
@@ -694,10 +694,10 @@ export default function DisputeDetail({
           <div className="flex items-center gap-3 flex-wrap mb-1">
             <h1 className="text-[19px] font-bold text-slate-900 leading-tight">{issue.title}</h1>
             <div className="flex items-center gap-2">
-              <span className="text-[11px] font-bold bg-slate-900 text-white rounded-md px-2.5 py-1">{importanceLabel}</span>
-              {strength && <span title={`סיכויי הטענה של ${zones.our.label ?? "הצד שלנו"} לנצח בטענה זו`} className={`text-[11px] font-semibold border rounded-md px-2.5 py-1 ${strengthBadgeClass(strength)}`}>{strengthLabel(strength)}</span>}
+              <span className="text-xs font-bold bg-slate-900 text-white rounded-md px-2.5 py-1">{importanceLabel}</span>
+              {strength && <span title={`סיכויי הטענה של ${zones.our.label ?? "הצד שלנו"} לנצח בטענה זו`} className={`text-xs font-semibold border rounded-md px-2.5 py-1 ${strengthBadgeClass(strength)}`}>{strengthLabel(strength)}</span>}
               {isUpdated && (
-                <span className="inline-flex items-center gap-1 text-[9.5px] text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                <span className="inline-flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
                   <span className="w-1 h-1 rounded-full bg-amber-400 inline-block" />עודכן
                 </span>
               )}
@@ -712,7 +712,7 @@ export default function DisputeDetail({
             </p>
             <button
               onClick={() => setDescExpanded(v => !v)}
-              className="mt-1 text-[11px] text-blue-500 hover:text-blue-700 bg-transparent border-0 cursor-pointer p-0"
+              className="mt-1 text-xs text-blue-500 hover:text-blue-700 bg-transparent border-0 cursor-pointer p-0"
             >
               {descExpanded ? "הסתר ▴" : "הצג עוד ▾"}
             </button>
@@ -734,10 +734,10 @@ export default function DisputeDetail({
             <button
               key={id}
               onClick={() => setActiveTab(id)}
-              className={`px-4 py-2 text-[12.5px] font-semibold border-b-2 -mb-px transition-colors cursor-pointer bg-transparent ${
+              className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition-colors cursor-pointer bg-transparent ${
                 activeTab === id
                   ? "border-slate-800 text-slate-900"
-                  : "border-transparent text-slate-400 hover:text-slate-600"
+                  : "border-transparent text-slate-500 hover:text-slate-600"
               }`}
             >
               {label}
@@ -747,7 +747,7 @@ export default function DisputeDetail({
           {onOpenChat && (
             <button
               onClick={() => onOpenChat(issue.id, issue.title)}
-              className="mb-px flex items-center gap-1.5 px-3 py-1.5 text-[11.5px] font-semibold rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition-colors cursor-pointer"
+              className="mb-px flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition-colors cursor-pointer"
               title="שאל שאלה על סוגיה זו"
             >
               <span>💬</span>
@@ -762,43 +762,43 @@ export default function DisputeDetail({
 
             {/* Strongest argument */}
             <div className="border border-emerald-100 rounded-xl p-4 bg-emerald-50/30">
-              <div className="text-[9px] font-bold text-emerald-600 tracking-[0.08em] uppercase mb-2">מה עומד לזכותנו?</div>
+              <div className="text-xs font-bold text-emerald-700 mb-2">מה עומד לזכותנו?</div>
               {isAdversarialLoading && !adversarialReview
-                ? <span className="text-[11px] text-slate-400 flex items-center gap-1.5"><span className="animate-spin inline-block">⏳</span> מנתח…</span>
+                ? <span className="text-xs text-slate-500 flex items-center gap-1.5"><span className="animate-spin inline-block">⏳</span> מנתח…</span>
                 : adversarialReview?.strongestArgument
-                  ? <p className="text-[12px] text-slate-800 leading-relaxed">{adversarialReview.strongestArgument}</p>
-                  : <p className="text-[12px] text-slate-400">אין ניתוח עדיין</p>
+                  ? <p className="text-xs text-slate-800 leading-relaxed">{adversarialReview.strongestArgument}</p>
+                  : <p className="text-xs text-slate-500">אין ניתוח עדיין</p>
               }
             </div>
 
             {/* Risk */}
             <div className="border border-red-100 rounded-xl p-4 bg-red-50/30">
-              <div className="text-[9px] font-bold text-red-400 tracking-[0.08em] uppercase mb-2">מה הסיכון המרכזי?</div>
+              <div className="text-xs font-bold text-red-700 mb-2">מה הסיכון המרכזי?</div>
               {isAdversarialLoading && !adversarialReview
-                ? <span className="text-[11px] text-slate-400 flex items-center gap-1.5"><span className="animate-spin inline-block">⏳</span> מנתח…</span>
+                ? <span className="text-xs text-slate-500 flex items-center gap-1.5"><span className="animate-spin inline-block">⏳</span> מנתח…</span>
                 : adversarialReview?.strongestAttack
-                  ? <p className="text-[12px] text-slate-800 leading-relaxed">{adversarialReview.strongestAttack}</p>
-                  : <p className="text-[12px] text-slate-400">אין ניתוח עדיין</p>
+                  ? <p className="text-xs text-slate-800 leading-relaxed">{adversarialReview.strongestAttack}</p>
+                  : <p className="text-xs text-slate-500">אין ניתוח עדיין</p>
               }
             </div>
 
             {/* Gap */}
             <div className="border border-amber-100 rounded-xl p-4 bg-amber-50/30">
-              <div className="text-[9px] font-bold text-amber-600 tracking-[0.08em] uppercase mb-2">מה חסר לנו?</div>
+              <div className="text-xs font-bold text-amber-700 mb-2">מה חסר לנו?</div>
               {topGaps[0]
-                ? <p className="text-[12px] text-slate-700 leading-relaxed">{topGaps[0].text}</p>
-                : <p className="text-[12px] text-slate-400">לא זוהו פערים</p>
+                ? <p className="text-xs text-slate-700 leading-relaxed">{topGaps[0].text}</p>
+                : <p className="text-xs text-slate-500">לא זוהו פערים</p>
               }
             </div>
 
             {/* Action */}
             <div className="border border-indigo-100 rounded-xl p-4 bg-indigo-50/20">
-              <div className="text-[9px] font-bold text-indigo-600 tracking-[0.08em] uppercase mb-2">מה הפעולה הבאה?</div>
+              <div className="text-xs font-bold text-indigo-700 mb-2">מה הפעולה הבאה?</div>
               {(adversarialReview?.recommendedNextStep || nextSteps[0])
-                ? <p className="text-[12px] text-slate-700 font-medium leading-relaxed">
+                ? <p className="text-xs text-slate-700 font-medium leading-relaxed">
                     {adversarialReview?.recommendedNextStep ?? nextSteps[0]?.text}
                   </p>
-                : <p className="text-[12px] text-slate-400">טרם הוגדרה פעולה</p>
+                : <p className="text-xs text-slate-500">טרם הוגדרה פעולה</p>
               }
             </div>
 
@@ -813,9 +813,9 @@ export default function DisputeDetail({
               .filter(o => o.patch?.field === "legalAssessment.summary" && o.patch?.previousValue)
               .map((o, i) => (
                 <div key={i} className="mt-2 mb-4 border-r-2 border-amber-300 pr-3 py-1">
-                  <div className="text-[9px] font-bold text-amber-600 tracking-[0.07em] uppercase mb-0.5">הסיכום הקודם</div>
-                  <p className="text-[12.5px] text-slate-400 leading-[1.7] line-through">{o.patch.previousValue}</p>
-                  {o.patch.reason && <p className="text-[11px] text-amber-600 mt-0.5">סיבה: {o.patch.reason}</p>}
+                  <div className="text-xs font-bold text-amber-700 mb-0.5">הסיכום הקודם</div>
+                  <p className="text-sm text-slate-500 leading-[1.7] line-through">{o.patch.previousValue}</p>
+                  {o.patch.reason && <p className="text-xs text-amber-600 mt-0.5">סיבה: {o.patch.reason}</p>}
                 </div>
               ))
             }
@@ -824,8 +824,8 @@ export default function DisputeDetail({
             <div className="grid grid-cols-3 gap-6 mb-6 mt-6">
               <div className="min-w-0 overflow-hidden">
                 <div className="h-[3px] rounded-full bg-emerald-300 mb-3" />
-                <div className="text-[12.5px] font-bold text-emerald-700 mb-2">{zones.our.label}</div>
-                {zones.our.narrative && <p className="text-[13px] text-slate-700 leading-[1.7] mb-1 break-words">{zones.our.narrative}</p>}
+                <div className="text-sm font-bold text-emerald-700 mb-2">{zones.our.label}</div>
+                {zones.our.narrative && <p className="text-sm text-slate-700 leading-[1.7] mb-1 break-words">{zones.our.narrative}</p>}
                 <SectionBlock label="ראיות תומכות" items={zones.our.sections[0].items} limit={SECTION_LIMIT} />
                 <SectionBlock label="פסיקה תומכת" items={zones.our.sections[1].items} limit={SECTION_LIMIT} />
                 <DetailLink moreCount={ourMore} onClick={() => setDetailPane("our")} />
@@ -833,23 +833,23 @@ export default function DisputeDetail({
 
               <div className="min-w-0 overflow-hidden">
                 <div className="h-[3px] rounded-full bg-amber-300 mb-3" />
-                <div className="text-[12.5px] font-bold text-amber-700 mb-2">{zones.opposing.label}</div>
-                {zones.opposing.narrative && <p className="text-[13px] text-slate-700 leading-[1.7] mb-1 break-words">{zones.opposing.narrative}</p>}
+                <div className="text-sm font-bold text-amber-700 mb-2">{zones.opposing.label}</div>
+                {zones.opposing.narrative && <p className="text-sm text-slate-700 leading-[1.7] mb-1 break-words">{zones.opposing.narrative}</p>}
                 <SectionBlock label="טיעונים מקשים" items={zones.opposing.sections[0].items} limit={SECTION_LIMIT} />
                 <SectionBlock label="פסיקה לצד שכנגד" items={zones.opposing.sections[1].items} limit={SECTION_LIMIT} />
                 {!zones.opposing.narrative && !zones.opposing.sections[0].items.length && !zones.opposing.sections[1].items.length && (
-                  <p className="text-[12px] text-slate-300 italic mt-2">טרם זוהו טיעונים נגדיים.</p>
+                  <p className="text-xs text-slate-500 italic mt-2">טרם זוהו טיעונים נגדיים.</p>
                 )}
                 <DetailLink moreCount={opposingMore} onClick={() => setDetailPane("opposing")} />
               </div>
 
               <div className="min-w-0 overflow-hidden">
                 <div className="h-[3px] rounded-full bg-slate-300 mb-3" />
-                <div className="text-[12.5px] font-bold text-slate-500 mb-2">לא חד משמעי</div>
+                <div className="text-sm font-bold text-slate-500 mb-2">לא חד משמעי</div>
                 <SectionBlock label="פסיקה וחקיקה" items={legalSources} limit={SECTION_LIMIT} />
                 <SectionBlock label="ראיות וסתירות" items={unclearContradictions} limit={SECTION_LIMIT} />
                 {!legalSources.length && !unclearContradictions.length && (
-                  <p className="text-[12px] text-slate-300 italic mt-2">אין פריטים לא חד משמעיים.</p>
+                  <p className="text-xs text-slate-500 italic mt-2">אין פריטים לא חד משמעיים.</p>
                 )}
                 <DetailLink moreCount={ambiguousMore} onClick={() => setDetailPane("ambiguous")} />
               </div>
@@ -877,10 +877,10 @@ export default function DisputeDetail({
         {/* ── הצד שכנגד tab ────────────────────────────────────────────── */}
         {activeTab === "adversarial" && (
           isAdversarialLoading && !adversarialReview
-            ? <div className="text-[12px] text-slate-400 flex items-center gap-2 py-4"><span className="animate-spin inline-block">⏳</span> מנתח עמדת הצד שכנגד…</div>
+            ? <div className="text-xs text-slate-500 flex items-center gap-2 py-4"><span className="animate-spin inline-block">⏳</span> מנתח עמדת הצד שכנגד…</div>
             : !adversarialReview
               ? <div className="py-4">
-                  {onAnalyzeIssue && <button onClick={() => onAnalyzeIssue(issue.id, issue.title, issue.description ?? "")} className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-[11px] text-slate-400 bg-slate-50 hover:bg-slate-100 cursor-pointer">⟳ נסה שוב</button>}
+                  {onAnalyzeIssue && <button onClick={() => onAnalyzeIssue(issue.id, issue.title, issue.description ?? "")} className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-500 bg-slate-50 hover:bg-slate-100 cursor-pointer">⟳ נסה שוב</button>}
                 </div>
               : <div className="space-y-3">
 
@@ -888,26 +888,26 @@ export default function DisputeDetail({
                   <div className="grid grid-cols-2 gap-3">
                     {adversarialReview.strongestAttack && (
                       <div className="border border-red-100 rounded-xl p-4 bg-red-50/30">
-                        <div className="text-[9px] font-bold text-red-400 tracking-[0.08em] uppercase mb-2">הטיעון החזק ביותר נגדנו</div>
-                        <p className="text-[12px] text-slate-800 leading-relaxed">{adversarialReview.strongestAttack}</p>
+                        <div className="text-xs font-bold text-red-700 mb-2">הטיעון החזק ביותר נגדנו</div>
+                        <p className="text-xs text-slate-800 leading-relaxed">{adversarialReview.strongestAttack}</p>
                       </div>
                     )}
                     {adversarialReview.opposingCounselLikelyArgument && (
                       <div className="border border-orange-100 rounded-xl p-4 bg-orange-50/20">
-                        <div className="text-[9px] font-bold text-orange-500 tracking-[0.08em] uppercase mb-2">מה עוה"ד יריב יפתח איתו</div>
-                        <p className="text-[12px] text-slate-700 leading-relaxed">{adversarialReview.opposingCounselLikelyArgument}</p>
+                        <div className="text-xs font-bold text-orange-700 mb-2">מה עוה"ד יריב יפתח איתו</div>
+                        <p className="text-xs text-slate-700 leading-relaxed">{adversarialReview.opposingCounselLikelyArgument}</p>
                       </div>
                     )}
                     {adversarialReview.judgeConcern && (
                       <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/60">
-                        <div className="text-[9px] font-bold text-slate-400 tracking-[0.08em] uppercase mb-2">חשש פוטנציאלי של השופט</div>
-                        <p className="text-[12px] text-slate-700 leading-relaxed">{adversarialReview.judgeConcern}</p>
+                        <div className="text-xs font-bold text-slate-500 mb-2">חשש פוטנציאלי של השופט</div>
+                        <p className="text-xs text-slate-700 leading-relaxed">{adversarialReview.judgeConcern}</p>
                       </div>
                     )}
                     {adversarialReview.recommendedNextStep && (
                       <div className="border border-indigo-100 rounded-xl p-4 bg-indigo-50/20">
-                        <div className="text-[9px] font-bold text-indigo-600 tracking-[0.08em] uppercase mb-2">פעולה מומלצת</div>
-                        <p className="text-[12px] text-slate-700 font-medium leading-relaxed">{adversarialReview.recommendedNextStep}</p>
+                        <div className="text-xs font-bold text-indigo-700 mb-2">פעולה מומלצת</div>
+                        <p className="text-xs text-slate-700 font-medium leading-relaxed">{adversarialReview.recommendedNextStep}</p>
                       </div>
                     )}
                   </div>
@@ -919,25 +919,25 @@ export default function DisputeDetail({
                     <div className="grid grid-cols-3 gap-3">
                       {adversarialReview.vulnerableAssumptions?.length > 0 && (
                         <div className="border border-slate-100 rounded-xl p-4">
-                          <div className="text-[9px] font-bold text-slate-400 tracking-[0.08em] uppercase mb-2">הנחות שניתן לקעקע</div>
+                          <div className="text-xs font-bold text-slate-500 mb-2">הנחות שניתן לקעקע</div>
                           <ul className="space-y-1.5">{adversarialReview.vulnerableAssumptions.map((a, i) => (
-                            <li key={i} className="text-[12px] text-slate-700 flex items-start gap-1.5"><span className="text-slate-300 flex-shrink-0 mt-0.5">—</span>{a}</li>
+                            <li key={i} className="text-xs text-slate-700 flex items-start gap-1.5"><span className="text-slate-300 flex-shrink-0 mt-0.5">—</span>{a}</li>
                           ))}</ul>
                         </div>
                       )}
                       {adversarialReview.adverseEvidence?.length > 0 && (
                         <div className="border border-slate-100 rounded-xl p-4">
-                          <div className="text-[9px] font-bold text-slate-400 tracking-[0.08em] uppercase mb-2">ראיות שסותרות</div>
+                          <div className="text-xs font-bold text-slate-500 mb-2">ראיות שסותרות</div>
                           <ul className="space-y-1.5">{adversarialReview.adverseEvidence.map((e, i) => (
-                            <li key={i} className="text-[12px] text-slate-700 flex items-start gap-1.5"><span className="text-slate-300 flex-shrink-0 mt-0.5">—</span>{e}</li>
+                            <li key={i} className="text-xs text-slate-700 flex items-start gap-1.5"><span className="text-slate-300 flex-shrink-0 mt-0.5">—</span>{e}</li>
                           ))}</ul>
                         </div>
                       )}
                       {adversarialReview.missingEvidenceThatMatters?.length > 0 && (
                         <div className="border border-slate-100 rounded-xl p-4">
-                          <div className="text-[9px] font-bold text-slate-400 tracking-[0.08em] uppercase mb-2">ראיות חסרות שמחלישות</div>
+                          <div className="text-xs font-bold text-slate-500 mb-2">ראיות חסרות שמחלישות</div>
                           <ul className="space-y-1.5">{adversarialReview.missingEvidenceThatMatters.map((m, i) => (
-                            <li key={i} className="text-[12px] text-slate-700 flex items-start gap-1.5"><span className="text-slate-300 flex-shrink-0 mt-0.5">—</span>{m}</li>
+                            <li key={i} className="text-xs text-slate-700 flex items-start gap-1.5"><span className="text-slate-300 flex-shrink-0 mt-0.5">—</span>{m}</li>
                           ))}</ul>
                         </div>
                       )}
