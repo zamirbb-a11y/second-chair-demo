@@ -42,6 +42,9 @@ function IssueNavItem({ issue, selected, onSelect, onRemove, delta }) {
 
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-current={selected || undefined}
       className={[
         "group relative px-4 py-2.5 cursor-pointer border-r-[3px] transition-all",
         selected
@@ -49,9 +52,16 @@ function IssueNavItem({ issue, selected, onSelect, onRemove, delta }) {
           : "border-transparent hover:bg-slate-50",
       ].join(" ")}
       onClick={() => { if (!confirming) onSelect(issue.id); }}
+      onKeyDown={(e) => {
+        if ((e.key === "Enter" || e.key === " ") && !confirming && e.target === e.currentTarget) {
+          e.preventDefault();
+          onSelect(issue.id);
+        }
+      }}
     >
       <div className="flex items-center gap-1.5 mb-0.5">
         <span
+          aria-hidden="true"
           className={[
             "w-[6px] h-[6px] rounded-full flex-shrink-0",
             issue.importance === "central"
@@ -70,14 +80,17 @@ function IssueNavItem({ issue, selected, onSelect, onRemove, delta }) {
           {issue.title}
         </span>
         {pending && !confirming && (
-          <span className="w-[7px] h-[7px] rounded-full bg-amber-400 flex-shrink-0" />
+          <span className="w-[7px] h-[7px] rounded-full bg-amber-400 flex-shrink-0">
+            <span className="sr-only">עדכונים ממתינים לאישור</span>
+          </span>
         )}
         {!confirming && (
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); setConfirming(true); }}
             title="מחק מחלוקת"
-            className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-500 hover:text-red-400 text-sm leading-none ml-1 flex-shrink-0"
+            aria-label={`מחק מחלוקת: ${issue.title}`}
+            className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 transition-opacity text-slate-500 hover:text-red-400 text-sm leading-none ml-1 flex-shrink-0"
           >
             ×
           </button>
@@ -162,6 +175,9 @@ export default function DisputeNavigator({
   const central    = issues.filter((i) => i.importance === "central");
   const secondary  = issues.filter((i) => i.importance === "secondary");
   const peripheral = issues.filter((i) => i.importance === "peripheral");
+  const pendingCount = latestDelta
+    ? issues.filter((i) => hasPending(i, latestDelta)).length
+    : 0;
 
   async function handleFileChange(e) {
     if (!e.target.files?.length || !onUploadFile) return;
@@ -186,23 +202,30 @@ export default function DisputeNavigator({
       {/* Header — h-12 matches the top bar height */}
       <div className="px-4 h-12 border-b border-slate-100 flex-shrink-0 flex items-center">
         <div className="text-sm font-bold text-slate-900">מחלוקות</div>
+        <span aria-live="polite" className="sr-only">
+          {pendingCount > 0
+            ? `עדכונים ממתינים לאישור ב-${pendingCount} מחלוקות`
+            : ""}
+        </span>
       </div>
 
       {/* Scrollable list */}
       <div className="flex-1 overflow-y-auto">
         {/* Overview */}
-        <div
+        <button
+          type="button"
           onClick={() => onSelectIssue(null)}
+          aria-current={selectedIssueId === null || undefined}
           className={[
-            "flex items-center gap-2 px-4 py-2.5 cursor-pointer border-r-[3px] transition-all text-sm font-semibold",
+            "w-full text-right flex items-center gap-2 px-4 py-2.5 cursor-pointer border-r-[3px] transition-all text-sm font-semibold",
             selectedIssueId === null
               ? "bg-blue-50 border-blue-500 text-blue-700"
               : "border-transparent text-slate-500 hover:bg-slate-50",
           ].join(" ")}
         >
-          <span className="text-slate-300 text-[13px]">◈</span>
+          <span aria-hidden="true" className="text-slate-300 text-[13px]">◈</span>
           מבט כללי
-        </div>
+        </button>
 
         <div className="h-px bg-slate-100 mx-2 my-1" />
 

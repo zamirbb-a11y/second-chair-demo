@@ -239,7 +239,16 @@ function ClickableInfoItem({ chipConfig, text, isNew, issueId, onAddInfo, onIssu
 
   return (
     <div className="py-2 border-b border-slate-100 last:border-0">
-      <div className="flex items-start gap-1.5 cursor-pointer" onClick={() => setOpen((v) => !v)}>
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={open}
+        className="flex items-start gap-1.5 cursor-pointer"
+        onClick={() => setOpen((v) => !v)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen((v) => !v); }
+        }}
+      >
         {chipConfig && (
           <span className={`text-xs font-bold px-1.5 py-[3px] rounded flex-shrink-0 mt-0.5 leading-tight ${chipConfig.bg} ${chipConfig.text}`}>
             {chipConfig.name}

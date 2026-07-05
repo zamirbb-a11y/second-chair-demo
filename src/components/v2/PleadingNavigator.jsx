@@ -7,6 +7,7 @@ const SIDE_BADGE = {
 
 const IMPORTANCE_DOT = { central: "bg-blue-500", secondary: "bg-slate-400", peripheral: "bg-slate-300" };
 const STRENGTH_DOT   = { strong: "bg-emerald-500", medium: "bg-amber-400", weak: "bg-red-400" };
+const STRENGTH_LABEL = { strong: "חוזק: גבוה", medium: "חוזק: בינוני", weak: "חוזק: נמוך" };
 
 // ─── Claim rows ────────────────────────────────────────────────────────────────
 
@@ -15,16 +16,26 @@ function ClaimRow({ claim, isSelected, onSelect, subClaims, selectedClaimId }) {
   return (
     <div>
       <div
+        role="button"
+        tabIndex={0}
+        aria-current={isSelected || undefined}
         className={["px-4 py-2 cursor-pointer border-r-[3px] transition-all",
           isSelected ? "bg-blue-50 border-blue-500" : "border-transparent hover:bg-slate-50 hover:shadow-sm"].join(" ")}
         onClick={() => onSelect(claim.id)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(claim.id); }
+        }}
       >
         <div className="flex items-center gap-1.5">
-          <span className={`w-[6px] h-[6px] rounded-full flex-shrink-0 ${claim.status === "pending" ? "bg-slate-300 animate-pulse" : IMPORTANCE_DOT[claim.importance] ?? "bg-slate-300"}`} />
+          <span aria-hidden="true" className={`w-[6px] h-[6px] rounded-full flex-shrink-0 ${claim.status === "pending" ? "bg-slate-300 animate-pulse" : IMPORTANCE_DOT[claim.importance] ?? "bg-slate-300"}`} />
           <span className={`text-[12px] flex-1 leading-snug ${isSelected ? "text-blue-700 font-semibold" : claim.status === "pending" ? "text-slate-400 italic" : "text-slate-700"}`}>
             {claim.title}
           </span>
-          {claim.status !== "pending" && <span className={`w-[6px] h-[6px] rounded-full flex-shrink-0 ${STRENGTH_DOT[claim.strength] ?? "bg-slate-300"}`} />}
+          {claim.status !== "pending" && (
+            <span className={`w-[6px] h-[6px] rounded-full flex-shrink-0 ${STRENGTH_DOT[claim.strength] ?? "bg-slate-300"}`}>
+              <span className="sr-only">{STRENGTH_LABEL[claim.strength] ?? "חוזק: לא ידוע"}</span>
+            </span>
+          )}
         </div>
       </div>
       {subClaims.length > 0 && (isSelected || isChildSelected) && (
@@ -32,16 +43,24 @@ function ClaimRow({ claim, isSelected, onSelect, subClaims, selectedClaimId }) {
           {subClaims.map(sub => (
             <div
               key={sub.id}
+              role="button"
+              tabIndex={0}
+              aria-current={selectedClaimId === sub.id || undefined}
               className={["px-3 py-1.5 cursor-pointer border-r-[3px] transition-all",
                 selectedClaimId === sub.id ? "bg-blue-50 border-blue-500" : "border-transparent hover:bg-slate-50 hover:shadow-sm"].join(" ")}
               onClick={() => onSelect(sub.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(sub.id); }
+              }}
             >
               <div className="flex items-center gap-1.5">
-                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${IMPORTANCE_DOT[sub.importance] ?? "bg-slate-300"}`} />
+                <span aria-hidden="true" className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${IMPORTANCE_DOT[sub.importance] ?? "bg-slate-300"}`} />
                 <span className={`text-[11px] flex-1 leading-snug ${selectedClaimId === sub.id ? "text-blue-700 font-semibold" : "text-slate-500"}`}>
                   {sub.title}
                 </span>
-                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${STRENGTH_DOT[sub.strength] ?? "bg-slate-300"}`} />
+                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${STRENGTH_DOT[sub.strength] ?? "bg-slate-300"}`}>
+                  <span className="sr-only">{STRENGTH_LABEL[sub.strength] ?? "חוזק: לא ידוע"}</span>
+                </span>
               </div>
             </div>
           ))}

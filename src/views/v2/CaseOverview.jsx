@@ -79,27 +79,28 @@ function DisputeMapRow({ issue, onSelectIssue }) {
     issue.description?.slice(0, 100);
 
   return (
-    <div
+    <button
+      type="button"
       onClick={() => onSelectIssue(issue.id)}
-      className="flex items-start gap-3 py-3 border-b border-slate-100 last:border-0 cursor-pointer group"
+      className="w-full text-right flex items-start gap-3 py-3 border-b border-slate-100 last:border-0 cursor-pointer group"
     >
-      <span className={`w-2 h-2 rounded-full flex-shrink-0 mt-[6px] ${strengthDotClass(strength)}`} />
+      <span aria-hidden="true" className={`w-2 h-2 rounded-full flex-shrink-0 mt-[6px] ${strengthDotClass(strength)}`} />
       <div className="flex-1 min-w-0">
-        <div className="text-[13.5px] font-semibold text-slate-800 group-hover:text-blue-700 leading-snug mb-0.5 transition-colors">
+        <div className="text-sm font-semibold text-slate-800 group-hover:text-blue-700 leading-snug mb-0.5 transition-colors">
           {issue.title}
         </div>
         {signal && (
-          <div className="text-[12px] text-slate-400 leading-[1.45]">
+          <div className="text-xs text-slate-500 leading-[1.45]">
             {signal.length > 100 ? signal.slice(0, 100) + "…" : signal}
           </div>
         )}
       </div>
       {strength && (
-        <span className={`text-[11px] font-semibold flex-shrink-0 ${strengthTextClass(strength)}`}>
+        <span className={`text-xs font-semibold flex-shrink-0 ${strengthTextClass(strength)}`}>
           {strengthLabel(strength)}
         </span>
       )}
-    </div>
+    </button>
   );
 }
 

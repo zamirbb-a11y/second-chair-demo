@@ -121,7 +121,11 @@ export default function InlinePendingUpdates({
   }
 
   return (
-    <div className="bg-amber-50 border border-amber-200 rounded-2xl overflow-hidden mb-6">
+    <div
+      role="region"
+      aria-label={`עדכונים ממתינים לאישור — ${title}`}
+      className="bg-amber-50 border border-amber-200 rounded-2xl overflow-hidden mb-6"
+    >
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-3 bg-amber-100/60 border-b border-amber-200">
         <div className="text-[10.5px] font-bold text-amber-800 tracking-[0.07em] uppercase">
