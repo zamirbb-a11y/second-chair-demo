@@ -2,6 +2,22 @@
 // Two jobs: (1) structural checks that trigger a single retry,
 // (2) source-span verification against the actual document text.
 
+export const NODE_KINDS = new Set([
+  "main_claim", "factual_allegation", "legal_proposition",
+  "contractual_interpretation", "denial", "remedy", "damages",
+  "procedural", "alternative", "background", "conclusion",
+]);
+
+// Kinds that are listed but skip deep QA — a prayer for relief must not
+// be flagged for evidence gaps like a factual allegation.
+export const LIGHTWEIGHT_KINDS = new Set(["remedy", "background", "procedural", "conclusion"]);
+
+export const EMPTY_QA = {
+  supported_by: [], weaknesses: [], missing: [],
+  logical_gap: null, unstated_assumption: null,
+  evidence_gap: false, authority_gap: false, logical_gap_flag: false,
+};
+
 const GENERIC_QA_PATTERNS = [
   /ראיה נוספת (תחזק|תסייע|תועיל)/,
   /עדות? (נוספת|תומכת) (תחזק|תסייע)/,
@@ -28,6 +44,8 @@ export function validatePass1(result) {
     if (!c.id) errors.push("claim without id");
     if (!c.text) errors.push(`claim ${c.id}: text missing`);
     if (!c.verbatim) errors.push(`claim ${c.id}: verbatim missing`);
+    if (!NODE_KINDS.has(c.node_kind))
+      errors.push(`claim ${c.id}: node_kind missing or invalid (got: ${c.node_kind})`);
     if (!Array.isArray(c.source_spans) || c.source_spans.length === 0)
       errors.push(`claim ${c.id}: source_spans missing`);
   }

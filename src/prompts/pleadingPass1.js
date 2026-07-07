@@ -42,6 +42,20 @@ ${pleadingText}
 - excerpt ב-source_spans: טקסט אמיתי מהמסמך, מילה במילה — לא פרפרזה. עד 300 תווים לקטע.
 - התייחס לכל טענה עובדתית כנטענת, לא כמוכחת.
 
+סיווג node_kind — התפקיד המשפטי-פונקציונלי של הצומת (בנוסף ל-type). בחר את הערך הספציפי ביותר:
+- "main_claim" — עילת תביעה/הגנה מרכזית שהמסמך בנוי סביבה
+- "factual_allegation" — טענה עובדתית
+- "legal_proposition" — קביעה משפטית (פרשנות דין, הלכה)
+- "contractual_interpretation" — פרשנות הוראה חוזית
+- "denial" — הכחשה של טענת הצד שכנגד
+- "remedy" — סעד מבוקש ("אשר על כן מתבקש...")
+- "damages" — כימות נזק
+- "procedural" — טענת סף או טענה דיונית
+- "alternative" — טענה חלופית ("לחלופין")
+- "background" — רקע שאינו טענה מהותית
+- "conclusion" — סיכום
+חשוב: פסקת סעד (remedy) ורקע (background) אינם טענות רגילות — סווג אותם נכון כדי שלא יעברו ביקורת ראייתית מלאה.
+
 החזר JSON בלבד במבנה הבא:
 
 {
@@ -61,6 +75,7 @@ ${pleadingText}
       "text": "ניסוח מנורמל של הטענה",
       "verbatim": "ציטוט/פרפרזה צמודה",
       "type": "factual | legal | mixed",
+      "node_kind": "main_claim | factual_allegation | legal_proposition | contractual_interpretation | denial | remedy | damages | procedural | alternative | background | conclusion",
       "what_it_establishes": "מה הוכחת הטענה משיגה במארג הטיעון הכולל",
       "source_spans": [
         { "excerpt": "טקסט מדויק מהמסמך", "section_label": "שם הפרק/הסעיף או null", "paragraph": 12, "is_primary": true }

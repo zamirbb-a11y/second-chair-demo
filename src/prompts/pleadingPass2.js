@@ -52,6 +52,7 @@ ${otherClaimsSummary}
       "text": "",
       "verbatim": "",
       "type": "factual | legal | mixed",
+      "node_kind": "factual_allegation | legal_proposition | contractual_interpretation | denial | damages | procedural | alternative",
       "what_it_establishes": "",
       "source_spans": [ { "excerpt": "", "section_label": null, "paragraph": null, "is_primary": true } ],
       "qa": {
