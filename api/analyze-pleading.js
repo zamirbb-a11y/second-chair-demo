@@ -29,6 +29,9 @@ import {
 } from "../src/lib/pleadingValidation.js";
 
 const MODEL = "gpt-4.1";
+// Mechanical passes (reference dedup, coverage mapping) run on mini:
+// separate per-model TPM pool, ~5x cheaper, no legal judgment involved.
+const MODEL_MINI = "gpt-4.1-mini";
 const PASS2_CONTEXT_WINDOW = 3000; // chars around each source excerpt
 const PASS2_FALLBACK_SLICE = 15000;
 const PASS2_CONCURRENCY = 5; // stay under the org TPM limit
@@ -36,7 +39,7 @@ const RATE_LIMIT_RETRIES = 4;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function callModel({ system, prompt, temperature = 0.2 }) {
+async function callModel({ system, prompt, temperature = 0.2, model = MODEL }) {
   for (let attempt = 0; ; attempt++) {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -45,7 +48,7 @@ async function callModel({ system, prompt, temperature = 0.2 }) {
         Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: MODEL,
+        model,
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: system },
@@ -278,6 +281,7 @@ export default async function handler(req, res) {
       const audit = await callModel({
         system: AUDIT_SYSTEM,
         prompt: buildCoverageAuditPrompt({ pleadingText, nodes: auditNodes }),
+        model: MODEL_MINI,
       });
       console.log("coverage audit section_map:", JSON.stringify(audit.section_map ?? []));
 
@@ -331,6 +335,7 @@ export default async function handler(req, res) {
         references = await callModel({
           system: PASS3_SYSTEM,
           prompt: buildPass3Prompt({ rawAuthorities, rawEvidenceRefs, rawQuotations }),
+          model: MODEL_MINI,
         });
       } catch (err) {
         console.error("Pass 3 failed, returning raw references:", err);
