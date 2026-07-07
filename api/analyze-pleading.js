@@ -203,6 +203,8 @@ export default async function handler(req, res) {
     const rawQuotations = [];
     const subClaimsByParent = {};
 
+    const failedClaims = [];
+
     async function analyzeClaim(claim) {
       // Lightweight kinds (remedy, background, procedural, conclusion) are
       // listed but not QA'd — a prayer for relief must not be flagged for
@@ -260,11 +262,23 @@ export default async function handler(req, res) {
         });
       } catch (err) {
         console.error(`Pass 2 failed for ${claim.id}:`, err);
-        send({ type: "claim_error", claim_id: claim.id, message: "claim analysis failed" });
+        failedClaims.push(claim);
       }
     }
 
     await runLimited(mainClaims, PASS2_CONCURRENCY, analyzeClaim);
+
+    // Claims that exhausted their retries during the parallel burst get a
+    // final serial attempt once the TPM window has recovered — the largest
+    // claim of the pleading is exactly the one most likely to lose the race.
+    if (failedClaims.length > 0) {
+      const secondChance = failedClaims.splice(0);
+      console.warn(`Retrying ${secondChance.length} rate-limited claims serially:`, secondChance.map((c) => c.id));
+      await runLimited(secondChance, 1, analyzeClaim);
+      for (const claim of failedClaims) {
+        send({ type: "claim_error", claim_id: claim.id, message: "claim analysis failed" });
+      }
+    }
 
     // ── Coverage audit (internal) ─────────────────────────────────────
     // Verifies no substantive section went unmapped; unmapped material
@@ -308,6 +322,12 @@ export default async function handler(req, res) {
           mainClaims.push(...added);
           send({ type: "claims_added", claims: added });
           await runLimited(added, PASS2_CONCURRENCY, analyzeClaim);
+          if (failedClaims.length > 0) {
+            await runLimited(failedClaims.splice(0), 1, analyzeClaim);
+            for (const claim of failedClaims) {
+              send({ type: "claim_error", claim_id: claim.id, message: "claim analysis failed" });
+            }
+          }
           auditWarnings.push(`בדיקת כיסוי: נוספו ${added.length} טענות שלא נקלטו בחילוץ הראשון.`);
         } else {
           for (const u of unmapped) {
