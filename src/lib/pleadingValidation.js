@@ -15,6 +15,7 @@ export const LIGHTWEIGHT_KINDS = new Set(["remedy", "background", "procedural", 
 export const EMPTY_QA = {
   supported_by: [], weaknesses: [], missing: [],
   logical_gap: null, unstated_assumption: null,
+  key_vulnerability: null, suggested_arguments: [],
   evidence_gap: false, authority_gap: false, logical_gap_flag: false,
 };
 

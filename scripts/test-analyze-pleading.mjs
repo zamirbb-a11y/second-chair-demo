@@ -39,10 +39,16 @@ function renderQa(qa) {
     qa.logical_gap && `<li class="miss"><span>△</span><div><b>פער לוגי:</b> ${esc(qa.logical_gap)}</div></li>`,
     qa.unstated_assumption && `<li class="miss"><span>△</span><div><b>הנחה סמויה:</b> ${esc(qa.unstated_assumption)}</div></li>`,
   ].filter(Boolean).join("");
-  const empty = !(qa.supported_by?.length || qa.weaknesses?.length || qa.missing?.length || extra);
+  const strategy = [
+    qa.key_vulnerability &&
+      `<p class="vuln"><b>נקודת התורפה המרכזית:</b> ${esc(qa.key_vulnerability)}</p>`,
+    qa.suggested_arguments?.length &&
+      `<div class="suggest"><b>אפשר לטעון:</b><ul>${qa.suggested_arguments.map((s) => `<li>${esc(s)}</li>`).join("")}</ul></div>`,
+  ].filter(Boolean).join("");
+  const empty = !(qa.supported_by?.length || qa.weaknesses?.length || qa.missing?.length || extra || strategy);
   return `${flags ? `<div class="flags">${flags}</div>` : ""}
     ${empty ? `<p class="light">ביקורת מקוצרת — צומת מסוג סעד/רקע אינו נבחן ראייתית.</p>` : `<ul class="qa">
-    ${li(qa.supported_by, "sup", "✓")}${li(qa.weaknesses, "weak", "−")}${li(qa.missing, "miss", "?")}${extra}</ul>`}`;
+    ${li(qa.supported_by, "sup", "✓")}${li(qa.weaknesses, "weak", "−")}${li(qa.missing, "miss", "?")}${extra}</ul>${strategy}`}`;
 }
 
 function renderClaim(c, subs) {
@@ -104,6 +110,9 @@ function renderReport(a, sourceName) {
   ul.qa li.sup span{color:#047857}
   ul.qa li.weak span{color:#b91c1c}
   ul.qa li.miss span{color:#b45309}
+  .vuln{background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:.5rem .9rem;font-size:.9rem;margin:.75rem 0 0}
+  .suggest{background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:.5rem .9rem;font-size:.9rem;margin:.6rem 0 0}
+  .suggest ul{margin:.25rem 0 0;padding-right:1.2rem}
   .sub{margin:.75rem 0 0 0;padding-right:1rem;border-right:2px solid #e2e8f0}
   .sub article{border:none;background:#f8fafc;margin:.5rem 0}
   .meta{color:#475569;font-size:.9rem}
