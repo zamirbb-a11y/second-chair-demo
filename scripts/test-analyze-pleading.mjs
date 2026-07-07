@@ -44,6 +44,8 @@ function renderQa(qa) {
       `<p class="vuln"><b>נקודת התורפה המרכזית:</b> ${esc(qa.key_vulnerability)}</p>`,
     qa.suggested_arguments?.length &&
       `<div class="suggest"><b>אפשר לטעון:</b><ul>${qa.suggested_arguments.map((s) => `<li>${esc(s)}</li>`).join("")}</ul></div>`,
+    qa.annexes_to_review?.length &&
+      `<div class="annexes"><b>נספחים לבחינה:</b><ul>${qa.annexes_to_review.map((s) => `<li>${esc(s)}</li>`).join("")}</ul></div>`,
   ].filter(Boolean).join("");
   const empty = !(qa.supported_by?.length || qa.weaknesses?.length || qa.missing?.length || extra || strategy);
   return `${flags ? `<div class="flags">${flags}</div>` : ""}
@@ -113,6 +115,8 @@ function renderReport(a, sourceName) {
   .vuln{background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:.5rem .9rem;font-size:.9rem;margin:.75rem 0 0}
   .suggest{background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:.5rem .9rem;font-size:.9rem;margin:.6rem 0 0}
   .suggest ul{margin:.25rem 0 0;padding-right:1.2rem}
+  .annexes{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:.5rem .9rem;font-size:.85rem;color:#475569;margin:.6rem 0 0}
+  .annexes ul{margin:.25rem 0 0;padding-right:1.2rem}
   .sub{margin:.75rem 0 0 0;padding-right:1rem;border-right:2px solid #e2e8f0}
   .sub article{border:none;background:#f8fafc;margin:.5rem 0}
   .meta{color:#475569;font-size:.9rem}
