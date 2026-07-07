@@ -41,6 +41,15 @@ export default function NewCaseWizard({ onComplete, onCancel }) {
     }
   }, [detectedParties]);
 
+  useEffect(() => {
+    if (!onCancel) return;
+    function onKeyDown(e) {
+      if (e.key === "Escape") onCancel();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onCancel]);
+
   const resolvedClientName =
     selectedPartyIdx !== null && detectedParties[selectedPartyIdx]
       ? detectedParties[selectedPartyIdx]
@@ -115,6 +124,16 @@ export default function NewCaseWizard({ onComplete, onCancel }) {
         style={{ height: "76vh" }}
         dir="rtl"
       >
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            aria-label="סגור"
+            className="absolute top-3.5 left-3.5 z-10 w-8 h-8 flex items-center justify-center rounded-full text-slate-500 hover:text-slate-700 hover:bg-slate-100 text-xl leading-none bg-transparent border-0 cursor-pointer transition-colors"
+          >
+            ×
+          </button>
+        )}
 
         {/* ── Sidebar (right in RTL) ───────────────────────────── */}
         <aside className="w-52 bg-slate-900 flex flex-col shrink-0 py-8 px-6">

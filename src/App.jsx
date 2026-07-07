@@ -699,12 +699,12 @@ export default function App() {
 
       const data = await res.json();
       if (!res.ok) {
-        // Surface the actual OpenAI error message when available
+        // Log the actual server/OpenAI error; the user gets calm copy in the catch
         const openaiMsg = typeof data?.details === "object"
           ? (data.details?.error?.message || JSON.stringify(data.details))
           : data?.details;
-        const detail = openaiMsg || data?.error || `שגיאת שרת ${res.status}`;
-        throw new Error(detail);
+        console.error("chat server error:", res.status, openaiMsg || data?.error);
+        throw new Error("chat_request_failed");
       }
       const aiMsg = {
         id: `cm_${Date.now()}_a`,
@@ -726,7 +726,7 @@ export default function App() {
         {
           id: `cm_${Date.now()}_err`,
           role: "assistant",
-          errorText: err?.message || "שגיאה לא ידועה",
+          errorText: "לא הצלחתי לענות כרגע. השאלה לא אבדה — נסה לשלוח אותה שוב.",
           sections: [],
           sources: [],
           proposedUpdates: [],
@@ -1321,7 +1321,7 @@ ${updatesText}
       }, 100);
     } catch (err) {
       console.error(err);
-      setError("הניתוח נכשל. בדוק את ה־API או את ה־Vercel Logs.");
+      setError("הניתוח לא הושלם הפעם. החומר שהזנת נשמר — נסה להריץ שוב בעוד רגע.");
     } finally {
       setLoading(false);
     }
@@ -1475,7 +1475,7 @@ const nextUpdates = effectiveUpdates.map((update) => {
       setStatus("עדכון הניתוח בוטל. המידע שהוזן נשמר וימתין לעדכון הבא.");
     } else {
       console.error(err);
-      setError("עדכון הניתוח נכשל.");
+      setError("עדכון הניתוח לא הושלם. המידע שהזנת נשמר וימתין לניסיון הבא.");
     }
   } finally {
     updateAbortRef.current = null;
