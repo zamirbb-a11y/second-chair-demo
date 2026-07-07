@@ -42,6 +42,9 @@ function IssueNavItem({ issue, selected, onSelect, onRemove, delta }) {
 
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-current={selected || undefined}
       className={[
         "group relative px-4 py-2.5 cursor-pointer border-r-[3px] transition-all",
         selected
@@ -49,9 +52,16 @@ function IssueNavItem({ issue, selected, onSelect, onRemove, delta }) {
           : "border-transparent hover:bg-slate-50",
       ].join(" ")}
       onClick={() => { if (!confirming) onSelect(issue.id); }}
+      onKeyDown={(e) => {
+        if ((e.key === "Enter" || e.key === " ") && !confirming && e.target === e.currentTarget) {
+          e.preventDefault();
+          onSelect(issue.id);
+        }
+      }}
     >
       <div className="flex items-center gap-1.5 mb-0.5">
         <span
+          aria-hidden="true"
           className={[
             "w-[6px] h-[6px] rounded-full flex-shrink-0",
             issue.importance === "central"
@@ -63,21 +73,24 @@ function IssueNavItem({ issue, selected, onSelect, onRemove, delta }) {
         />
         <span
           className={[
-            "text-[12.5px] font-semibold flex-1 leading-snug",
+            "text-sm font-semibold flex-1 leading-snug",
             selected ? "text-blue-700" : "text-slate-800",
           ].join(" ")}
         >
           {issue.title}
         </span>
         {pending && !confirming && (
-          <span className="w-[7px] h-[7px] rounded-full bg-amber-400 flex-shrink-0" />
+          <span className="w-[7px] h-[7px] rounded-full bg-amber-400 flex-shrink-0">
+            <span className="sr-only">עדכונים ממתינים לאישור</span>
+          </span>
         )}
         {!confirming && (
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); setConfirming(true); }}
             title="מחק מחלוקת"
-            className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-300 hover:text-red-400 text-[13px] leading-none ml-1 flex-shrink-0"
+            aria-label={`מחק מחלוקת: ${issue.title}`}
+            className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 transition-opacity text-slate-500 hover:text-red-400 text-sm leading-none ml-1 flex-shrink-0"
           >
             ×
           </button>
@@ -89,18 +102,18 @@ function IssueNavItem({ issue, selected, onSelect, onRemove, delta }) {
           className="mt-1.5 flex items-center gap-2"
           onClick={(e) => e.stopPropagation()}
         >
-          <span className="text-[11px] text-slate-500 flex-1">למחוק מחלוקת?</span>
+          <span className="text-xs text-slate-500 flex-1">למחוק מחלוקת?</span>
           <button
             type="button"
             onClick={() => { onRemove?.(issue.id, issue.title); setConfirming(false); }}
-            className="px-2.5 py-1 bg-red-500 text-white text-[10.5px] font-bold rounded-md border-0 cursor-pointer hover:bg-red-600"
+            className="px-2.5 py-1 bg-red-500 text-white text-xs font-bold rounded-md border-0 cursor-pointer hover:bg-red-600"
           >
             מחק
           </button>
           <button
             type="button"
             onClick={() => setConfirming(false)}
-            className="px-2.5 py-1 bg-white text-slate-500 text-[10.5px] border border-slate-200 rounded-md cursor-pointer hover:bg-slate-50"
+            className="px-2.5 py-1 bg-white text-slate-500 text-xs border border-slate-200 rounded-md cursor-pointer hover:bg-slate-50"
           >
             ביטול
           </button>
@@ -110,8 +123,8 @@ function IssueNavItem({ issue, selected, onSelect, onRemove, delta }) {
       {signal && !confirming && (
         <p
           className={[
-            "text-[11px] leading-[1.4] pr-[13px]",
-            pending ? "text-amber-700" : "text-slate-400",
+            "text-xs leading-[1.4] pr-[13px]",
+            pending ? "text-amber-700" : "text-slate-500",
           ].join(" ")}
         >
           {signal.length > 76 ? signal.slice(0, 76) + "…" : signal}
@@ -125,7 +138,7 @@ function Group({ label, issues, selectedIssueId, onSelectIssue, onRemoveIssue, l
   if (!issues.length) return null;
   return (
     <>
-      <div className="px-4 pt-2.5 pb-1 text-[9.5px] font-bold text-slate-400 tracking-[0.07em] uppercase">
+      <div className="px-4 pt-2.5 pb-1 text-xs font-semibold text-slate-500">
         {label}
       </div>
       {issues.map((issue) => (
@@ -162,6 +175,9 @@ export default function DisputeNavigator({
   const central    = issues.filter((i) => i.importance === "central");
   const secondary  = issues.filter((i) => i.importance === "secondary");
   const peripheral = issues.filter((i) => i.importance === "peripheral");
+  const pendingCount = latestDelta
+    ? issues.filter((i) => hasPending(i, latestDelta)).length
+    : 0;
 
   async function handleFileChange(e) {
     if (!e.target.files?.length || !onUploadFile) return;
@@ -185,24 +201,31 @@ export default function DisputeNavigator({
     <div className="w-[320px] bg-[#f8f9fb] border-l border-slate-200 flex flex-col flex-shrink-0 h-full">
       {/* Header — h-12 matches the top bar height */}
       <div className="px-4 h-12 border-b border-slate-100 flex-shrink-0 flex items-center">
-        <div className="text-[13px] font-bold text-slate-900">מחלוקות</div>
+        <div className="text-sm font-bold text-slate-900">מחלוקות</div>
+        <span aria-live="polite" className="sr-only">
+          {pendingCount > 0
+            ? `עדכונים ממתינים לאישור ב-${pendingCount} מחלוקות`
+            : ""}
+        </span>
       </div>
 
       {/* Scrollable list */}
       <div className="flex-1 overflow-y-auto">
         {/* Overview */}
-        <div
+        <button
+          type="button"
           onClick={() => onSelectIssue(null)}
+          aria-current={selectedIssueId === null || undefined}
           className={[
-            "flex items-center gap-2 px-4 py-2.5 cursor-pointer border-r-[3px] transition-all text-[12.5px] font-semibold",
+            "w-full text-right flex items-center gap-2 px-4 py-2.5 cursor-pointer border-r-[3px] transition-all text-sm font-semibold",
             selectedIssueId === null
               ? "bg-blue-50 border-blue-500 text-blue-700"
               : "border-transparent text-slate-500 hover:bg-slate-50",
           ].join(" ")}
         >
-          <span className="text-slate-300 text-[13px]">◈</span>
+          <span aria-hidden="true" className="text-slate-300 text-[13px]">◈</span>
           מבט כללי
-        </div>
+        </button>
 
         <div className="h-px bg-slate-100 mx-2 my-1" />
 
@@ -253,19 +276,19 @@ export default function DisputeNavigator({
               onChange={(e) => setFormTitle(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Escape") setShowForm(false); }}
               placeholder="כותרת המחלוקת"
-              className="w-full text-[12px] border border-slate-300 rounded-lg px-3 py-1.5 outline-none focus:border-blue-400"
+              className="w-full text-xs border border-slate-300 rounded-lg px-3 py-1.5 outline-none focus:border-blue-400"
             />
             <textarea
               value={formDescription}
               onChange={(e) => setFormDescription(e.target.value)}
               placeholder="פרט את המחלוקת (אופציונלי)…"
               rows={3}
-              className="w-full text-[12px] border border-slate-300 rounded-lg px-3 py-1.5 outline-none focus:border-blue-400 resize-none leading-relaxed"
+              className="w-full text-xs border border-slate-300 rounded-lg px-3 py-1.5 outline-none focus:border-blue-400 resize-none leading-relaxed"
             />
             <select
               value={formImportance}
               onChange={(e) => setFormImportance(e.target.value)}
-              className="w-full text-[12px] border border-slate-300 rounded-lg px-2 py-1.5 bg-white outline-none"
+              className="w-full text-xs border border-slate-300 rounded-lg px-2 py-1.5 bg-white outline-none"
             >
               <option value="central">מרכזית</option>
               <option value="secondary">משנית</option>
@@ -273,12 +296,12 @@ export default function DisputeNavigator({
             </select>
             {onUploadFile && (
               <label className={[
-                "flex items-center gap-2 px-3 py-1.5 border rounded-lg cursor-pointer transition-colors text-[11.5px]",
+                "flex items-center gap-2 px-3 py-1.5 border rounded-lg cursor-pointer transition-colors text-xs",
                 uploading
                   ? "border-slate-200 bg-slate-50 text-slate-400"
                   : uploadedFileName
                   ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                  : "border-dashed border-slate-300 text-slate-400 hover:border-slate-400 hover:text-slate-600",
+                  : "border-dashed border-slate-300 text-slate-500 hover:border-slate-400 hover:text-slate-600",
               ].join(" ")}>
                 <span>{uploading ? "מעלה…" : uploadedFileName ? `✓ ${uploadedFileName}` : "+ צרף קובץ"}</span>
                 <input
@@ -294,13 +317,13 @@ export default function DisputeNavigator({
               <button
                 onClick={handleAdd}
                 disabled={!formTitle.trim() || uploading}
-                className="flex-1 py-1.5 bg-slate-900 text-white rounded-lg text-[11.5px] font-bold disabled:opacity-40 cursor-pointer border-0"
+                className="flex-1 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-bold disabled:opacity-40 cursor-pointer border-0"
               >
                 הוסף
               </button>
               <button
                 onClick={() => { setShowForm(false); setFormTitle(""); setFormDescription(""); setUploadedFileName(null); }}
-                className="flex-1 py-1.5 border border-slate-200 rounded-lg text-[11.5px] text-slate-500 cursor-pointer bg-white"
+                className="flex-1 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-500 cursor-pointer bg-white"
               >
                 ביטול
               </button>
@@ -309,7 +332,7 @@ export default function DisputeNavigator({
         ) : (
           <button
             onClick={() => setShowForm(true)}
-            className="w-full py-[7px] border-[1.5px] border-dashed border-slate-300 rounded-[9px] text-[11.5px] text-slate-400 hover:border-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all bg-transparent cursor-pointer"
+            className="w-full py-[7px] border-[1.5px] border-dashed border-slate-300 rounded-[9px] text-xs text-slate-500 hover:border-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all bg-transparent cursor-pointer"
           >
             + הוסף מחלוקת
           </button>

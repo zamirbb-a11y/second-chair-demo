@@ -28,7 +28,7 @@ function strengthTextClass(strength) {
   if (strength === "medium")                          return "text-slate-500";
   if (strength === "medium_weak")                     return "text-amber-700";
   if (["weak", "very_weak"].includes(strength))       return "text-orange-700";
-  return "text-slate-400";
+  return "text-slate-500";
 }
 
 // Case-level pending: caseAssessmentChange
@@ -38,30 +38,30 @@ function CasePendingDelta({ delta, onAccept, onReject }) {
 
   return (
     <div className="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4 mb-6">
-      <div className="text-[10px] font-bold text-amber-700 tracking-[0.07em] uppercase mb-2">
+      <div className="text-xs font-semibold text-amber-800 mb-2">
         עדכון ממתין — הערכת סיכויי התיק
       </div>
-      <div className="text-[14px] text-amber-900 leading-relaxed mb-1">
+      <div className="text-sm text-amber-900 leading-relaxed mb-1">
         הערכת הסיכויים הכוללת השתנתה:{" "}
         <span className="font-semibold">{change.previousLevel}</span>
         {" → "}
         <span className="font-semibold">{change.newLevel}</span>
       </div>
       {change.reason && (
-        <div className="text-[12.5px] text-amber-700 leading-relaxed mb-3">
+        <div className="text-sm text-amber-800 leading-relaxed mb-3">
           {change.reason}
         </div>
       )}
       <div className="flex gap-2">
         <button
           onClick={() => onAccept?.(change)}
-          className="bg-emerald-700 text-white border-0 rounded-lg px-4 py-1.5 text-[12px] font-bold cursor-pointer hover:bg-emerald-800"
+          className="bg-emerald-700 text-white border-0 rounded-lg px-4 py-1.5 text-xs font-bold cursor-pointer hover:bg-emerald-800"
         >
           ✓ אשר עדכון
         </button>
         <button
           onClick={() => onReject?.()}
-          className="bg-white text-slate-500 border border-slate-200 rounded-lg px-4 py-1.5 text-[12px] font-semibold cursor-pointer hover:bg-slate-50"
+          className="bg-white text-slate-500 border border-slate-200 rounded-lg px-4 py-1.5 text-xs font-semibold cursor-pointer hover:bg-slate-50"
         >
           דחה
         </button>
@@ -79,27 +79,28 @@ function DisputeMapRow({ issue, onSelectIssue }) {
     issue.description?.slice(0, 100);
 
   return (
-    <div
+    <button
+      type="button"
       onClick={() => onSelectIssue(issue.id)}
-      className="flex items-start gap-3 py-3 border-b border-slate-100 last:border-0 cursor-pointer group"
+      className="w-full text-right flex items-start gap-3 py-3 border-b border-slate-100 last:border-0 cursor-pointer group"
     >
-      <span className={`w-2 h-2 rounded-full flex-shrink-0 mt-[6px] ${strengthDotClass(strength)}`} />
+      <span aria-hidden="true" className={`w-2 h-2 rounded-full flex-shrink-0 mt-[6px] ${strengthDotClass(strength)}`} />
       <div className="flex-1 min-w-0">
-        <div className="text-[13.5px] font-semibold text-slate-800 group-hover:text-blue-700 leading-snug mb-0.5 transition-colors">
+        <div className="text-sm font-semibold text-slate-800 group-hover:text-blue-700 leading-snug mb-0.5 transition-colors">
           {issue.title}
         </div>
         {signal && (
-          <div className="text-[12px] text-slate-400 leading-[1.45]">
+          <div className="text-xs text-slate-500 leading-[1.45]">
             {signal.length > 100 ? signal.slice(0, 100) + "…" : signal}
           </div>
         )}
       </div>
       {strength && (
-        <span className={`text-[11px] font-semibold flex-shrink-0 ${strengthTextClass(strength)}`}>
+        <span className={`text-xs font-semibold flex-shrink-0 ${strengthTextClass(strength)}`}>
           {strengthLabel(strength)}
         </span>
       )}
-    </div>
+    </button>
   );
 }
 
@@ -128,7 +129,7 @@ export default function CaseOverview({
       {assessment && (
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-1">
-            <div className="text-[10.5px] font-bold text-slate-400 tracking-[0.07em] uppercase">
+            <div className="text-xs font-bold text-slate-500">
               הערכת מצב
             </div>
             <div className="flex-1 h-px bg-slate-100" />
@@ -139,7 +140,7 @@ export default function CaseOverview({
               הערכת סיכויי התביעה
             </div>
             {assessment.level && (
-              <div className="border border-slate-200 bg-white rounded-lg px-3 py-1 text-[13px] font-bold text-slate-700 flex-shrink-0">
+              <div className="border border-slate-200 bg-white rounded-lg px-3 py-1 text-sm font-bold text-slate-700 flex-shrink-0">
                 {assessment.level}
               </div>
             )}
@@ -164,7 +165,7 @@ export default function CaseOverview({
       {issues.length > 0 && (
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">
-            <div className="text-[10.5px] font-bold text-slate-400 tracking-[0.07em] uppercase">
+            <div className="text-xs font-bold text-slate-500">
               מחלוקות
             </div>
             <div className="flex-1 h-px bg-slate-100" />
@@ -183,7 +184,7 @@ export default function CaseOverview({
 
       {/* Empty state */}
       {!analysis && (
-        <div className="text-[14px] text-slate-400 mt-8">
+        <div className="text-sm text-slate-500 mt-8">
           טרם נטען תיק. השתמש בטופס הקלט כדי להוסיף חומר.
         </div>
       )}

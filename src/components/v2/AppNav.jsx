@@ -25,7 +25,7 @@ export default function AppNav({
       {/* Logo */}
       <div className="w-full h-12 flex flex-col items-center justify-center border-b border-white/10 select-none">
         <span className="text-white font-black text-[13px] leading-none tracking-tight">SC</span>
-        <span className="block text-[8px] text-white/40 mt-0.5 tracking-wide">Second Chair</span>
+        <span className="block text-[10px] text-white/60 mt-0.5 tracking-wide">Second Chair</span>
       </div>
 
       {/* Nav items */}
@@ -39,11 +39,11 @@ export default function AppNav({
               "w-full rounded-[9px] flex flex-col items-center justify-center gap-[3px] py-2.5 transition-all border-0 cursor-pointer",
               activeView === id
                 ? "bg-white/15 text-white"
-                : "text-white/40 hover:bg-white/8 hover:text-white/70",
+                : "text-white/70 hover:bg-white/8 hover:text-white/90",
             ].join(" ")}
           >
             <span className="text-[17px] leading-none">{icon}</span>
-            <span className="text-[8.5px] font-semibold leading-none">{label}</span>
+            <span className="text-[11px] font-medium leading-tight">{label}</span>
           </button>
         ))}
       </div>
@@ -75,7 +75,7 @@ export default function AppNav({
               {casesExpanded && (
                 <div className="max-h-48 overflow-y-auto border-t border-slate-100">
                   {savedCases.length === 0 ? (
-                    <div className="px-3 py-2 text-xs text-slate-400">אין תיקים שמורים</div>
+                    <div className="px-3 py-2 text-xs text-slate-500">אין תיקים שמורים</div>
                   ) : (
                     savedCases.map(item => (
                       <button
@@ -88,7 +88,7 @@ export default function AppNav({
                             : "text-slate-600 hover:bg-slate-50",
                         ].join(" ")}
                       >
-                        {item.id === currentCaseId && <span className="ml-1.5 text-[9px] text-slate-400">◀ נוכחי</span>}
+                        {item.id === currentCaseId && <span className="ml-1.5 text-xs text-slate-500">◀ נוכחי</span>}
                         {item.name}
                       </button>
                     ))
@@ -110,7 +110,7 @@ export default function AppNav({
               {/* ── User ── */}
               <div className="bg-slate-50 border-t-2 border-slate-200">
                 {userName && (
-                  <div className="px-3 pt-2.5 pb-1 text-[11px] text-slate-400 truncate font-medium">
+                  <div className="px-3 pt-2.5 pb-1 text-xs text-slate-500 truncate font-medium">
                     {userName}
                   </div>
                 )}
@@ -138,7 +138,7 @@ export default function AppNav({
         <button
           onClick={() => setMenuOpen(v => !v)}
           title="תפריט"
-          className="w-full rounded-[9px] flex items-center justify-center py-2.5 text-white/30 hover:bg-white/8 hover:text-white/60 text-[17px] transition-all border-0 cursor-pointer"
+          className="w-full rounded-[9px] flex items-center justify-center py-2.5 text-white/70 hover:bg-white/8 hover:text-white/90 text-[17px] transition-all border-0 cursor-pointer"
         >
           ⚙
         </button>

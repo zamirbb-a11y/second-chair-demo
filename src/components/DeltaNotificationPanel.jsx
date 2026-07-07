@@ -185,7 +185,7 @@ export default function DeltaNotificationPanel({
                 "flex items-center justify-center gap-2 px-3 py-3 text-sm border-l last:border-l-0 border-amber-100 transition",
                 isActive
                   ? "bg-amber-100/70 text-slate-900 font-bold"
-                  : "text-slate-600 hover:bg-amber-50",
+                  : "text-amber-800 hover:bg-amber-50",
               ].join(" ")}
             >
               <span>{section.icon}</span>

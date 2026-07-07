@@ -271,7 +271,7 @@ shadow-[0_6px_18px_rgba(15,23,42,0.08)]
               {issue.partyPositions?.claimant ? (
                 <InfoBlock text={issue.partyPositions.claimant} />
               ) : (
-                <div className="text-sm text-slate-400 leading-6">טרם הוגדרה עמדת התובע</div>
+                <div className="text-sm text-slate-500 leading-6">טרם הוגדרה עמדת התובע</div>
               )}
               {contradictionOverlays
                 .filter((o) => POSITION_SURFACE_TYPES.includes(o.patch.targetType))
@@ -289,7 +289,7 @@ shadow-[0_6px_18px_rgba(15,23,42,0.08)]
               {issue.partyPositions?.defendant ? (
                 <InfoBlock text={issue.partyPositions.defendant} />
               ) : (
-                <div className="text-sm text-slate-400 leading-6">טרם הוגדרה עמדת הנתבע</div>
+                <div className="text-sm text-slate-500 leading-6">טרם הוגדרה עמדת הנתבע</div>
               )}
             </SectionCard>
           </div>
@@ -331,7 +331,7 @@ shadow-[0_6px_18px_rgba(15,23,42,0.08)]
                   <button
                     type="button"
                     onClick={() => setPrecedentSuggestions(null)}
-                    className="text-xs text-slate-400 hover:text-slate-700 transition"
+                    className="text-xs text-slate-500 hover:text-slate-700 transition"
                   >
                     נקה תוצאות
                   </button>
@@ -352,7 +352,7 @@ shadow-[0_6px_18px_rgba(15,23,42,0.08)]
 
             <SectionCard title="מצב ראייתי">
               {isUserIssue && !issue.linkedEvidence?.length && !issue.linkedWitnesses?.length && !evidenceOverlays.length ? (
-                <div className="text-sm text-slate-400 leading-6">טרם קושרו ראיות למחלוקת זו.</div>
+                <div className="text-sm text-slate-500 leading-6">טרם קושרו ראיות למחלוקת זו.</div>
               ) : (
                 <>
                   <ExpandableList
@@ -459,7 +459,7 @@ shadow-[0_6px_18px_rgba(15,23,42,0.08)]
               !issue.actionItems?.clientQuestions?.length &&
               !issue.actionItems?.missingEvidence?.length &&
               !issue.actionItems?.suggestedActions?.length && (
-                <div className="rounded-xl border border-dashed border-slate-200 bg-white p-3 text-sm text-slate-400 space-y-1">
+                <div className="rounded-xl border border-dashed border-slate-200 bg-white p-3 text-sm text-slate-500 space-y-1">
                   <div>• קשר ראיות רלוונטיות למחלוקת</div>
                   <div>• בדוק פסיקה למחלוקת זו</div>
                   <div>• עדכן את התיק לאחר הוספת מידע</div>
@@ -557,7 +557,7 @@ function AssessmentSummaryBlock({ summary, strength, updatedFields, assessmentOv
                 <button
                   type="button"
                   onClick={() => onRollbackOverlay?.(summaryOverlay.id)}
-                  className="text-xs text-slate-400 hover:text-red-500 transition"
+                  className="text-xs text-slate-500 hover:text-red-500 transition"
                 >
                   בטל
                 </button>
@@ -579,7 +579,7 @@ function AssessmentSummaryBlock({ summary, strength, updatedFields, assessmentOv
                   עודכן
                 </span>
                 {strengthOverlay?.patch.previousValue && (
-                  <span className="text-xs text-slate-400">
+                  <span className="text-xs text-slate-500">
                     (היה: {STRENGTH_LABEL[strengthOverlay.patch.previousValue] ?? strengthOverlay.patch.previousValue})
                   </span>
                 )}
@@ -587,7 +587,7 @@ function AssessmentSummaryBlock({ summary, strength, updatedFields, assessmentOv
                   <button
                     type="button"
                     onClick={() => onRollbackOverlay?.(strengthOverlay.id)}
-                    className="text-xs text-slate-400 hover:text-red-500 transition"
+                    className="text-xs text-slate-500 hover:text-red-500 transition"
                   >
                     בטל
                   </button>
@@ -648,7 +648,7 @@ function ExpandableList({
               <button
                 type="button"
                 onClick={() => onRollbackOverlay?.(overlay.id)}
-                className="shrink-0 text-xs text-slate-400 hover:text-red-500 transition"
+                className="shrink-0 text-xs text-slate-500 hover:text-red-500 transition"
               >
                 בטל
               </button>
@@ -784,7 +784,7 @@ function ContradictionSignal({ overlay, framing, onRollback }) {
     <div className={`flex items-start justify-between gap-2 rounded-xl border ${style.border} ${style.bg} px-3 py-2`}>
       <div className="min-w-0">
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold shrink-0 ${style.badge}`}>
+          <span className={`rounded-full px-2 py-0.5 text-xs font-semibold shrink-0 ${style.badge}`}>
             {style.label}
           </span>
           <span className="text-xs font-semibold text-slate-800">{overlay.patch.title}</span>
@@ -796,7 +796,7 @@ function ContradictionSignal({ overlay, framing, onRollback }) {
       <button
         type="button"
         onClick={() => onRollback?.(overlay.id)}
-        className="shrink-0 text-[11px] text-slate-400 hover:text-red-500 transition mt-0.5"
+        className="shrink-0 text-xs text-slate-500 hover:text-red-500 transition mt-0.5"
       >
         בטל
       </button>
@@ -940,7 +940,7 @@ function ActionList({
             <button
               type="button"
               onClick={() => onRemoveWorkItem?.(item.id)}
-              className="shrink-0 text-xs text-slate-400 hover:text-red-500 transition"
+              className="shrink-0 text-xs text-slate-500 hover:text-red-500 transition"
             >
               בטל
             </button>
