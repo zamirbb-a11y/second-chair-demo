@@ -45,7 +45,7 @@ export default function PleadingUpload({ onAnalyze, onCancel, error }) {
         ) : (
           <>
             <span className="text-sm font-medium text-slate-600">גרור קובץ לכאן, או לחץ לבחירה</span>
-            <span className="text-xs text-slate-500">DOCX · PDF · TXT · עד 4MB</span>
+            <span className="text-xs text-slate-500">DOCX · PDF · TXT · עד 50MB</span>
           </>
         )}
         <input

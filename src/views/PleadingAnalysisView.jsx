@@ -4,6 +4,7 @@
 // localStorage per case (Supabase lands in a later phase).
 
 import { useRef, useState } from "react";
+import { uploadFileViaStorage } from "../utils/uploadViaStorage";
 import PleadingList, { DOC_TYPE_LABELS, PARTY_LABELS } from "../components/pleadings/PleadingList.jsx";
 import PleadingUpload from "../components/pleadings/PleadingUpload.jsx";
 import ClaimList from "../components/pleadings/ClaimList.jsx";
@@ -27,7 +28,7 @@ const STAGE_LABELS = {
   references: "מאחד אסמכתאות וראיות…",
 };
 
-export default function PleadingAnalysisView({ caseId }) {
+export default function PleadingAnalysisView({ caseId, accessToken }) {
   const [records, setRecords] = useState(() => loadRecords(caseId));
   const [mode, setMode] = useState("list"); // "list" | "upload" | "analysis"
   const [currentId, setCurrentId] = useState(null);
@@ -78,12 +79,13 @@ export default function PleadingAnalysisView({ caseId }) {
     abortRef.current = controller;
 
     try {
-      const form = new FormData();
-      form.append("files", file);
-      const up = await fetch("/api/upload", { method: "POST", body: form, signal: controller.signal });
-      if (!up.ok) throw new Error("upload_failed");
-      const upData = await up.json();
-      const pleadingText = (upData.files ?? []).map((f) => f?.text ?? "").join("\n\n");
+      // Direct-to-Supabase-Storage upload (50MB) — bypasses Vercel's ~4.5MB
+      // request-body platform limit that caps the legacy /api/upload path.
+      const processed = await uploadFileViaStorage(file, accessToken);
+      if (controller.signal.aborted) {
+        throw Object.assign(new Error("aborted"), { name: "AbortError" });
+      }
+      const pleadingText = processed?.text ?? "";
       if (pleadingText.trim().length < 200) throw new Error("extraction_failed");
 
       const res = await fetch("/api/analyze-pleading", {

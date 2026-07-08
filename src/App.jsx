@@ -2090,7 +2090,7 @@ function removeAcceptedWorkItem(itemId) {
   function renderWorkspaceView() {
     switch (activeView) {
       case "legal-briefs":
-        return <PleadingAnalysisView key={currentCaseId ?? "no-case"} caseId={currentCaseId} />;
+        return <PleadingAnalysisView key={currentCaseId ?? "no-case"} caseId={currentCaseId} accessToken={session?.access_token} />;
 
       case "pleadings":
         return (
