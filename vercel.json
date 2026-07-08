@@ -11,6 +11,9 @@
     },
     "api/reanalyze.js": {
       "maxDuration": 300
+    },
+    "api/analyze-pleading.js": {
+      "maxDuration": 300
     }
   },
   "rewrites": [
