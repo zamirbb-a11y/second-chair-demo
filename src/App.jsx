@@ -19,9 +19,7 @@ import DisputeDetail from "./views/v2/DisputeDetail";
 import IssuesView from "./views/IssuesView";
 import EvidenceView from "./views/EvidenceView";
 import WitnessesView from "./views/WitnessesView";
-import PleadingView from "./views/PleadingView";
-import PleadingNavigator from "./components/v2/PleadingNavigator";
-import mockPleadingBundles from "./mock/mockPleadingData";
+import PleadingAnalysisView from "./views/PleadingAnalysisView.jsx";
 
 import PrecedentBankManager from "./admin/PrecedentBankManager";
 import AdminPanel from "./admin/AdminPanel";
@@ -287,10 +285,6 @@ export default function App() {
 
   // v2: selected dispute (null = overview)
   const [selectedIssueId, setSelectedIssueId] = useState(null);
-  const [selectedBundleId, setSelectedBundleId] = useState(null);
-  const [selectedPleadingId, setSelectedPleadingId] = useState(null);
-  const [selectedClaimId, setSelectedClaimId] = useState(null);
-  const [pleadingBundles, setPleadingBundles] = useState(mockPleadingBundles);
 
 
   // Case chat
@@ -2096,21 +2090,7 @@ function removeAcceptedWorkItem(itemId) {
   function renderWorkspaceView() {
     switch (activeView) {
       case "legal-briefs":
-        return <PleadingView
-          bundles={pleadingBundles}
-          selectedBundleId={selectedBundleId}
-          selectedPleadingId={selectedPleadingId}
-          selectedClaimId={selectedClaimId}
-          onSelectBundle={(id) => { setSelectedBundleId(id); setSelectedPleadingId(null); setSelectedClaimId(null); }}
-          onSelectPleading={(bundleId, pleadingId) => { setSelectedBundleId(bundleId); setSelectedPleadingId(pleadingId); setSelectedClaimId(null); }}
-          onSelectClaim={(bundleId, pleadingId, claimId) => { setSelectedBundleId(bundleId); setSelectedPleadingId(pleadingId); setSelectedClaimId(claimId); }}
-          onAskAI={(text) => {
-            setChatIssueContext(null);
-            setChatPendingPrompt({ text, id: Date.now() });
-            setShowCaseChat(true);
-          }}
-          onUpdateBundles={setPleadingBundles}
-        />;
+        return <PleadingAnalysisView key={currentCaseId ?? "no-case"} caseId={currentCaseId} />;
 
       case "pleadings":
         return (
@@ -2205,20 +2185,6 @@ default:
           onOpenCase={openSavedCase}
           onDeleteCase={removeSavedCase}
         />
-
-        {/* Pleading navigator — only in legal-briefs view */}
-        {activeView === "legal-briefs" && (
-          <PleadingNavigator
-            bundles={pleadingBundles}
-            selectedBundleId={selectedBundleId}
-            selectedPleadingId={selectedPleadingId}
-            selectedClaimId={selectedClaimId}
-            onSelectBundle={(id) => { setSelectedBundleId(id); setSelectedPleadingId(null); setSelectedClaimId(null); }}
-            onSelectPleading={(bundleId, pleadingId) => { setSelectedBundleId(bundleId); setSelectedPleadingId(pleadingId); setSelectedClaimId(null); }}
-            onSelectClaim={(bundleId, pleadingId, claimId) => { setSelectedBundleId(bundleId); setSelectedPleadingId(pleadingId); setSelectedClaimId(claimId); }}
-            onUpdateBundles={setPleadingBundles}
-          />
-        )}
 
         {/* Dispute navigator — only in case-map view */}
         {activeView === "case-map" && (
@@ -2433,6 +2399,10 @@ default:
                   onOpenChat={openChatForIssue}
                 />
               )
+            ) : activeView === "legal-briefs" ? (
+              <div className="h-full">
+                {renderWorkspaceView()}
+              </div>
             ) : (
               <div className="p-6">
                 {renderWorkspaceView()}
