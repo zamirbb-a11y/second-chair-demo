@@ -81,17 +81,23 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
     abortRef.current = controller;
 
     try {
-      // With a Supabase session: direct-to-storage upload (50MB), bypassing
-      // Vercel's ~4.5MB request-body platform limit. Without one (local dev
-      // with no Supabase env): legacy multipart via /api/upload, 4MB cap.
-      let pleadingText;
+      // Preferred: direct-to-Supabase-Storage upload (50MB), bypassing
+      // Vercel's ~4.5MB request-body platform limit. Falls back to the legacy
+      // multipart path (4MB cap) when there's no session OR the storage leg
+      // fails (e.g. bucket not provisioned) — small files work either way.
+      let pleadingText = null;
       if (accessToken) {
-        const processed = await uploadFileViaStorage(file, accessToken);
+        try {
+          const processed = await uploadFileViaStorage(file, accessToken);
+          pleadingText = processed?.text ?? "";
+        } catch (storageErr) {
+          console.error("storage upload failed, falling back to /api/upload:", storageErr);
+        }
         if (controller.signal.aborted) {
           throw Object.assign(new Error("aborted"), { name: "AbortError" });
         }
-        pleadingText = processed?.text ?? "";
-      } else {
+      }
+      if (pleadingText === null) {
         if (file.size > 4 * 1024 * 1024) throw new Error("too_large_local");
         const form = new FormData();
         form.append("files", file);
