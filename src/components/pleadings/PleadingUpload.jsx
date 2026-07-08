@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { DOC_TYPE_LABELS } from "./PleadingList.jsx";
 
-export default function PleadingUpload({ onAnalyze, onCancel, error, initial }) {
+export default function PleadingUpload({ onAnalyze, onCancel, error, initial, maxSizeLabel = "50MB" }) {
   // On a failed analysis the view remounts this form — restore the user's
   // previous selections so "the file wasn't lost" is actually true.
   const [file, setFile] = useState(initial?.file ?? null);
@@ -47,7 +47,7 @@ export default function PleadingUpload({ onAnalyze, onCancel, error, initial }) 
         ) : (
           <>
             <span className="text-sm font-medium text-slate-600">גרור קובץ לכאן, או לחץ לבחירה</span>
-            <span className="text-xs text-slate-500">DOCX · PDF · TXT · עד 50MB</span>
+            <span className="text-xs text-slate-500">DOCX · PDF · TXT · עד {maxSizeLabel}</span>
           </>
         )}
         <input

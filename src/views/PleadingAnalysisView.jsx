@@ -81,13 +81,25 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
     abortRef.current = controller;
 
     try {
-      // Direct-to-Supabase-Storage upload (50MB) — bypasses Vercel's ~4.5MB
-      // request-body platform limit that caps the legacy /api/upload path.
-      const processed = await uploadFileViaStorage(file, accessToken);
-      if (controller.signal.aborted) {
-        throw Object.assign(new Error("aborted"), { name: "AbortError" });
+      // With a Supabase session: direct-to-storage upload (50MB), bypassing
+      // Vercel's ~4.5MB request-body platform limit. Without one (local dev
+      // with no Supabase env): legacy multipart via /api/upload, 4MB cap.
+      let pleadingText;
+      if (accessToken) {
+        const processed = await uploadFileViaStorage(file, accessToken);
+        if (controller.signal.aborted) {
+          throw Object.assign(new Error("aborted"), { name: "AbortError" });
+        }
+        pleadingText = processed?.text ?? "";
+      } else {
+        if (file.size > 4 * 1024 * 1024) throw new Error("too_large_local");
+        const form = new FormData();
+        form.append("files", file);
+        const up = await fetch("/api/upload", { method: "POST", body: form, signal: controller.signal });
+        if (!up.ok) throw new Error("upload_failed");
+        const upData = await up.json();
+        pleadingText = (upData.files ?? []).map((f) => f?.text ?? "").join("\n\n");
       }
-      const pleadingText = processed?.text ?? "";
       if (pleadingText.trim().length < 200) throw new Error("extraction_failed");
 
       const res = await fetch("/api/analyze-pleading", {
@@ -163,7 +175,9 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
         setUploadError(
           err.message === "extraction_failed"
             ? "לא הצלחתי לחלץ טקסט מהקובץ — נסה קובץ אחר או פורמט אחר."
-            : "הניתוח לא הושלם הפעם. הקובץ לא אבד — נסה שוב בעוד רגע."
+            : err.message === "too_large_local"
+            ? "ללא התחברות (סביבת פיתוח מקומית) ניתן להעלות קבצים עד 4MB."
+            : "הניתוח לא הושלם הפעם. הקובץ והבחירות נשמרו — נסה שוב בעוד רגע."
         );
         setMode("upload");
       }
@@ -180,6 +194,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
         onCancel={() => { setUploadError(""); setMode("list"); }}
         error={uploadError}
         initial={lastAttempt}
+        maxSizeLabel={accessToken ? "50MB" : "4MB"}
       />
     );
   }
