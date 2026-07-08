@@ -34,6 +34,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
   const [currentId, setCurrentId] = useState(null);
   const [selectedClaimId, setSelectedClaimId] = useState(null);
   const [uploadError, setUploadError] = useState("");
+  const [lastAttempt, setLastAttempt] = useState(null);
   const [status, setStatus] = useState("");
 
   // live-analysis state
@@ -68,6 +69,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
   // ── Streaming analysis ────────────────────────────────────────────────
   async function analyze({ file, docType, party }) {
     setUploadError("");
+    setLastAttempt({ file, docType, party });
     setStatus("");
     setStage("reading");
     setDraft({ claims: [], authorities: [], evidence_refs: [], quotations: [] });
@@ -177,6 +179,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
         onAnalyze={analyze}
         onCancel={() => { setUploadError(""); setMode("list"); }}
         error={uploadError}
+        initial={lastAttempt}
       />
     );
   }

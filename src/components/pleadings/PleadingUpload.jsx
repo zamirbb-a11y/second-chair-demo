@@ -4,10 +4,12 @@
 import { useState } from "react";
 import { DOC_TYPE_LABELS } from "./PleadingList.jsx";
 
-export default function PleadingUpload({ onAnalyze, onCancel, error }) {
-  const [file, setFile] = useState(null);
-  const [docType, setDocType] = useState("");
-  const [party, setParty] = useState("");
+export default function PleadingUpload({ onAnalyze, onCancel, error, initial }) {
+  // On a failed analysis the view remounts this form — restore the user's
+  // previous selections so "the file wasn't lost" is actually true.
+  const [file, setFile] = useState(initial?.file ?? null);
+  const [docType, setDocType] = useState(initial?.docType ?? "");
+  const [party, setParty] = useState(initial?.party ?? "");
   const [dragOver, setDragOver] = useState(false);
 
   const ready = file && docType && party;
