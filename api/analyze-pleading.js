@@ -242,10 +242,16 @@ export default async function handler(req, res) {
 
         claim.qa = result.qa;
         if (Array.isArray(result.source_spans) && result.source_spans.length > 0) {
-          claim.source_spans = verifySourceSpans(
-            { source_spans: [...claim.source_spans, ...result.source_spans] },
-            pleadingText
-          ).source_spans;
+          // Pass 2 often re-quotes the excerpts Pass 1 already found, with a
+          // slightly different section label — dedupe on normalized excerpt.
+          const seen = new Set();
+          const merged = [...claim.source_spans, ...result.source_spans].filter((s) => {
+            const key = (s.excerpt ?? "").replace(/\s+/g, " ").trim();
+            if (!key || seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+          claim.source_spans = verifySourceSpans({ source_spans: merged }, pleadingText).source_spans;
         }
         claim.child_ids = subClaims.map((s) => s.id);
 

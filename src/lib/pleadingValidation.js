@@ -77,16 +77,21 @@ export function validatePass2(result, claimId) {
 }
 
 // Source-span drift check: mark each span verified when its excerpt
-// actually appears in the document (whitespace-normalized).
+// actually appears in the document (whitespace-normalized). Models often
+// stitch separate sentences with an ellipsis — verify each fragment on
+// its own; the span is verified when every substantial fragment is found.
 export function verifySourceSpans(node, documentText) {
   const normalizedDoc = documentText.replace(/\s+/g, " ");
+  const found = (excerpt) => {
+    if (typeof excerpt !== "string" || excerpt.trim().length === 0) return false;
+    const fragments = excerpt
+      .split(/(?:\.\.\.|…|\[\.\.\.\])/)
+      .map((f) => f.replace(/\s+/g, " ").trim())
+      .filter((f) => f.length >= 8);
+    if (fragments.length === 0) return false;
+    return fragments.every((f) => normalizedDoc.includes(f));
+  };
   const verify = (spans) =>
-    (spans ?? []).map((s) => ({
-      ...s,
-      verified:
-        typeof s.excerpt === "string" &&
-        s.excerpt.length > 0 &&
-        normalizedDoc.includes(s.excerpt.replace(/\s+/g, " ")),
-    }));
+    (spans ?? []).map((s) => ({ ...s, verified: found(s.excerpt) }));
   return { ...node, source_spans: verify(node.source_spans) };
 }
