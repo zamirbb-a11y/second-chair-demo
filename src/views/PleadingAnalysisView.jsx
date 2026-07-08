@@ -111,6 +111,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
       if (!res.ok) throw new Error("analysis_failed");
 
       let working = { claims: [], authorities: [], evidence_refs: [], quotations: [] };
+      let completed = false;
       const decoder = new TextDecoder();
       let buf = "";
       const reader = res.body.getReader();
@@ -146,6 +147,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
             working = { ...working, authorities: ev.authorities, evidence_refs: ev.evidence_refs, quotations: ev.quotations };
             setDraft({ ...working });
           } else if (ev.type === "done") {
+            completed = true;
             const record = {
               id: ev.analysis.id,
               docType,
@@ -162,6 +164,33 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
           } else if (ev.type === "error") {
             throw new Error("analysis_failed");
           }
+        }
+      }
+
+      // Stream ended without a done event (e.g. the platform's 300s function
+      // cap online) — keep what fully arrived instead of losing the run.
+      if (!completed) {
+        if (working.claims.some((c) => c.qa)) {
+          const record = {
+            id: `pa_partial_${Date.now()}`,
+            docType,
+            party,
+            title: working.document?.title || file.name,
+            createdAt: new Date().toISOString(),
+            reviewed: {},
+            analysis: {
+              ...working,
+              coverage_notes: [working.coverage_notes, "הניתוח נקטע לפני סיום — ייתכן שחלק מהטענות חסרות או ללא ביקורת."]
+                .filter(Boolean).join(" · "),
+            },
+          };
+          persist([record, ...records]);
+          setCurrentId(record.id);
+          setDraft(null);
+          setStage(null);
+          setStatus("הניתוח נקטע לפני סיום ונשמר באופן חלקי.");
+        } else {
+          throw new Error("analysis_failed");
         }
       }
     } catch (err) {
