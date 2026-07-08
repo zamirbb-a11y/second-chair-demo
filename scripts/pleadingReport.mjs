@@ -25,6 +25,8 @@ function renderQa(qa) {
     qa.unstated_assumption && `<li class="miss"><span>△</span><div><b>הנחה סמויה:</b> ${esc(qa.unstated_assumption)}</div></li>`,
   ].filter(Boolean).join("");
   const strategy = [
+    qa.relevance_check &&
+      `<p class="relevance"><b>מבחן הרלוונטיות:</b> ${esc(qa.relevance_check)}</p>`,
     qa.key_vulnerability &&
       `<p class="vuln"><b>נקודת התורפה המרכזית:</b> ${esc(qa.key_vulnerability)}</p>`,
     qa.suggested_arguments?.length &&
@@ -97,6 +99,7 @@ export function renderReport(a, sourceName) {
   ul.qa li.sup span{color:#047857}
   ul.qa li.weak span{color:#b91c1c}
   ul.qa li.miss span{color:#b45309}
+  .relevance{background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:.5rem .9rem;font-size:.9rem;margin:.75rem 0 0}
   .vuln{background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:.5rem .9rem;font-size:.9rem;margin:.75rem 0 0}
   .suggest{background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:.5rem .9rem;font-size:.9rem;margin:.6rem 0 0}
   .suggest ul{margin:.25rem 0 0;padding-right:1.2rem}

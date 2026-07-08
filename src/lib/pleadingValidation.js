@@ -15,7 +15,7 @@ export const LIGHTWEIGHT_KINDS = new Set(["remedy", "background", "procedural", 
 export const EMPTY_QA = {
   supported_by: [], weaknesses: [], missing: [],
   logical_gap: null, unstated_assumption: null,
-  key_vulnerability: null, suggested_arguments: [], annexes_to_review: [],
+  relevance_check: null, key_vulnerability: null, suggested_arguments: [], annexes_to_review: [],
   evidence_gap: false, authority_gap: false, logical_gap_flag: false,
 };
 
@@ -73,6 +73,8 @@ export function validatePass2(result, claimId) {
   }
   if (typeof qa.evidence_gap !== "boolean") errors.push(`claim ${claimId}: evidence_gap not boolean`);
   if (typeof qa.authority_gap !== "boolean") errors.push(`claim ${claimId}: authority_gap not boolean`);
+  if (typeof qa.relevance_check !== "string" || qa.relevance_check.trim().length < 15)
+    errors.push(`claim ${claimId}: relevance_check missing — חובה לענות על מבחן הרלוונטיות`);
   return errors;
 }
 

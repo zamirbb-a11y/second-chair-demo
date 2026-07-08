@@ -228,6 +228,7 @@ export default async function handler(req, res) {
             claim,
             sectionText: buildSectionText(pleadingText, claim),
             otherClaimsSummary: summarizeOtherClaims(mainClaims, claim.id),
+            theoryOfCase: pass1.theory_of_case,
           }),
           validate: (r) => validatePass2(r, claim.id),
         });
