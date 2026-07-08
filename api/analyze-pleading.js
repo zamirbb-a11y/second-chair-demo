@@ -28,6 +28,10 @@ import {
   LIGHTWEIGHT_KINDS, EMPTY_QA,
 } from "../src/lib/pleadingValidation.js";
 
+// Required for res.write to actually stream on Vercel — without it the
+// platform buffers the whole NDJSON response until the function ends.
+export const config = { supportsResponseStreaming: true };
+
 const MODEL = "gpt-4.1";
 // Mechanical passes (reference dedup, coverage mapping) run on mini:
 // separate per-model TPM pool, ~5x cheaper, no legal judgment involved.
