@@ -4,7 +4,7 @@
 // amber = gap, indigo = suggested arguments). Clicking a chip opens the
 // claim; unanchorable notes live in a strip at the top.
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { splitParagraphs, anchorClaims, claimMarkers } from "../../lib/pleadingAnchors.js";
 
 const MARKER_ORDER = ["vulnerability", "gap", "suggestion"];
@@ -40,9 +40,90 @@ function ClaimChip({ claim, selected, onSelect }) {
   );
 }
 
+// Original-PDF mode: the untouched document rendered by the browser, with
+// the analysis in a side rail ordered by paragraph number — used for PDFs,
+// where text extraction mangles Hebrew and a reconstruction would lie.
+function OriginalPdfView({ storagePath, accessToken, analysis, selectedClaimId, onSelectClaim }) {
+  const [url, setUrl] = useState(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/storage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ action: "get-download-url", storagePath }),
+    })
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((d) => { if (!cancelled) setUrl(d.signedUrl); })
+      .catch(() => { if (!cancelled) setError(true); });
+    return () => { cancelled = true; };
+  }, [storagePath, accessToken]);
+
+  const claims = analysis?.claims ?? [];
+  const firstPara = (c) => {
+    const nums = (c.source_spans ?? []).map((s) => s.paragraph).filter((n) => n != null);
+    return nums.length ? Math.min(...nums) : Infinity;
+  };
+  const mains = claims.filter((c) => c.level === 1).sort((a, b) => firstPara(a) - firstPara(b));
+
+  return (
+    <div className="flex-1 flex min-h-0" dir="rtl">
+      {/* Comments rail, ordered by paragraph */}
+      <aside className="w-[330px] flex-shrink-0 border-l border-slate-200 overflow-y-auto bg-[#f8f9fb] px-3 py-3 space-y-2">
+        {mains.map((c) => {
+          const para = firstPara(c);
+          return (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => onSelectClaim(c.id)}
+              aria-pressed={selectedClaimId === c.id}
+              className={[
+                "w-full text-right rounded-xl border px-3 py-2 cursor-pointer transition-all bg-white",
+                selectedClaimId === c.id ? "border-blue-400 ring-1 ring-blue-200" : "border-slate-200 hover:border-slate-300",
+              ].join(" ")}
+            >
+              <span className="flex items-center gap-2 mb-0.5">
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${MARKER_STYLES[strongestMarker(c)]}`}>
+                  {c.id}
+                </span>
+                {para !== Infinity && <span className="text-xs text-slate-500">פסקה {para}</span>}
+              </span>
+              <span className="block text-xs text-slate-700 leading-snug">{c.text.slice(0, 90)}</span>
+            </button>
+          );
+        })}
+      </aside>
+
+      {/* The original document */}
+      <div className="flex-1 min-w-0 bg-slate-100">
+        {error ? (
+          <p className="p-6 text-sm text-slate-500">לא הצלחתי לטעון את הקובץ המקורי מהאחסון.</p>
+        ) : !url ? (
+          <p className="p-6 text-sm text-slate-500">טוען את המסמך המקורי…</p>
+        ) : (
+          <iframe title="המסמך המקורי" src={url} className="w-full h-full border-0" />
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function PleadingDocument({
-  pleadingText, analysis, selectedClaimId, onSelectClaim,
+  pleadingText, analysis, selectedClaimId, onSelectClaim, original,
 }) {
+  if (original?.storagePath && original?.fileType === "pdf" && original?.accessToken) {
+    return (
+      <OriginalPdfView
+        storagePath={original.storagePath}
+        accessToken={original.accessToken}
+        analysis={analysis}
+        selectedClaimId={selectedClaimId}
+        onSelectClaim={onSelectClaim}
+      />
+    );
+  }
   const claims = analysis?.claims ?? [];
   const { paragraphs, byParagraph, unanchored } = useMemo(() => {
     const paragraphs = splitParagraphs(pleadingText ?? "");

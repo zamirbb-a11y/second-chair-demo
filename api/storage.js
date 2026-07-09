@@ -74,6 +74,19 @@ export default async function handler(req, res) {
     }
   }
 
+  // ── Signed download URL (original-document display) ───────────
+  if (action === "get-download-url") {
+    if (!storagePath) return res.status(400).json({ error: "storagePath required" });
+    if (!storagePath.startsWith(user.id + "/")) return res.status(403).json({ error: "forbidden" });
+
+    const { data, error } = await serviceClient.storage
+      .from("case-documents")
+      .createSignedUrl(storagePath, 60 * 60); // 1 hour
+
+    if (error) return res.status(500).json({ error: error.message });
+    return res.status(200).json({ signedUrl: data.signedUrl });
+  }
+
   // ── Delete file ────────────────────────────────────────────────
   if (action === "delete") {
     if (!storagePath) return res.status(400).json({ error: "storagePath required" });

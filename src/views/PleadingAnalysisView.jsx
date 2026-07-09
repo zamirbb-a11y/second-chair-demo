@@ -89,10 +89,12 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
       // multipart path (4MB cap) when there's no session OR the storage leg
       // fails (e.g. bucket not provisioned) — small files work either way.
       let pleadingText = null;
+      let storagePath = null; // kept for original-document display
       if (accessToken) {
         try {
           const processed = await uploadFileViaStorage(file, accessToken);
           pleadingText = processed?.text ?? "";
+          storagePath = processed?.storagePath ?? null;
         } catch (storageErr) {
           console.error("storage upload failed, falling back to /api/upload:", storageErr);
         }
@@ -153,6 +155,8 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
           createdAt: new Date().toISOString(),
           reviewed: {},
           pleadingText, // the document view renders the pleading itself
+          storagePath,  // original file in Supabase Storage (PDF display)
+          fileType: (file.name.split(".").pop() ?? "").toLowerCase(),
           analysis,
         };
         persist([record, ...records]);
@@ -317,6 +321,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
                 analysis={analysis}
                 selectedClaimId={selectedClaimId}
                 onSelectClaim={(id) => setSelectedClaimId(id === selectedClaimId ? null : id)}
+                original={{ storagePath: current.storagePath, fileType: current.fileType, accessToken }}
               />
               {selectedClaim && (
                 <aside className="w-[400px] flex-shrink-0 flex flex-col border-r border-slate-200 bg-white min-h-0">

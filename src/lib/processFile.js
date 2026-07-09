@@ -2,6 +2,58 @@ import mammoth from "mammoth";
 import pdfParse from "pdf-parse";
 import { simpleParser } from "mailparser";
 
+// pdf-parse extracts Hebrew PDFs in visual order (reversed/scrambled RTL),
+// which both breaks display and degrades the AI analysis. When an API key
+// is available, PDFs are transcribed by a vision model reading the file
+// itself; pdf-parse remains the fallback. Most legal documents are PDFs,
+// so this is the primary extraction path, not an enhancement.
+const TRANSCRIBE_MAX_BYTES = 8 * 1024 * 1024;
+
+async function transcribePdfBuffer(buffer, filename) {
+  if (!process.env.OPENAI_API_KEY || buffer.length > TRANSCRIBE_MAX_BYTES) return null;
+  try {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4.1",
+        temperature: 0,
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "file",
+                file: {
+                  filename: filename || "document.pdf",
+                  file_data: `data:application/pdf;base64,${buffer.toString("base64")}`,
+                },
+              },
+              {
+                type: "text",
+                text: "תמלל את המסמך המשפטי המצורף לטקסט עברי נקי ומדויק, מההתחלה ועד הסוף: כותרות, פרטי הצדדים, ומספרי הפסקאות בדיוק כפי שהם במקור. אל תוסיף, אל תשמיט ואל תסכם דבר. אל תתמלל חותמות וחתימות. החזר טקסט בלבד, ללא הערות שלך.",
+              },
+            ],
+          },
+        ],
+      }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      console.error("PDF transcription failed:", data?.error?.message);
+      return null;
+    }
+    const text = data.choices?.[0]?.message?.content ?? "";
+    return text.trim().length >= 300 ? text : null;
+  } catch (err) {
+    console.error("PDF transcription error:", err);
+    return null;
+  }
+}
+
 export async function processFileBuffer(buffer, filename) {
   const extension = getExtension(filename);
 
@@ -15,18 +67,24 @@ export async function processFileBuffer(buffer, filename) {
     extractedText = result.value || "";
     extractionMethod = "mammoth";
   } else if (extension === "pdf") {
-    try {
-      const result = await pdfParse(buffer);
-      extractedText = result.text || "";
-      extractionMethod = "pdf-parse";
-    } catch (_pdfErr) {
-      extractedText = "";
-      extractionMethod = "pdf-parse-failed";
-    }
+    const transcribed = await transcribePdfBuffer(buffer, filename);
+    if (transcribed) {
+      extractedText = transcribed;
+      extractionMethod = "vision-transcription";
+    } else {
+      try {
+        const result = await pdfParse(buffer);
+        extractedText = result.text || "";
+        extractionMethod = "pdf-parse";
+      } catch (_pdfErr) {
+        extractedText = "";
+        extractionMethod = "pdf-parse-failed";
+      }
 
-    if (normalizeText(extractedText).length < 300) {
-      needsOcr = true;
-      status = "נדרש OCR";
+      if (normalizeText(extractedText).length < 300) {
+        needsOcr = true;
+        status = "נדרש OCR";
+      }
     }
   } else if (extension === "txt") {
     extractedText = buffer.toString("utf8");
