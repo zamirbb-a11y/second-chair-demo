@@ -10,6 +10,7 @@ import PleadingList, { DOC_TYPE_LABELS, PARTY_LABELS } from "../components/plead
 import PleadingUpload from "../components/pleadings/PleadingUpload.jsx";
 import ClaimList from "../components/pleadings/ClaimList.jsx";
 import ClaimDetail from "../components/pleadings/ClaimDetail.jsx";
+import PleadingDocument from "../components/pleadings/PleadingDocument.jsx";
 
 const storageKey = (caseId) => `pleadingAnalyses:${caseId ?? "no-case"}`;
 
@@ -32,6 +33,7 @@ const STAGE_LABELS = {
 export default function PleadingAnalysisView({ caseId, accessToken }) {
   const [records, setRecords] = useState(() => loadRecords(caseId));
   const [mode, setMode] = useState("list"); // "list" | "upload" | "analysis"
+  const [viewMode, setViewMode] = useState("claims"); // "claims" | "document"
   const [currentId, setCurrentId] = useState(null);
   const [selectedClaimId, setSelectedClaimId] = useState(null);
   const [uploadError, setUploadError] = useState("");
@@ -150,6 +152,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
           title: analysis.document?.title || file.name,
           createdAt: new Date().toISOString(),
           reviewed: {},
+          pleadingText, // the document view renders the pleading itself
           analysis,
         };
         persist([record, ...records]);
@@ -166,6 +169,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
             title: working.document?.title || file.name,
             createdAt: new Date().toISOString(),
             reviewed: {},
+            pleadingText,
             analysis: {
               ...working,
               coverage_notes: [working.coverage_notes, "הניתוח נקטע לפני סיום — ייתכן שחלק מהטענות חסרות או ללא ביקורת."]
@@ -220,8 +224,12 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
 
   if (mode === "analysis" && (analyzing || current)) {
     const doc = analysis?.document;
+    // The document view needs the pleading text, which only new records carry.
+    const documentAvailable = !analyzing && !!current?.pleadingText;
+    const effectiveView = viewMode === "document" && documentAvailable ? "document" : "claims";
     return (
       <div className="flex h-full min-h-0" dir="rtl">
+        {effectiveView === "claims" && (
         <ClaimList
           claims={claims}
           selectedClaimId={selectedClaimId}
@@ -230,6 +238,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
           onToggleReviewed={toggleReviewed}
           analyzing={analyzing}
         />
+        )}
         <div className="flex-1 flex flex-col min-w-0">
           {/* Header strip: current pleading + switcher + back */}
           <div className="h-12 px-5 border-b border-slate-200 flex items-center gap-3 flex-shrink-0 bg-white">
@@ -253,6 +262,26 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
               {current?.title ?? doc?.title ?? ""}
             </span>
             <span className="flex-1" />
+            {!analyzing && (
+              <span className="flex rounded-lg border border-slate-200 overflow-hidden flex-shrink-0" role="group" aria-label="תצוגה">
+                {[["claims", "טענות"], ["document", "מסמך"]].map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setViewMode(value)}
+                    disabled={value === "document" && !documentAvailable}
+                    title={value === "document" && !documentAvailable ? "זמין לניתוחים חדשים בלבד" : undefined}
+                    aria-pressed={effectiveView === value}
+                    className={[
+                      "text-xs font-semibold px-3 py-1 cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-default",
+                      effectiveView === value ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50",
+                    ].join(" ")}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </span>
+            )}
             {analyzing ? (
               <span className="flex items-center gap-2 flex-shrink-0" role="status">
                 <span aria-hidden="true" className="w-3.5 h-3.5 rounded-full border-2 border-slate-300 border-t-slate-600 animate-spin" />
@@ -281,6 +310,27 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
             )}
           </div>
 
+          {effectiveView === "document" ? (
+            <div className="flex-1 flex min-h-0">
+              <PleadingDocument
+                pleadingText={current.pleadingText}
+                analysis={analysis}
+                selectedClaimId={selectedClaimId}
+                onSelectClaim={(id) => setSelectedClaimId(id === selectedClaimId ? null : id)}
+              />
+              {selectedClaim && (
+                <aside className="w-[400px] flex-shrink-0 flex flex-col border-r border-slate-200 bg-white min-h-0">
+                  <ClaimDetail
+                    claim={selectedClaim}
+                    analysis={analysis ?? { claims: [] }}
+                    reviewed={!!reviewed[selectedClaim.id]}
+                    onToggleReviewed={toggleReviewed}
+                  />
+                </aside>
+              )}
+            </div>
+          ) : (
+          <>
           {/* Theory of case + coverage notes above the detail pane */}
           {analysis?.theory_of_case && !selectedClaim && (
             <div className="px-7 pt-5 flex-shrink-0">
@@ -300,6 +350,8 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
             reviewed={selectedClaim ? !!reviewed[selectedClaim.id] : false}
             onToggleReviewed={toggleReviewed}
           />
+          </>
+          )}
         </div>
       </div>
     );
