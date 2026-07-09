@@ -4,6 +4,7 @@
 // localStorage per case (Supabase lands in a later phase).
 
 import { useRef, useState } from "react";
+import { runPleadingAnalysis } from "../lib/pleadingPipeline.js";
 import { uploadFileViaStorage } from "../utils/uploadViaStorage";
 import PleadingList, { DOC_TYPE_LABELS, PARTY_LABELS } from "../components/pleadings/PleadingList.jsx";
 import PleadingUpload from "../components/pleadings/PleadingUpload.jsx";
@@ -108,75 +109,56 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
       }
       if (pleadingText.trim().length < 200) throw new Error("extraction_failed");
 
-      const res = await fetch("/api/analyze-pleading", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pleadingText, docType, party }),
-        signal: controller.signal,
-      });
-      if (!res.ok) throw new Error("analysis_failed");
-
+      // Client-orchestrated pipeline: each server call is short, so the
+      // platform's 300s function cap can never kill a run mid-analysis.
       let working = { claims: [], authorities: [], evidence_refs: [], quotations: [] };
-      let completed = false;
-      const decoder = new TextDecoder();
-      let buf = "";
-      const reader = res.body.getReader();
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        let nl;
-        while ((nl = buf.indexOf("\n")) !== -1) {
-          const line = buf.slice(0, nl).trim();
-          buf = buf.slice(nl + 1);
-          if (!line) continue;
-          let ev;
-          try { ev = JSON.parse(line); } catch { continue; }
-
-          if (ev.type === "stage") {
-            setStage(ev.stage);
-          } else if (ev.type === "skeleton") {
-            working = { ...working, document: ev.document, theory_of_case: ev.theory_of_case, claims: ev.claims };
-            setDraft({ ...working });
-          } else if (ev.type === "claim_analysis") {
-            working.claims = working.claims.map((c) =>
-              c.id === ev.claim_id
-                ? { ...c, qa: ev.qa, source_spans: ev.source_spans ?? c.source_spans, child_ids: (ev.sub_claims ?? []).map((s) => s.id) }
-                : c
-            );
-            working.claims = [...working.claims, ...(ev.sub_claims ?? [])];
-            setDraft({ ...working });
-          } else if (ev.type === "claims_added") {
-            working.claims = [...working.claims, ...ev.claims];
-            setDraft({ ...working });
-          } else if (ev.type === "references") {
-            working = { ...working, authorities: ev.authorities, evidence_refs: ev.evidence_refs, quotations: ev.quotations };
-            setDraft({ ...working });
-          } else if (ev.type === "done") {
-            completed = true;
-            const record = {
-              id: ev.analysis.id,
-              docType,
-              party,
-              title: ev.analysis.document?.title || file.name,
-              createdAt: new Date().toISOString(),
-              reviewed: {},
-              analysis: ev.analysis,
-            };
-            persist([record, ...records]);
-            setCurrentId(record.id);
-            setDraft(null);
-            setStage(null);
-          } else if (ev.type === "error") {
-            throw new Error("analysis_failed");
-          }
-        }
-      }
-
-      // Stream ended without a done event (e.g. the platform's 300s function
-      // cap online) — keep what fully arrived instead of losing the run.
-      if (!completed) {
-        if (working.claims.some((c) => c.qa)) {
+      try {
+        const analysis = await runPleadingAnalysis({
+          pleadingText,
+          docType,
+          party,
+          signal: controller.signal,
+          on: {
+            stage: setStage,
+            skeleton: (s) => {
+              working = { ...working, document: s.document, theory_of_case: s.theory_of_case, claims: s.claims, coverage_notes: s.coverage_notes };
+              setDraft({ ...working });
+            },
+            claim: (r) => {
+              working.claims = working.claims.map((c) =>
+                c.id === r.claim_id
+                  ? { ...c, qa: r.qa, source_spans: r.source_spans ?? c.source_spans, child_ids: (r.sub_claims ?? []).map((s) => s.id) }
+                  : c
+              );
+              working.claims = [...working.claims, ...(r.sub_claims ?? [])];
+              setDraft({ ...working });
+            },
+            claimsAdded: (added) => {
+              working.claims = [...working.claims, ...added];
+              setDraft({ ...working });
+            },
+            references: (refs) => {
+              working = { ...working, ...refs };
+              setDraft({ ...working });
+            },
+          },
+        });
+        const record = {
+          id: analysis.id,
+          docType,
+          party,
+          title: analysis.document?.title || file.name,
+          createdAt: new Date().toISOString(),
+          reviewed: {},
+          analysis,
+        };
+        persist([record, ...records]);
+        setCurrentId(record.id);
+        setDraft(null);
+        setStage(null);
+      } catch (pipelineErr) {
+        // Keep whatever fully arrived instead of losing the run.
+        if (pipelineErr?.name !== "AbortError" && working.claims.some((c) => c.qa)) {
           const record = {
             id: `pa_partial_${Date.now()}`,
             docType,
@@ -196,7 +178,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
           setStage(null);
           setStatus("הניתוח נקטע לפני סיום ונשמר באופן חלקי.");
         } else {
-          throw new Error("analysis_failed");
+          throw pipelineErr;
         }
       }
     } catch (err) {
@@ -212,6 +194,8 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
             ? "לא הצלחתי לחלץ טקסט מהקובץ — נסה קובץ אחר או פורמט אחר."
             : err.message === "too_large_local"
             ? "ללא התחברות (סביבת פיתוח מקומית) ניתן להעלות קבצים עד 4MB."
+            : err.message === "insufficient_quota"
+            ? "מכסת ה-AI של המערכת מוצתה. יש לטעון קרדיט בחשבון OpenAI ואז לנסות שוב."
             : "הניתוח לא הושלם הפעם. הקובץ והבחירות נשמרו — נסה שוב בעוד רגע."
         );
         setMode("upload");
