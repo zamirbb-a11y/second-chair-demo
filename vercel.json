@@ -1,10 +1,10 @@
 {
   "functions": {
     "api/storage.js": {
-      "maxDuration": 30
+      "maxDuration": 300
     },
     "api/upload.js": {
-      "maxDuration": 30
+      "maxDuration": 300
     },
     "api/analyze.js": {
       "maxDuration": 300
