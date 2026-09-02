@@ -5,14 +5,30 @@
 // the browser and by scripts/test-analyze-pleading.mjs in node.
 //
 // Callbacks (all optional):
-//   on.stage(stage)                     "skeleton"|"claims"|"audit"|"references"
+//   on.stage(stage)                     "skeleton"|"claims"|"audit"|"references"|"families"
 //   on.skeleton({document, theory_of_case, claims, coverage_notes})
 //   on.claim({claim_id, qa, sub_claims, source_spans})
 //   on.claimError(claimId)
 //   on.claimsAdded(claims)              recheck found missed claims
 //   on.audit(warnings)
 //   on.references({authorities, evidence_refs, quotations})
+//   on.families(claimFamilies)
 // Returns the fully assembled PleadingAnalysis (also passed to on.done).
+//
+// Claim Families: a derived grouping layer over `claims`, computed after
+// every raw claim node is final (mains, subs, and any recheck-added
+// claims). Two-stage, conservative by design — see
+// src/lib/claimFamilyClustering.js and src/prompts/pleadingClaimFamilies.js:
+//   1. recall — embed each node's text, cluster by cosine similarity
+//      client-side (cheap, no judgment call — just proposes candidates).
+//   2. confirm — a narrow LLM call per small candidate group decides which
+//      members actually share one substantive proposition, and can split a
+//      bad candidate back apart. When uncertain: don't merge.
+// This never touches `claims` — analysis.claim_families is purely additive,
+// and if it fails to compute for any reason, the raw claims stay fully
+// usable with no families layer for that run.
+
+import { buildCandidateGroups } from "./claimFamilyClustering.js";
 
 const CLAIM_CONCURRENCY = 4;
 
@@ -175,11 +191,17 @@ export async function runPleadingAnalysis({
     }
   }
 
+  // ── Claim Families: cluster restated occurrences (recall + confirm) ──
+  on.stage?.("families");
+  const claimFamilies = await buildClaimFamilies(allClaims, post);
+  on.families?.(claimFamilies);
+
   const analysis = {
     id: `pa_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     document: skeleton.document,
     theory_of_case: skeleton.theory_of_case,
     claims: allClaims,
+    claim_families: claimFamilies,
     authorities: references.authorities ?? [],
     evidence_refs: references.evidence_refs ?? [],
     quotations: references.quotations ?? [],
@@ -188,4 +210,78 @@ export async function runPleadingAnalysis({
   };
   on.done?.(analysis);
   return analysis;
+}
+
+// Two-stage, conservative clustering over the final claim set. Never
+// throws — any failure (network, malformed response, a candidate group
+// the model didn't fully partition) falls back to each claim being its
+// own singleton family, so a bad clustering run degrades to "no grouping
+// benefit," never to lost or duplicated claims.
+export async function buildClaimFamilies(allClaims, post) {
+  if (allClaims.length === 0) return [];
+  const claimById = new Map(allClaims.map((c) => [c.id, c]));
+
+  let embeddings = [];
+  try {
+    const items = allClaims.map((c) => ({ id: c.id, text: c.text }));
+    ({ embeddings = [] } = await post("embed", { items }));
+  } catch (err) {
+    if (err?.name === "AbortError") throw err;
+    console.error("Claim Families embedding failed (non-blocking):", err);
+    embeddings = [];
+  }
+
+  // Any claim the embed step couldn't return a vector for (a total
+  // failure above, or one item skipped server-side — e.g. empty text on a
+  // malformed sub-claim) still needs a family. Never let it just vanish.
+  const embeddedIds = new Set(embeddings.map((e) => e.id));
+  const missingSingletons = allClaims.filter((c) => !embeddedIds.has(c.id)).map((c) => [c.id]);
+  const candidateGroups = [...buildCandidateGroups(embeddings), ...missingSingletons];
+
+  const confirmed = [];
+  async function confirmGroup(ids) {
+    if (ids.length < 2) {
+      confirmed.push({ member_ids: ids, canonical_text: claimById.get(ids[0])?.text ?? "" });
+      return;
+    }
+    try {
+      const members = ids.map((id) => {
+        const c = claimById.get(id);
+        return { id, text: c?.text, verbatim: c?.verbatim, node_kind: c?.node_kind };
+      });
+      const result = await post("confirmFamily", { members });
+      const families = result.families ?? [];
+      const returned = families.flatMap((f) => f.member_ids ?? []);
+      const coversExactly =
+        returned.length === ids.length && ids.every((id) => returned.includes(id));
+      if (!coversExactly) throw new Error("confirmFamily response did not partition the input ids");
+      confirmed.push(...families);
+    } catch (err) {
+      if (err?.name === "AbortError") throw err;
+      console.error("Claim Families confirm failed for group, keeping members separate:", ids, err);
+      for (const id of ids) confirmed.push({ member_ids: [id], canonical_text: claimById.get(id)?.text ?? "" });
+    }
+  }
+  await runLimited(candidateGroups, CLAIM_CONCURRENCY, confirmGroup);
+
+  return confirmed.map((fam, i) => {
+    const members = fam.member_ids.map((id) => claimById.get(id)).filter(Boolean);
+    // Prefer a member that actually carries QA as the "primary" one shown
+    // by default — a lightweight node (remedy/background/etc.) shouldn't
+    // stand in for a family that has a fully-analyzed member.
+    const primary = members.find((m) => m.qa) ?? members[0];
+    const spans = fam.member_ids.flatMap((id) =>
+      (claimById.get(id)?.source_spans ?? []).map((s) => ({ ...s, origin_claim_id: id }))
+    );
+    return {
+      id: `F${i + 1}`,
+      canonical_text: fam.canonical_text || primary?.text || "",
+      node_kind: primary?.node_kind ?? null,
+      member_ids: fam.member_ids,
+      primary_member_id: primary?.id ?? fam.member_ids[0],
+      rationale: fam.rationale ?? null,
+      spans,
+      case_relations: [], // reserved for a later cross-document pass — see project notes
+    };
+  });
 }

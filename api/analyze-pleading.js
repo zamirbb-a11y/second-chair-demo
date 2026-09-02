@@ -18,11 +18,16 @@
 //              → {claims}
 //   references {rawAuthorities, rawEvidenceRefs, rawQuotations}
 //              → {authorities, evidence_refs, quotations}   (deduped, ids assigned)
+//   embed      {items: [{id, text}]}
+//              → {embeddings: [{id, vector}]}                (Claim Families recall)
+//   confirmFamily {members: [{id, text, verbatim, node_kind}]}
+//              → {families: [{member_ids, canonical_text}]}  (Claim Families confirm gate)
 
 import { buildPass1Prompt, PASS1_SYSTEM } from "../src/prompts/pleadingPass1.js";
 import { buildPass2Prompt, PASS2_SYSTEM, summarizeOtherClaims } from "../src/prompts/pleadingPass2.js";
 import { buildPass3Prompt, PASS3_SYSTEM } from "../src/prompts/pleadingPass3.js";
 import { buildCoverageAuditPrompt, AUDIT_SYSTEM, buildCoverageRecheckPrompt } from "../src/prompts/pleadingCoverageAudit.js";
+import { buildFamilyConfirmPrompt, FAMILY_CONFIRM_SYSTEM } from "../src/prompts/pleadingClaimFamilies.js";
 import {
   validatePass1, validatePass2, verifySourceSpans,
   LIGHTWEIGHT_KINDS, EMPTY_QA,
@@ -32,6 +37,7 @@ const MODEL = "gpt-4.1";
 // Mechanical passes (reference dedup, coverage mapping) run on mini:
 // separate per-model TPM pool, ~5x cheaper, no legal judgment involved.
 const MODEL_MINI = "gpt-4.1-mini";
+const MODEL_EMBEDDING = "text-embedding-3-small";
 const PASS2_CONTEXT_WINDOW = 3000; // chars around each source excerpt
 const PASS2_FALLBACK_SLICE = 15000;
 const RATE_LIMIT_RETRIES = 4;
@@ -71,6 +77,32 @@ async function callModel({ system, prompt, temperature = 0.2, model = MODEL }) {
     const content = data.choices?.[0]?.message?.content;
     if (!content) throw new Error("No content returned");
     return JSON.parse(content);
+  }
+}
+
+async function callEmbeddings(texts) {
+  for (let attempt = 0; ; attempt++) {
+    const response = await fetch("https://api.openai.com/v1/embeddings", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({ model: MODEL_EMBEDDING, input: texts }),
+    });
+    const data = await response.json();
+    if (response.status === 429 && attempt < RATE_LIMIT_RETRIES) {
+      const hinted = parseFloat(data?.error?.message?.match(/try again in ([\d.]+)s/)?.[1]);
+      const waitMs = (Number.isFinite(hinted) ? hinted * 1000 : 8000 * (attempt + 1)) + 1000;
+      console.warn(`Embeddings rate limited, retry ${attempt + 1}/${RATE_LIMIT_RETRIES} in ${Math.round(waitMs)}ms`);
+      await sleep(waitMs);
+      continue;
+    }
+    if (!response.ok) {
+      console.error("OpenAI embeddings call failed:", data);
+      throw new Error(data?.error?.message || "OpenAI embeddings request failed");
+    }
+    return data.data.map((d) => d.embedding);
   }
 }
 
@@ -255,12 +287,41 @@ async function stepReferences({ rawAuthorities = [], rawEvidenceRefs = [], rawQu
   };
 }
 
+async function stepEmbed({ items = [] }) {
+  // A claim node can legitimately arrive with empty text (a malformed
+  // sub-claim from Pass 2, for instance) — the embeddings API rejects an
+  // empty string outright, and one bad item must not sink embedding for
+  // every other claim. Skip it here; the caller (buildClaimFamilies)
+  // is responsible for giving any un-embedded claim its own family rather
+  // than dropping it.
+  const valid = items.filter((it) => (it.text ?? "").trim().length > 0);
+  if (valid.length === 0) return { embeddings: [] };
+  const vectors = await callEmbeddings(valid.map((it) => it.text));
+  return { embeddings: valid.map((it, i) => ({ id: it.id, vector: vectors[i] })) };
+}
+
+async function stepConfirmFamily({ members = [] }) {
+  if (members.length === 0) return { families: [] };
+  return callModel({
+    system: FAMILY_CONFIRM_SYSTEM,
+    prompt: buildFamilyConfirmPrompt({ members }),
+    model: MODEL_MINI,
+  });
+}
+
+// Named exports (in addition to the default HTTP handler below) so step
+// logic can be invoked directly from Node test/validation scripts without
+// standing up a dev server — same production code path, no HTTP layer.
+export { stepSkeleton, stepClaim, stepEmbed, stepConfirmFamily };
+
 const STEPS = {
   skeleton: stepSkeleton,
   claim: stepClaim,
   audit: stepAudit,
   recheck: stepRecheck,
   references: stepReferences,
+  embed: stepEmbed,
+  confirmFamily: stepConfirmFamily,
 };
 
 export default async function handler(req, res) {
