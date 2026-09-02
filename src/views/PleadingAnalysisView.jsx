@@ -2,10 +2,18 @@
 // form, and the two-panel analysis view. Streams NDJSON from
 // /api/analyze-pleading so claims and QA fill in live; analyses persist to
 // localStorage per case (Supabase lands in a later phase).
+//
+// The claims panel always operates on Claim Families, not raw claims —
+// deriveFamilies() falls back to "every claim is its own family" both for
+// analyses saved before this feature shipped and for the in-progress
+// stream before the pipeline's families stage completes, so the list
+// naturally "collapses" from one row per raw claim to fewer family rows
+// once clustering finishes, with no special-casing here.
 
 import { useRef, useState } from "react";
 import { runPleadingAnalysis } from "../lib/pleadingPipeline.js";
 import { uploadFileViaStorage } from "../utils/uploadViaStorage";
+import { deriveFamilies, familyContaining } from "../lib/claimFamilies.js";
 import PleadingList, { DOC_TYPE_LABELS, PARTY_LABELS } from "../components/pleadings/PleadingList.jsx";
 import PleadingUpload from "../components/pleadings/PleadingUpload.jsx";
 import ClaimList from "../components/pleadings/ClaimList.jsx";
@@ -28,6 +36,7 @@ const STAGE_LABELS = {
   claims:     "מבצע ביקורת על הטענות…",
   audit:      "בודק כיסוי מול המסמך…",
   references: "מאחד אסמכתאות וראיות…",
+  families:   "מאתר טענות חוזרות…",
 };
 
 export default function PleadingAnalysisView({ caseId, accessToken }) {
@@ -35,7 +44,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
   const [mode, setMode] = useState("list"); // "list" | "upload" | "analysis"
   const [viewMode, setViewMode] = useState("claims"); // "claims" | "document"
   const [currentId, setCurrentId] = useState(null);
-  const [selectedClaimId, setSelectedClaimId] = useState(null);
+  const [selectedFamilyId, setSelectedFamilyId] = useState(null);
   const [uploadError, setUploadError] = useState("");
   const [lastAttempt, setLastAttempt] = useState(null);
   const [status, setStatus] = useState("");
@@ -58,14 +67,15 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
   const current = records.find((r) => r.id === currentId) ?? null;
   const analysis = draft ?? current?.analysis ?? null;
   const claims = analysis?.claims ?? [];
-  const selectedClaim = claims.find((c) => c.id === selectedClaimId) ?? null;
+  const families = deriveFamilies(analysis);
+  const selectedFamily = families.find((f) => f.id === selectedFamilyId) ?? null;
   const analyzing = draft !== null;
 
   const reviewed = current?.reviewed ?? {};
-  function toggleReviewed(claimId) {
+  function toggleReviewed(familyId) {
     if (!current) return;
-    const nextReviewed = { ...reviewed, [claimId]: !reviewed[claimId] };
-    if (!nextReviewed[claimId]) delete nextReviewed[claimId];
+    const nextReviewed = { ...reviewed, [familyId]: !reviewed[familyId] };
+    if (!nextReviewed[familyId]) delete nextReviewed[familyId];
     persist(records.map((r) => (r.id === current.id ? { ...r, reviewed: nextReviewed } : r)));
   }
 
@@ -75,10 +85,10 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
     setLastAttempt({ file, docType, party });
     setStatus("");
     setStage("reading");
-    setDraft({ claims: [], authorities: [], evidence_refs: [], quotations: [] });
+    setDraft({ claims: [], authorities: [], evidence_refs: [], quotations: [], claim_families: [] });
     setMode("analysis");
     setCurrentId(null);
-    setSelectedClaimId(null);
+    setSelectedFamilyId(null);
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -115,7 +125,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
 
       // Client-orchestrated pipeline: each server call is short, so the
       // platform's 300s function cap can never kill a run mid-analysis.
-      let working = { claims: [], authorities: [], evidence_refs: [], quotations: [] };
+      let working = { claims: [], authorities: [], evidence_refs: [], quotations: [], claim_families: [] };
       try {
         const analysis = await runPleadingAnalysis({
           pleadingText,
@@ -143,6 +153,10 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
             },
             references: (refs) => {
               working = { ...working, ...refs };
+              setDraft({ ...working });
+            },
+            families: (fams) => {
+              working = { ...working, claim_families: fams };
               setDraft({ ...working });
             },
           },
@@ -213,6 +227,18 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
     }
   }
 
+  // Bridges the document view's per-claim selection to family selection:
+  // clicking a paragraph chip for any occurrence selects the family that
+  // contains it (clicking the currently-active occurrence deselects).
+  function selectFamilyForClaim(claimId) {
+    if (claimId === selectedFamily?.primary_member_id) {
+      setSelectedFamilyId(null);
+      return;
+    }
+    const fam = familyContaining(families, claimId);
+    setSelectedFamilyId(fam?.id ?? null);
+  }
+
   // ── Render ────────────────────────────────────────────────────────────
   if (mode === "upload") {
     return (
@@ -235,9 +261,10 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
       <div className="flex h-full min-h-0" dir="rtl">
         {effectiveView === "claims" && (
         <ClaimList
+          families={families}
           claims={claims}
-          selectedClaimId={selectedClaimId}
-          onSelectClaim={setSelectedClaimId}
+          selectedFamilyId={selectedFamilyId}
+          onSelectFamily={setSelectedFamilyId}
           reviewed={reviewed}
           onToggleReviewed={toggleReviewed}
           analyzing={analyzing}
@@ -248,7 +275,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
           <div className="h-12 px-5 border-b border-slate-200 flex items-center gap-3 flex-shrink-0 bg-white">
             <button
               type="button"
-              onClick={() => { setMode("list"); setCurrentId(null); setSelectedClaimId(null); }}
+              onClick={() => { setMode("list"); setCurrentId(null); setSelectedFamilyId(null); }}
               className="text-xs text-slate-500 hover:text-slate-700 bg-transparent border-0 cursor-pointer p-0 flex-shrink-0"
             >
               → כל כתבי הטענות
@@ -301,7 +328,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
             ) : records.length > 1 && (
               <select
                 value={currentId ?? ""}
-                onChange={(e) => { setCurrentId(e.target.value); setSelectedClaimId(null); }}
+                onChange={(e) => { setCurrentId(e.target.value); setSelectedFamilyId(null); }}
                 aria-label="מעבר לכתב טענות אחר"
                 className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white outline-none max-w-[220px] flex-shrink-0"
               >
@@ -319,16 +346,17 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
               <PleadingDocument
                 pleadingText={current.pleadingText}
                 analysis={analysis}
-                selectedClaimId={selectedClaimId}
-                onSelectClaim={(id) => setSelectedClaimId(id === selectedClaimId ? null : id)}
+                selectedClaimId={selectedFamily?.primary_member_id ?? null}
+                onSelectClaim={selectFamilyForClaim}
                 original={{ storagePath: current.storagePath, fileType: current.fileType, accessToken }}
               />
-              {selectedClaim && (
+              {selectedFamily && (
                 <aside className="w-[400px] flex-shrink-0 flex flex-col border-r border-slate-200 bg-white min-h-0">
                   <ClaimDetail
-                    claim={selectedClaim}
+                    family={selectedFamily}
+                    claims={claims}
                     analysis={analysis ?? { claims: [] }}
-                    reviewed={!!reviewed[selectedClaim.id]}
+                    reviewed={!!reviewed[selectedFamily.id]}
                     onToggleReviewed={toggleReviewed}
                   />
                 </aside>
@@ -337,7 +365,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
           ) : (
           <>
           {/* Theory of case + coverage notes above the detail pane */}
-          {analysis?.theory_of_case && !selectedClaim && (
+          {analysis?.theory_of_case && !selectedFamily && (
             <div className="px-7 pt-5 flex-shrink-0">
               <h4 className="text-xs font-bold text-slate-500 mb-1">תיאוריית המקרה</h4>
               <p className="text-sm text-slate-700 leading-relaxed max-w-[680px]">{analysis.theory_of_case}</p>
@@ -350,9 +378,10 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
           )}
 
           <ClaimDetail
-            claim={selectedClaim}
+            family={selectedFamily}
+            claims={claims}
             analysis={analysis ?? { claims: [] }}
-            reviewed={selectedClaim ? !!reviewed[selectedClaim.id] : false}
+            reviewed={selectedFamily ? !!reviewed[selectedFamily.id] : false}
             onToggleReviewed={toggleReviewed}
           />
           </>
@@ -371,7 +400,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
       )}
       <PleadingList
         records={records}
-        onOpen={(id) => { setCurrentId(id); setSelectedClaimId(null); setMode("analysis"); setStatus(""); }}
+        onOpen={(id) => { setCurrentId(id); setSelectedFamilyId(null); setMode("analysis"); setStatus(""); }}
         onUploadNew={() => { setUploadError(""); setMode("upload"); setStatus(""); }}
         onRemove={(id) => persist(records.filter((r) => r.id !== id))}
       />
