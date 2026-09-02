@@ -6,8 +6,15 @@
 const normalize = (s) => (s ?? "").replace(/\s+/g, " ").trim();
 
 // Split the extracted pleading text into display paragraphs. A new numbered
-// paragraph starts a block ("12." / "12.3" at line start); blank lines
-// separate unnumbered blocks (headings, footer).
+// paragraph starts a block; Israeli legal drafting numbers paragraphs either
+// "12." or ".12" (dot-before-number is the common convention — confirmed
+// against real filed pleadings, not just a transcription quirk), with
+// ".12.3"-style sub-numbering. Lettered sub-items ("א.", "ב.") mark their
+// own block the same way. Blank lines separate unnumbered blocks (headings,
+// footer).
+const NUMBER_MARKER = /^\s*\.?(\d+(?:\.\d+)*)\.?\s+(.*)$/;
+const LETTER_MARKER = /^\s*([א-ת])\.\s+(.*)$/;
+
 export function splitParagraphs(pleadingText) {
   const lines = pleadingText.split(/\r?\n/);
   const paragraphs = [];
@@ -19,10 +26,16 @@ export function splitParagraphs(pleadingText) {
   };
 
   for (const line of lines) {
-    const numbered = line.match(/^\s*(\d+(?:\.\d+)*)\s*\.?\s+(.*)$/);
+    const numbered = line.match(NUMBER_MARKER);
     if (numbered && numbered[2].trim().length > 0) {
       flush();
       current = { number: numbered[1], text: numbered[2] };
+      continue;
+    }
+    const lettered = line.match(LETTER_MARKER);
+    if (lettered && lettered[2].trim().length > 0) {
+      flush();
+      current = { number: lettered[1], text: lettered[2] };
       continue;
     }
     if (!line.trim()) {
