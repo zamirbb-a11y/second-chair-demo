@@ -1,30 +1,34 @@
-// Left panel: indented claim list with filters (all / gaps / unreviewed),
-// review checkboxes, and gap dots. Streaming-aware: claims whose QA hasn't
-// arrived yet show a pending state.
+// Left panel: Claim Families rail. One row per family — the same
+// substantive claim restated across the document collapses to one row
+// with an occurrence badge, instead of one row per raw claim node.
+// Streaming-aware: families only exist once the pipeline's final stage
+// completes, so mid-stream this naturally shows one row per raw claim
+// (via deriveFamilies' singleton fallback) and "collapses" as clustering
+// finishes — no special-casing needed for the in-progress state.
 
 import { useState } from "react";
+import { familyHasGap, primaryClaim } from "../../lib/claimFamilies.js";
 
-export function hasGap(claim) {
-  return !!(claim.qa && (claim.qa.evidence_gap || claim.qa.authority_gap || claim.qa.logical_gap_flag));
-}
+function FamilyRow({ family, claims, selected, onSelect, reviewed, onToggleReviewed, analyzing }) {
+  const primary = primaryClaim(family, claims);
+  const pending = analyzing && !primary?.qa;
+  const gap = !pending && familyHasGap(family, claims);
+  const occurrences = family.member_ids.length;
 
-function ClaimRow({ claim, level, selected, onSelect, reviewed, onToggleReviewed, analyzing }) {
-  const pending = analyzing && !claim.qa;
   return (
     <div
       role="button"
       tabIndex={0}
       aria-current={selected || undefined}
-      onClick={() => onSelect(claim.id)}
+      onClick={() => onSelect(family.id)}
       onKeyDown={(e) => {
         if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) {
           e.preventDefault();
-          onSelect(claim.id);
+          onSelect(family.id);
         }
       }}
       className={[
-        "flex items-start gap-2 py-2 cursor-pointer border-r-[3px] transition-all",
-        level === 2 ? "pr-8 pl-3" : "pr-3 pl-3",
+        "flex items-start gap-2 px-3 py-2 cursor-pointer border-r-[3px] transition-all",
         selected ? "bg-blue-50 border-blue-500" : "border-transparent hover:bg-slate-50",
       ].join(" ")}
     >
@@ -33,12 +37,12 @@ function ClaimRow({ claim, level, selected, onSelect, reviewed, onToggleReviewed
         checked={!!reviewed}
         disabled={pending}
         onClick={(e) => e.stopPropagation()}
-        onChange={() => onToggleReviewed(claim.id)}
-        aria-label={`סמן כנבדקה: ${claim.text.slice(0, 60)}`}
+        onChange={() => onToggleReviewed(family.id)}
+        aria-label={`סמן כנבדקה: ${family.canonical_text.slice(0, 60)}`}
         className="mt-1 accent-slate-700 cursor-pointer flex-shrink-0"
       />
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-start gap-1.5">
           <span
             className={[
               "text-xs leading-snug flex-1",
@@ -47,18 +51,26 @@ function ClaimRow({ claim, level, selected, onSelect, reviewed, onToggleReviewed
                 : "text-slate-700 font-medium",
             ].join(" ")}
           >
-            {claim.text}
+            {family.canonical_text}
           </span>
+          {occurrences > 1 && (
+            <span
+              title={`מופיעה ${occurrences} פעמים`}
+              className="text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200 rounded-full px-1.5 py-0.5 flex-shrink-0"
+            >
+              ×{occurrences}
+            </span>
+          )}
         </div>
         {pending ? (
           <span className="text-xs text-slate-400 italic">ממתין לביקורת…</span>
-        ) : hasGap(claim) ? (
+        ) : gap ? (
           <span className="flex items-center gap-1 text-xs text-amber-700">
             <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
             {[
-              claim.qa.evidence_gap && "פער ראייתי",
-              claim.qa.authority_gap && "פער אסמכתאות",
-              claim.qa.logical_gap_flag && "פער לוגי",
+              primary.qa.evidence_gap && "פער ראייתי",
+              primary.qa.authority_gap && "פער אסמכתאות",
+              primary.qa.logical_gap_flag && "פער לוגי",
             ].filter(Boolean).join(" · ")}
           </span>
         ) : null}
@@ -68,29 +80,25 @@ function ClaimRow({ claim, level, selected, onSelect, reviewed, onToggleReviewed
 }
 
 export default function ClaimList({
-  claims, selectedClaimId, onSelectClaim,
+  families, claims, selectedFamilyId, onSelectFamily,
   reviewed, onToggleReviewed, analyzing,
 }) {
   const [filter, setFilter] = useState("all");
 
-  const mains = claims.filter((c) => c.level === 1);
-  const subsOf = (id) => claims.filter((c) => c.parent_id === id);
-
-  const passes = (c) =>
+  const passes = (f) =>
     filter === "all" ? true
-    : filter === "gaps" ? hasGap(c)
-    : !reviewed[c.id];
+    : filter === "gaps" ? familyHasGap(f, claims)
+    : !reviewed[f.id];
 
-  // a main claim stays visible when any of its subs pass the filter
-  const visibleMains = mains.filter((m) => passes(m) || subsOf(m.id).some(passes));
-  const reviewedCount = claims.filter((c) => reviewed[c.id]).length;
+  const visible = families.filter(passes);
+  const reviewedCount = families.filter((f) => reviewed[f.id]).length;
 
   return (
     <div className="w-[320px] bg-[#f8f9fb] border-l border-slate-200 flex flex-col flex-shrink-0 h-full">
       <div className="px-4 h-12 border-b border-slate-100 flex-shrink-0 flex items-center justify-between">
-        <span className="text-sm font-bold text-slate-900">טענות ({mains.length})</span>
-        {claims.length > 0 && (
-          <span className="text-xs text-slate-500">{reviewedCount}/{claims.length} נבדקו</span>
+        <span className="text-sm font-bold text-slate-900">טענות ({families.length})</span>
+        {families.length > 0 && (
+          <span className="text-xs text-slate-500">{reviewedCount}/{families.length} נבדקו</span>
         )}
       </div>
 
@@ -114,7 +122,7 @@ export default function ClaimList({
       </div>
 
       <div className="flex-1 overflow-y-auto py-1" aria-live="polite">
-        {claims.length === 0 && analyzing && (
+        {families.length === 0 && analyzing && (
           <div className="px-4 py-3 space-y-3">
             {[0, 1, 2, 3].map((i) => (
               <div key={i} className="space-y-1.5">
@@ -124,32 +132,19 @@ export default function ClaimList({
             ))}
           </div>
         )}
-        {visibleMains.map((main) => (
-          <div key={main.id}>
-            <ClaimRow
-              claim={main}
-              level={1}
-              selected={selectedClaimId === main.id}
-              onSelect={onSelectClaim}
-              reviewed={reviewed[main.id]}
-              onToggleReviewed={onToggleReviewed}
-              analyzing={analyzing}
-            />
-            {subsOf(main.id).filter((s) => filter === "all" || passes(s)).map((sub) => (
-              <ClaimRow
-                key={sub.id}
-                claim={sub}
-                level={2}
-                selected={selectedClaimId === sub.id}
-                onSelect={onSelectClaim}
-                reviewed={reviewed[sub.id]}
-                onToggleReviewed={onToggleReviewed}
-                analyzing={analyzing}
-              />
-            ))}
-          </div>
+        {visible.map((family) => (
+          <FamilyRow
+            key={family.id}
+            family={family}
+            claims={claims}
+            selected={selectedFamilyId === family.id}
+            onSelect={onSelectFamily}
+            reviewed={reviewed[family.id]}
+            onToggleReviewed={onToggleReviewed}
+            analyzing={analyzing}
+          />
         ))}
-        {claims.length > 0 && visibleMains.length === 0 && (
+        {families.length > 0 && visible.length === 0 && (
           <p className="px-4 py-3 text-xs text-slate-500">
             {filter === "gaps" ? "אין טענות עם פערים." : "כל הטענות נבדקו."}
           </p>
