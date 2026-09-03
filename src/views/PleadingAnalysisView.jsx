@@ -346,6 +346,9 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
               <PleadingDocument
                 pleadingText={current.pleadingText}
                 analysis={analysis}
+                families={families}
+                selectedFamilyId={selectedFamilyId}
+                onSelectFamily={setSelectedFamilyId}
                 selectedClaimId={selectedFamily?.primary_member_id ?? null}
                 onSelectClaim={selectFamilyForClaim}
                 original={{ storagePath: current.storagePath, fileType: current.fileType, accessToken }}
