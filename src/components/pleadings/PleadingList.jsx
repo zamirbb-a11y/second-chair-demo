@@ -8,7 +8,9 @@ export const DOC_TYPE_LABELS = {
   statement_of_defense: "כתב הגנה",
   reply:                "כתב תשובה",
   motion:               "בקשה",
-  response:             "תגובה",
+  response:             "תגובה לבקשה",
+  reply_to_motion:      "תשובה לתגובה",
+  summation:            "סיכומים",
   other:                "כתב טענות",
 };
 

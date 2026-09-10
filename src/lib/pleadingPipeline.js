@@ -87,6 +87,7 @@ export async function runPleadingAnalysis({
         claim,
         otherClaims: mainClaims.filter((c) => c.id !== claim.id).map((c) => ({ id: c.id, text: c.text })),
         theoryOfCase: skeleton.theory_of_case,
+        docType,
       });
       claim.qa = result.qa;
       claim.source_spans = result.source_spans ?? claim.source_spans;

@@ -200,7 +200,7 @@ async function stepSkeleton({ pleadingText, docType = "other", party = "unknown"
   };
 }
 
-async function stepClaim({ pleadingText, claim, otherClaims = [], theoryOfCase = null }) {
+async function stepClaim({ pleadingText, claim, otherClaims = [], theoryOfCase = null, docType = null }) {
   // Lightweight kinds (remedy, background, procedural, conclusion) are
   // listed but not QA'd — a prayer for relief must not be flagged for
   // evidence gaps like a factual allegation.
@@ -221,6 +221,7 @@ async function stepClaim({ pleadingText, claim, otherClaims = [], theoryOfCase =
       sectionText: buildSectionText(pleadingText, claim),
       otherClaimsSummary: otherClaims.map((c) => `${c.id}: ${c.text}`).join("\n") || "(אין)",
       theoryOfCase,
+      docType,
     }),
     validate: (r) => validatePass2(r, claim.id),
   });
