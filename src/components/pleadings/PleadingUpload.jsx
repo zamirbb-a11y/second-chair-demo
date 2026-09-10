@@ -4,13 +4,17 @@
 import { useState } from "react";
 import { DOC_TYPE_LABELS } from "./PleadingList.jsx";
 
-export default function PleadingUpload({ onAnalyze, onCancel, error, initial, maxSizeLabel = "50MB" }) {
+export default function PleadingUpload({ onAnalyze, onCancel, error, initial, maxSizeLabel = "50MB", priorRecords = [] }) {
   // On a failed analysis the view remounts this form — restore the user's
   // previous selections so "the file wasn't lost" is actually true.
   const [file, setFile] = useState(initial?.file ?? null);
   const [docType, setDocType] = useState(initial?.docType ?? "");
   const [party, setParty] = useState(initial?.party ?? "");
   const [dragOver, setDragOver] = useState(false);
+  const [respondsTo, setRespondsTo] = useState(initial?.respondsTo ?? []);
+
+  const toggleRespondsTo = (id) =>
+    setRespondsTo((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
 
   const ready = file && docType && party;
 
@@ -98,6 +102,30 @@ export default function PleadingUpload({ onAnalyze, onCancel, error, initial, ma
         </div>
       </div>
 
+      {priorRecords.length > 0 && (
+        <div className="mb-5">
+          <span className="block text-xs font-semibold text-slate-600 mb-1.5">
+            האם מסמך זה מתייחס לכתב טענות קודם בתיק? (לא חובה)
+          </span>
+          <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto rounded-lg border border-slate-200 p-2">
+            {priorRecords.map((r) => (
+              <label key={r.id} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer px-1.5 py-1 rounded-md hover:bg-slate-50">
+                <input
+                  type="checkbox"
+                  checked={respondsTo.includes(r.id)}
+                  onChange={() => toggleRespondsTo(r.id)}
+                  className="accent-slate-700 cursor-pointer flex-shrink-0"
+                />
+                <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 flex-shrink-0">
+                  {DOC_TYPE_LABELS[r.docType] ?? r.docType}
+                </span>
+                <span className="truncate">{r.title}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
       {error && (
         <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2 mb-4">
           {error}
@@ -107,7 +135,7 @@ export default function PleadingUpload({ onAnalyze, onCancel, error, initial, ma
       <button
         type="button"
         disabled={!ready}
-        onClick={() => onAnalyze({ file, docType, party })}
+        onClick={() => onAnalyze({ file, docType, party, respondsTo })}
         className="rounded-lg bg-slate-900 text-white px-6 py-2.5 text-sm font-semibold hover:bg-slate-800 disabled:opacity-40 border-0 cursor-pointer"
       >
         נתח מסמך

@@ -8,11 +8,31 @@
 
 import { useState } from "react";
 import { familyHasGap, primaryClaim } from "../../lib/claimFamilies.js";
+import { highSalienceRelationsForFamily, sortByAlertPriority } from "../../lib/crossDocumentRelations.js";
 
-function FamilyRow({ family, claims, selected, onSelect, reviewed, onToggleReviewed, analyzing }) {
+// One compact line, worst-first — a family with several high-salience
+// relations still shows only one, so a busy history never stacks rows.
+const ALERT_LABELS = {
+  contradicts: { text: "סתירה אפשרית עם עמדה קודמת", tone: "text-red-700 bg-red-400" },
+  not_addressed: { text: "לא אותרה התייחסות לטענה זו", tone: "text-amber-700 bg-amber-400" },
+  changed: { text: "שינוי עמדה אפשרי", tone: "text-amber-700 bg-amber-400" },
+  responds_to_partial: { text: "מענה חלקי בלבד", tone: "text-amber-700 bg-amber-400" },
+  responds_to_talks_past: { text: "מענה שאינו ממוקד בטענה עצמה", tone: "text-amber-700 bg-amber-400" },
+};
+
+function alertFor(family, relations, analysisId) {
+  const high = highSalienceRelationsForFamily(relations, analysisId, family.id);
+  if (high.length === 0) return null;
+  const r = sortByAlertPriority(high)[0];
+  const key = r.type === "responds_to" ? `responds_to_${r.stance}` : r.type;
+  return ALERT_LABELS[key] ?? null;
+}
+
+function FamilyRow({ family, claims, selected, onSelect, reviewed, onToggleReviewed, analyzing, relations, analysisId }) {
   const primary = primaryClaim(family, claims);
   const pending = analyzing && !primary?.qa;
   const gap = !pending && familyHasGap(family, claims);
+  const alert = !pending ? alertFor(family, relations, analysisId) : null;
   const occurrences = family.member_ids.length;
 
   return (
@@ -64,6 +84,11 @@ function FamilyRow({ family, claims, selected, onSelect, reviewed, onToggleRevie
         </div>
         {pending ? (
           <span className="text-xs text-slate-400 italic">ממתין לביקורת…</span>
+        ) : alert ? (
+          <span className={`flex items-center gap-1 text-xs ${alert.tone.split(" ")[0]}`}>
+            <span aria-hidden="true" className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${alert.tone.split(" ")[1]}`} />
+            {alert.text}
+          </span>
         ) : gap ? (
           <span className="flex items-center gap-1 text-xs text-amber-700">
             <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
@@ -82,6 +107,7 @@ function FamilyRow({ family, claims, selected, onSelect, reviewed, onToggleRevie
 export default function ClaimList({
   families, claims, selectedFamilyId, onSelectFamily,
   reviewed, onToggleReviewed, analyzing,
+  relations = [], analysisId,
 }) {
   const [filter, setFilter] = useState("all");
 
@@ -142,6 +168,8 @@ export default function ClaimList({
             reviewed={reviewed[family.id]}
             onToggleReviewed={onToggleReviewed}
             analyzing={analyzing}
+            relations={relations}
+            analysisId={analysisId}
           />
         ))}
         {families.length > 0 && visible.length === 0 && (

@@ -14,6 +14,7 @@ import { useRef, useState } from "react";
 import { runPleadingAnalysis } from "../lib/pleadingPipeline.js";
 import { uploadFileViaStorage } from "../utils/uploadViaStorage";
 import { deriveFamilies, familyContaining } from "../lib/claimFamilies.js";
+import CrossDocumentSummary from "../components/pleadings/CrossDocumentSummary.jsx";
 import PleadingList, { DOC_TYPE_LABELS, PARTY_LABELS } from "../components/pleadings/PleadingList.jsx";
 import PleadingUpload from "../components/pleadings/PleadingUpload.jsx";
 import ClaimList from "../components/pleadings/ClaimList.jsx";
@@ -37,6 +38,7 @@ const STAGE_LABELS = {
   audit:      "בודק כיסוי מול המסמך…",
   references: "מאחד אסמכתאות וראיות…",
   families:   "מאתר טענות חוזרות…",
+  relations:  "משווה לכתב הטענות הקודם…",
 };
 
 export default function PleadingAnalysisView({ caseId, accessToken }) {
@@ -71,6 +73,34 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
   const selectedFamily = families.find((f) => f.id === selectedFamilyId) ?? null;
   const analyzing = draft !== null;
 
+  // Case-wide pool, not just this document's own relations — a family's
+  // History needs to show relations pointed at it from a LATER document
+  // too (e.g. a reply's not_addressed finding about a defense claim), and
+  // this is what lets History grow into a real chain later with no
+  // redesign: every relation just names two (analysisId, familyId) pairs.
+  const allRelations = records.flatMap((r) => r.analysis?.cross_document_relations ?? []);
+  const recordByAnalysisId = new Map(records.map((r) => [r.analysis?.id, r]));
+
+  function jumpToFamily(analysisId, familyId) {
+    const target = recordByAnalysisId.get(analysisId);
+    if (!target) return;
+    setCurrentId(target.id);
+    setSelectedFamilyId(familyId);
+  }
+
+  // For rendering a relation's "other side" in History: which document is
+  // it from, and what does that family actually say. familyId is optional
+  // (a not_addressed relation's target names a document with no specific
+  // family — "this document never answered it" — so the doc title alone
+  // still needs to resolve).
+  function resolveFamilyRef(analysisId, familyId) {
+    const record = recordByAnalysisId.get(analysisId);
+    if (!record) return null;
+    const family = familyId ? deriveFamilies(record.analysis).find((f) => f.id === familyId) : null;
+    if (familyId && !family) return null;
+    return { family, docTitle: record.title, docType: record.docType, analysisId };
+  }
+
   const reviewed = current?.reviewed ?? {};
   function toggleReviewed(familyId) {
     if (!current) return;
@@ -80,12 +110,12 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
   }
 
   // ── Streaming analysis ────────────────────────────────────────────────
-  async function analyze({ file, docType, party }) {
+  async function analyze({ file, docType, party, respondsTo = [] }) {
     setUploadError("");
-    setLastAttempt({ file, docType, party });
+    setLastAttempt({ file, docType, party, respondsTo });
     setStatus("");
     setStage("reading");
-    setDraft({ claims: [], authorities: [], evidence_refs: [], quotations: [], claim_families: [] });
+    setDraft({ claims: [], authorities: [], evidence_refs: [], quotations: [], claim_families: [], cross_document_relations: [] });
     setMode("analysis");
     setCurrentId(null);
     setSelectedFamilyId(null);
@@ -131,14 +161,23 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
       }
       if (pleadingText.trim().length < 200) throw new Error("extraction_failed");
 
+      // Prior pleadings this one was explicitly marked as responding to —
+      // their already-computed families are what cross-document relations
+      // get matched against. Never inferred, only what the user picked.
+      const priorDocs = respondsTo
+        .map((id) => records.find((r) => r.id === id))
+        .filter(Boolean)
+        .map((r) => ({ analysisId: r.analysis.id, party: r.party, families: r.analysis.claim_families ?? [] }));
+
       // Client-orchestrated pipeline: each server call is short, so the
       // platform's 300s function cap can never kill a run mid-analysis.
-      let working = { claims: [], authorities: [], evidence_refs: [], quotations: [], claim_families: [] };
+      let working = { claims: [], authorities: [], evidence_refs: [], quotations: [], claim_families: [], cross_document_relations: [] };
       try {
         const analysis = await runPleadingAnalysis({
           pleadingText,
           docType,
           party,
+          priorDocs,
           signal: controller.signal,
           on: {
             stage: setStage,
@@ -165,6 +204,10 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
             },
             families: (fams) => {
               working = { ...working, claim_families: fams };
+              setDraft({ ...working });
+            },
+            relations: (rels) => {
+              working = { ...working, cross_document_relations: rels };
               setDraft({ ...working });
             },
           },
@@ -257,6 +300,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
         onCancel={() => { setUploadError(""); setMode("list"); }}
         error={uploadError}
         initial={lastAttempt}
+        priorRecords={records}
         maxSizeLabel={accessToken ? "50MB" : "4MB"}
       />
     );
@@ -278,6 +322,8 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
           reviewed={reviewed}
           onToggleReviewed={toggleReviewed}
           analyzing={analyzing}
+          analysisId={analysis?.id}
+          relations={allRelations}
         />
         )}
         <div className="flex-1 flex flex-col min-w-0">
@@ -381,6 +427,10 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
                     analysis={analysis ?? { claims: [] }}
                     reviewed={!!reviewed[selectedFamily.id]}
                     onToggleReviewed={toggleReviewed}
+                    analysisId={analysis?.id}
+                    relations={allRelations}
+                    resolveFamilyRef={resolveFamilyRef}
+                    onJumpToFamily={jumpToFamily}
                   />
                 </aside>
               )}
@@ -397,6 +447,14 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
                   {analysis.coverage_notes}
                 </p>
               )}
+              {analysis.cross_document_relations?.length > 0 && (
+                <CrossDocumentSummary
+                  relations={analysis.cross_document_relations}
+                  analysisId={analysis.id}
+                  families={families}
+                  priorTitles={(analysis.respondsTo ?? []).map((id) => recordByAnalysisId.get(id)?.title).filter(Boolean)}
+                />
+              )}
             </div>
           )}
 
@@ -406,6 +464,10 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
             analysis={analysis ?? { claims: [] }}
             reviewed={selectedFamily ? !!reviewed[selectedFamily.id] : false}
             onToggleReviewed={toggleReviewed}
+            analysisId={analysis?.id}
+            relations={allRelations}
+            resolveFamilyRef={resolveFamilyRef}
+            onJumpToFamily={jumpToFamily}
           />
           </>
           )}
