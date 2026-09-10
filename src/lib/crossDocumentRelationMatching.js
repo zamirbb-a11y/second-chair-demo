@@ -25,14 +25,20 @@ function extractValidTargetId(rawId, validIds) {
   return match && validIds.includes(match[0]) ? match[0] : null;
 }
 
-// priorDocs: [{ analysisId, families: ClaimFamily[] }] — the document(s)
-// this one was marked as responding to at upload time (explicit user
-// input, never inferred). currentFamilies: this document's own families.
-// Returns relations with subject/target analysisId "self" standing in for
-// this document's own (not-yet-assigned) analysis id — the caller
-// resolves that once it's known.
-export async function buildCrossDocumentRelations(currentFamilies, priorDocs, post, { currentParty, priorParty } = {}) {
-  const priorPool = priorDocs.flatMap((d) => (d.families ?? []).map((f) => ({ ...f, _analysisId: d.analysisId })));
+// priorDocs: [{ analysisId, party, families: ClaimFamily[] }] — the
+// document(s) this one was marked as responding to at upload time
+// (explicit user input, never inferred). currentFamilies: this document's
+// own families. Returns relations with subject/target analysisId "self"
+// standing in for this document's own (not-yet-assigned) analysis id —
+// the caller resolves that once it's known.
+//
+// Each prior family keeps its own document's party label rather than a
+// single shared one — a candidate set for one current family can draw
+// from more than one prior document (respondsTo can name several), and an
+// earlier version that passed one priorParty for the whole call mislabeled
+// candidates whenever those documents had different parties.
+export async function buildCrossDocumentRelations(currentFamilies, priorDocs, post, { currentParty } = {}) {
+  const priorPool = priorDocs.flatMap((d) => (d.families ?? []).map((f) => ({ ...f, _analysisId: d.analysisId, _party: d.party })));
   if (currentFamilies.length === 0 || priorPool.length === 0) return [];
 
   let embeddings = [];
@@ -64,8 +70,7 @@ export async function buildCrossDocumentRelations(currentFamilies, priorDocs, po
       const result = await post("confirmRelation", {
         currentFamily: { id: cur.id, text: cur.canonical_text },
         currentParty,
-        priorParty,
-        candidates: scored.map((s) => ({ id: s.family.id, text: s.family.canonical_text, node_kind: s.family.node_kind })),
+        candidates: scored.map((s) => ({ id: s.family.id, text: s.family.canonical_text, node_kind: s.family.node_kind, party: s.family._party })),
       });
       const validIds = scored.map((s) => s.family.id);
       for (const r of result.relations ?? []) {

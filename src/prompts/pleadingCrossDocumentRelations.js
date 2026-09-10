@@ -8,8 +8,14 @@
 // actually in tension. Validated against a real complaint+defense pair
 // before being wired into the pipeline.
 
-export function buildRelationConfirmPrompt({ currentFamily, currentParty, priorParty, candidates }) {
-  const candList = candidates.map((c) => `- ${c.id} (${priorParty}): "${c.text}"`).join("\n");
+const PARTY_LABELS = { claimant: "התובע", defendant: "הנתבע", third_party: "צד שלישי", unknown: "לא ידוע" };
+const partyLabel = (party) => PARTY_LABELS[party] ?? party ?? "לא ידוע";
+
+// Each candidate keeps its own document's party label — a candidate set
+// can draw from more than one prior document (a document can respond to
+// several), and those don't always share one party.
+export function buildRelationConfirmPrompt({ currentFamily, currentParty, candidates }) {
+  const candList = candidates.map((c) => `- ${c.id} (${partyLabel(c.party)}): "${c.text}"`).join("\n");
   return `
 טענה נוכחית [${currentFamily.id}] (${currentParty}): "${currentFamily.text}"
 

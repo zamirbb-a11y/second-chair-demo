@@ -318,11 +318,11 @@ async function stepConfirmFamily({ members = [] }) {
 // standing up a dev server — same production code path, no HTTP layer.
 export { stepSkeleton, stepClaim, stepEmbed, stepConfirmFamily };
 
-async function stepConfirmRelation({ currentFamily, currentParty = "לא ידוע", priorParty = "לא ידוע", candidates = [] }) {
+async function stepConfirmRelation({ currentFamily, currentParty = "unknown", candidates = [] }) {
   if (candidates.length === 0) return { relations: [] };
   return callModel({
     system: RELATION_CONFIRM_SYSTEM,
-    prompt: buildRelationConfirmPrompt({ currentFamily, currentParty, priorParty, candidates }),
+    prompt: buildRelationConfirmPrompt({ currentFamily, currentParty, candidates }),
     model: MODEL_MINI,
   });
 }

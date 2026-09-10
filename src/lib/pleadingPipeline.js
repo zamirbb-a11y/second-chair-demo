@@ -33,7 +33,6 @@ import { buildCandidateGroups } from "./claimFamilyClustering.js";
 import { buildCrossDocumentRelations, resolveSelfReferences } from "./crossDocumentRelationMatching.js";
 
 const CLAIM_CONCURRENCY = 4;
-const PARTY_LABELS = { claimant: "התובע", defendant: "הנתבע", third_party: "צד שלישי", unknown: "לא ידוע" };
 
 async function runLimited(items, limit, worker) {
   const queue = [...items];
@@ -208,10 +207,11 @@ export async function runPleadingAnalysis({
   let crossDocumentRelations = [];
   if (priorDocs.length > 0) {
     try {
-      const raw = await buildCrossDocumentRelations(claimFamilies, priorDocs, post, {
-        currentParty: PARTY_LABELS[party] ?? party,
-        priorParty: PARTY_LABELS[priorDocs[0]?.party] ?? priorDocs[0]?.party,
-      });
+      // Raw party values ("claimant"/"defendant") flow through unmapped —
+      // the one Hebrew label mapping lives in pleadingCrossDocumentRelations.js,
+      // where each candidate can carry its own document's party rather
+      // than a single shared one (respondsTo can name more than one doc).
+      const raw = await buildCrossDocumentRelations(claimFamilies, priorDocs, post, { currentParty: party });
       crossDocumentRelations = resolveSelfReferences(raw, analysisId);
     } catch (err) {
       if (err?.name === "AbortError") throw err;
