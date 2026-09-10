@@ -180,13 +180,14 @@ const CONFIDENCE_LABELS = { high: "גבוה", medium: "בינוני", low: "נמ
 function HistoryEntry({ relation, analysisId, familyId, resolveFamilyRef, onJumpToFamily }) {
   const isSubject = relation.subject.analysisId === analysisId && relation.subject.familyId === familyId;
   const otherRef = isSubject ? relation.target : relation.subject;
-  const other = otherRef.familyId ? resolveFamilyRef(otherRef.analysisId, otherRef.familyId) : null;
+  // resolveFamilyRef handles a null familyId (not_addressed's target names
+  // only a document, never a specific family) — always call it so that
+  // case still resolves a document to jump to, just with no family.
+  const other = resolveFamilyRef(otherRef.analysisId, otherRef.familyId ?? null);
 
   let line;
   if (relation.type === "not_addressed") {
-    const otherDocTitle = resolveFamilyRef(relation.target.analysisId, null)?.docTitle
-      ?? other?.docTitle ?? "המסמך המשיב";
-    line = `לא אותרה התייחסות לטענה זו ב${otherDocTitle}`;
+    line = `לא אותרה התייחסות לטענה זו ב${other?.docTitle ?? "המסמך המשיב"}`;
   } else {
     const key = relation.type === "responds_to" ? `responds_to_${relation.stance}` : relation.type;
     const verb = RELATION_VERBS[key] ?? relation.type;
@@ -201,7 +202,7 @@ function HistoryEntry({ relation, analysisId, familyId, resolveFamilyRef, onJump
         <p className="text-sm text-slate-800 leading-relaxed flex-1">{line}</p>
         <span className="text-[10px] text-slate-400 flex-shrink-0 pt-0.5">ביטחון: {CONFIDENCE_LABELS[relation.confidence] ?? relation.confidence}</span>
       </div>
-      {other && (
+      {other?.family && (
         <p className="text-xs text-slate-500 leading-relaxed border-r-2 border-slate-200 pr-2">
           "{other.family.canonical_text}"
         </p>
@@ -210,10 +211,10 @@ function HistoryEntry({ relation, analysisId, familyId, resolveFamilyRef, onJump
       {other && (
         <button
           type="button"
-          onClick={() => onJumpToFamily(other.analysisId, other.family.id)}
+          onClick={() => onJumpToFamily(other.analysisId, other.family?.id ?? null)}
           className="text-xs font-semibold text-blue-700 hover:text-blue-800 bg-transparent border-0 cursor-pointer p-0"
         >
-          עבור למקור ב{other.docTitle} ←
+          {other.family ? `עבור למקור ב${other.docTitle} ←` : `עבור אל ${other.docTitle} ←`}
         </button>
       )}
     </div>
