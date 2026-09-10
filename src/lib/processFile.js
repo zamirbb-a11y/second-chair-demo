@@ -1,6 +1,7 @@
 import mammoth from "mammoth";
 import pdfParse from "pdf-parse";
 import { simpleParser } from "mailparser";
+import { hasNoTextLayer, ocrScannedPdf } from "./scannedPdfOcr.js";
 
 // pdf-parse extracts Hebrew PDFs in visual order (reversed/scrambled RTL),
 // which both breaks display and degrades the AI analysis. When an API key
@@ -9,49 +10,77 @@ import { simpleParser } from "mailparser";
 // so this is the primary extraction path, not an enhancement.
 const TRANSCRIBE_MAX_BYTES = 8 * 1024 * 1024;
 
-async function transcribePdfBuffer(buffer, filename) {
+const TRANSCRIBE_PROMPT =
+  "תמלל את המסמך המשפטי המצורף לטקסט עברי נקי ומדויק, מההתחלה ועד הסוף: כותרות, פרטי הצדדים, " +
+  "ומספרי הפסקאות בדיוק כפי שהם במקור. אל תוסיף, אל תשמיט ואל תסכם דבר. אל תתמלל חותמות וחתימות. " +
+  "גם אם המסמך ארוך — תמלל אותו במלואו ברצף אחד, ללא הפסקה, עד הסוף המוחלט. לעולם אל תעצור באמצע " +
+  "ואל תבקש אישור להמשך; החזר את התמלול המלא בתשובה אחת. החזר טקסט בלבד, ללא הערות שלך.";
+const TRANSCRIBE_CONTINUE_PROMPT =
+  "המשך בדיוק מהנקודה שבה עצרת בתמלול, ברצף אחד עד הסוף המוחלט של המסמך, באותו פורמט. " +
+  "אל תחזור על טקסט שכבר תומלל, אל תסכם ואל תוסיף הערות משלך — רק המשך את התמלול.";
+const MAX_TRANSCRIBE_ROUNDS = 4;
+
+// A trailing bracketed aside describing what the model "would" transcribe
+// next, instead of actually transcribing it — the failure mode this whole
+// function works around. Real document text essentially never ends this
+// way, so stripping any long trailing [...] block before concatenating a
+// round's output is safe.
+function stripTrailingMetaComment(text) {
+  return text.replace(/\s*\[[^[\]]{15,}\]\s*$/, "").trimEnd();
+}
+
+// GPT-4.1 can decide to pause mid-document and ask permission to continue
+// instead of transcribing straight through, rather than hitting a real
+// token ceiling — confirmed on a real 29-page pleading, more than once in
+// the same document, with different wording each time (so phrase-matching
+// alone isn't reliable). Detected by: hitting the token cap, an
+// implausibly short response for how much file was sent, or a trailing
+// bracketed meta-comment in the tail of the text.
+function looksTruncated(choice, text) {
+  if (choice?.finish_reason === "length") return true;
+  const tail = text.slice(-500);
+  if (/\[[^[\]]{15,}\]\s*$/.test(tail)) return true;
+  return /אישור להמש|תרצה שאמשיך|בהתאם לבקשתך|ימשיך|continue\?|let me know if you.{0,20}(continue|proceed)/i.test(tail);
+}
+
+export async function transcribePdfBuffer(buffer, filename) {
   if (!process.env.OPENAI_API_KEY || buffer.length > TRANSCRIBE_MAX_BYTES) return null;
+  const fileContent = {
+    type: "file",
+    file: { filename: filename || "document.pdf", file_data: `data:application/pdf;base64,${buffer.toString("base64")}` },
+  };
+  const messages = [{ role: "user", content: [fileContent, { type: "text", text: TRANSCRIBE_PROMPT }] }];
+
+  let fullText = "";
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4.1",
-        temperature: 0,
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "file",
-                file: {
-                  filename: filename || "document.pdf",
-                  file_data: `data:application/pdf;base64,${buffer.toString("base64")}`,
-                },
-              },
-              {
-                type: "text",
-                text: "תמלל את המסמך המשפטי המצורף לטקסט עברי נקי ומדויק, מההתחלה ועד הסוף: כותרות, פרטי הצדדים, ומספרי הפסקאות בדיוק כפי שהם במקור. אל תוסיף, אל תשמיט ואל תסכם דבר. אל תתמלל חותמות וחתימות. החזר טקסט בלבד, ללא הערות שלך.",
-              },
-            ],
-          },
-        ],
-      }),
-    });
-    const data = await response.json();
-    if (!response.ok) {
-      console.error("PDF transcription failed:", data?.error?.message);
-      return null;
+    for (let round = 0; round < MAX_TRANSCRIBE_ROUNDS; round++) {
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
+        body: JSON.stringify({ model: "gpt-4.1", temperature: 0, max_tokens: 16000, messages }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        console.error("PDF transcription failed:", data?.error?.message);
+        break;
+      }
+      const choice = data.choices?.[0];
+      const text = choice?.message?.content ?? "";
+      const truncated = looksTruncated(choice, text);
+      fullText += (fullText && text ? "\n" : "") + (truncated ? stripTrailingMetaComment(text) : text);
+      if (!truncated) break;
+      if (round === MAX_TRANSCRIBE_ROUNDS - 1) {
+        console.error(`PDF transcription still incomplete after ${MAX_TRANSCRIBE_ROUNDS} rounds — giving up`);
+        return null;
+      }
+      messages.push({ role: "assistant", content: text });
+      messages.push({ role: "user", content: TRANSCRIBE_CONTINUE_PROMPT });
     }
-    const text = data.choices?.[0]?.message?.content ?? "";
-    return text.trim().length >= 300 ? text : null;
   } catch (err) {
     console.error("PDF transcription error:", err);
     return null;
   }
+  return fullText.trim().length >= 300 ? fullText : null;
 }
 
 export async function processFileBuffer(buffer, filename) {
@@ -61,29 +90,48 @@ export async function processFileBuffer(buffer, filename) {
   let status = "נטען";
   let extractionMethod = "none";
   let needsOcr = false;
+  let ocrPages = null; // page-level OCR detail, only set on the scanned-PDF path — traceability source of truth
+  let needsManualReview = false;
 
   if (extension === "docx") {
     const result = await mammoth.extractRawText({ buffer });
     extractedText = result.value || "";
     extractionMethod = "mammoth";
   } else if (extension === "pdf") {
-    const transcribed = await transcribePdfBuffer(buffer, filename);
-    if (transcribed) {
-      extractedText = transcribed;
-      extractionMethod = "vision-transcription";
-    } else {
-      try {
-        const result = await pdfParse(buffer);
-        extractedText = result.text || "";
-        extractionMethod = "pdf-parse";
-      } catch (_pdfErr) {
-        extractedText = "";
-        extractionMethod = "pdf-parse-failed";
-      }
-
-      if (normalizeText(extractedText).length < 300) {
+    const { isScanned } = await hasNoTextLayer(buffer).catch(() => ({ isScanned: false }));
+    if (isScanned) {
+      // No embedded text layer at all: this is a scan, not a digital PDF.
+      // Route to deterministic, page-by-page OCR rather than asking a
+      // vision-LLM to "transcribe" it — see scannedPdfOcr.js for why that
+      // path can fabricate content on degraded scans instead of failing.
+      const ocrResult = await ocrScannedPdf(buffer);
+      extractedText = ocrResult.text;
+      extractionMethod = "scanned-ocr";
+      ocrPages = ocrResult.pages;
+      needsManualReview = ocrResult.needsManualReview;
+      if (needsManualReview) {
         needsOcr = true;
-        status = "נדרש OCR";
+        status = `נדרשת בדיקה ידנית — ${ocrResult.unreadablePages.length} עמודים לא זוהו`;
+      }
+    } else {
+      const transcribed = await transcribePdfBuffer(buffer, filename);
+      if (transcribed) {
+        extractedText = transcribed;
+        extractionMethod = "vision-transcription";
+      } else {
+        try {
+          const result = await pdfParse(buffer);
+          extractedText = result.text || "";
+          extractionMethod = "pdf-parse";
+        } catch (_pdfErr) {
+          extractedText = "";
+          extractionMethod = "pdf-parse-failed";
+        }
+
+        if (normalizeText(extractedText).length < 300) {
+          needsOcr = true;
+          status = "נדרש OCR";
+        }
       }
     }
   } else if (extension === "txt") {
@@ -121,6 +169,12 @@ ${parsed.text || ""}
     status,
     extractionMethod,
     needsOcr,
+    // Callers must check this before treating `text` as fully verified —
+    // it's true only for the scanned-OCR path, and only when at least one
+    // page couldn't be read confidently. `ocrPages` (page/status/confidence)
+    // is the traceability detail behind it; null for every other path.
+    needsManualReview,
+    ocrPages,
     text: cleanText,
     textLength: cleanText.length,
     preview: cleanText.slice(0, 700),
