@@ -256,14 +256,27 @@ function AlertBanner({ relation, analysisId, family, resolveFamilyRef, onOpenHis
   );
 }
 
+// Chronological by the OTHER document's filing date — undated documents
+// (filing date is optional at upload) sort after every dated one rather
+// than interleaving arbitrarily, so a partial date picture still reads
+// left-to-right as "what's ordered stays ordered."
+function otherAnalysisId(relation, analysisId, familyId) {
+  const isSubject = relation.subject.analysisId === analysisId && relation.subject.familyId === familyId;
+  return isSubject ? relation.target.analysisId : relation.subject.analysisId;
+}
+
 function HistoryTab({ family, analysisId, relations, resolveFamilyRef, onJumpToFamily }) {
   const entries = relationsForFamily(relations, analysisId, family.id);
   if (entries.length === 0) {
     return <p className="text-sm text-slate-500">אין עדיין היסטוריה בין-מסמכית לטענה זו.</p>;
   }
+  const sorted = [...entries].sort((a, b) => {
+    const dateOf = (r) => resolveFamilyRef(otherAnalysisId(r, analysisId, family.id), null)?.filingDate ?? "9999-99-99";
+    return dateOf(a).localeCompare(dateOf(b));
+  });
   return (
     <div className="space-y-2.5">
-      {entries.map((r) => (
+      {sorted.map((r) => (
         <HistoryEntry
           key={r.id}
           relation={r}

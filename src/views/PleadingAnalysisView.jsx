@@ -98,7 +98,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
     if (!record) return null;
     const family = familyId ? deriveFamilies(record.analysis).find((f) => f.id === familyId) : null;
     if (familyId && !family) return null;
-    return { family, docTitle: record.title, docType: record.docType, analysisId };
+    return { family, docTitle: record.title, docType: record.docType, analysisId, filingDate: record.filingDate ?? null };
   }
 
   const reviewed = current?.reviewed ?? {};
@@ -110,9 +110,9 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
   }
 
   // ── Streaming analysis ────────────────────────────────────────────────
-  async function analyze({ file, docType, party, respondsTo = [] }) {
+  async function analyze({ file, docType, party, respondsTo = [], filingDate = null }) {
     setUploadError("");
-    setLastAttempt({ file, docType, party, respondsTo });
+    setLastAttempt({ file, docType, party, respondsTo, filingDate });
     setStatus("");
     setStage("reading");
     setDraft({ claims: [], authorities: [], evidence_refs: [], quotations: [], claim_families: [], cross_document_relations: [] });
@@ -186,12 +186,21 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
               setDraft({ ...working });
             },
             claim: (r) => {
+              // Same defensive filter as pleadingPipeline.js's analyzeClaim:
+              // an atomic claim should yield sub_claims: [], but the model
+              // occasionally echoes the prompt's blank schema-example
+              // sub_claim instead. Only matters here for a partial record
+              // saved after an interrupted run — a completed run's on.done
+              // analysis already comes back through that filter.
+              const validSubClaims = (r.sub_claims ?? []).filter(
+                (s) => s?.id && typeof s.text === "string" && s.text.trim().length > 0
+              );
               working.claims = working.claims.map((c) =>
                 c.id === r.claim_id
-                  ? { ...c, qa: r.qa, source_spans: r.source_spans ?? c.source_spans, child_ids: (r.sub_claims ?? []).map((s) => s.id) }
+                  ? { ...c, qa: r.qa, source_spans: r.source_spans ?? c.source_spans, child_ids: validSubClaims.map((s) => s.id) }
                   : c
               );
-              working.claims = [...working.claims, ...(r.sub_claims ?? [])];
+              working.claims = [...working.claims, ...validSubClaims];
               setDraft({ ...working });
             },
             claimsAdded: (added) => {
@@ -218,6 +227,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
           party,
           title: analysis.document?.title || file.name,
           createdAt: new Date().toISOString(),
+          filingDate, // ISO date (YYYY-MM-DD) as entered at upload, or null — drives History's chronological order
           reviewed: {},
           pleadingText, // the document view renders the pleading itself
           storagePath,  // original file in Supabase Storage (PDF display)
@@ -238,6 +248,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
             party,
             title: working.document?.title || file.name,
             createdAt: new Date().toISOString(),
+            filingDate,
             reviewed: {},
             pleadingText,
             ocrReview,

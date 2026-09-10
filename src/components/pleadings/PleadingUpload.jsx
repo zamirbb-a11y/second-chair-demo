@@ -12,6 +12,7 @@ export default function PleadingUpload({ onAnalyze, onCancel, error, initial, ma
   const [party, setParty] = useState(initial?.party ?? "");
   const [dragOver, setDragOver] = useState(false);
   const [respondsTo, setRespondsTo] = useState(initial?.respondsTo ?? []);
+  const [filingDate, setFilingDate] = useState(initial?.filingDate ?? "");
 
   const toggleRespondsTo = (id) =>
     setRespondsTo((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
@@ -102,6 +103,19 @@ export default function PleadingUpload({ onAnalyze, onCancel, error, initial, ma
         </div>
       </div>
 
+      <div className="mb-5">
+        <label htmlFor="pleading-filing-date" className="block text-xs font-semibold text-slate-600 mb-1.5">
+          תאריך הגשה (לא חובה — משמש לסידור כרונולוגי בהיסטוריה)
+        </label>
+        <input
+          id="pleading-filing-date"
+          type="date"
+          value={filingDate}
+          onChange={(e) => setFilingDate(e.target.value)}
+          className="text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white outline-none focus:border-blue-400"
+        />
+      </div>
+
       {priorRecords.length > 0 && (
         <div className="mb-5">
           <span className="block text-xs font-semibold text-slate-600 mb-1.5">
@@ -119,7 +133,8 @@ export default function PleadingUpload({ onAnalyze, onCancel, error, initial, ma
                 <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 flex-shrink-0">
                   {DOC_TYPE_LABELS[r.docType] ?? r.docType}
                 </span>
-                <span className="truncate">{r.title}</span>
+                <span className="truncate flex-1">{r.title}</span>
+                {r.filingDate && <span className="text-xs text-slate-400 flex-shrink-0">{r.filingDate}</span>}
               </label>
             ))}
           </div>
@@ -135,7 +150,7 @@ export default function PleadingUpload({ onAnalyze, onCancel, error, initial, ma
       <button
         type="button"
         disabled={!ready}
-        onClick={() => onAnalyze({ file, docType, party, respondsTo })}
+        onClick={() => onAnalyze({ file, docType, party, respondsTo, filingDate: filingDate || null })}
         className="rounded-lg bg-slate-900 text-white px-6 py-2.5 text-sm font-semibold hover:bg-slate-800 disabled:opacity-40 border-0 cursor-pointer"
       >
         נתח מסמך
