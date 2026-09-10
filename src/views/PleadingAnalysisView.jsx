@@ -100,11 +100,15 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
       // fails (e.g. bucket not provisioned) — small files work either way.
       let pleadingText = null;
       let storagePath = null; // kept for original-document display
+      let ocrReview = null; // {needsManualReview, unreadablePages} — only set for scanned PDFs
       if (accessToken) {
         try {
           const processed = await uploadFileViaStorage(file, accessToken);
           pleadingText = processed?.text ?? "";
           storagePath = processed?.storagePath ?? null;
+          if (processed?.needsManualReview) {
+            ocrReview = { needsManualReview: true, unreadablePages: (processed.ocrPages ?? []).filter((p) => p.status === "unreadable").map((p) => p.page) };
+          }
         } catch (storageErr) {
           console.error("storage upload failed, falling back to /api/upload:", storageErr);
         }
@@ -119,7 +123,11 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
         const up = await fetch("/api/upload", { method: "POST", body: form, signal: controller.signal });
         if (!up.ok) throw new Error("upload_failed");
         const upData = await up.json();
+        const uploaded = upData.files?.[0];
         pleadingText = (upData.files ?? []).map((f) => f?.text ?? "").join("\n\n");
+        if (uploaded?.needsManualReview) {
+          ocrReview = { needsManualReview: true, unreadablePages: (uploaded.ocrPages ?? []).filter((p) => p.status === "unreadable").map((p) => p.page) };
+        }
       }
       if (pleadingText.trim().length < 200) throw new Error("extraction_failed");
 
@@ -171,6 +179,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
           pleadingText, // the document view renders the pleading itself
           storagePath,  // original file in Supabase Storage (PDF display)
           fileType: (file.name.split(".").pop() ?? "").toLowerCase(),
+          ocrReview, // {needsManualReview, unreadablePages} for scanned-PDF uploads, else null
           analysis,
         };
         persist([record, ...records]);
@@ -188,6 +197,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
             createdAt: new Date().toISOString(),
             reviewed: {},
             pleadingText,
+            ocrReview,
             analysis: {
               ...working,
               coverage_notes: [working.coverage_notes, "הניתוח נקטע לפני סיום — ייתכן שחלק מהטענות חסרות או ללא ביקורת."]
@@ -340,6 +350,16 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
               </select>
             )}
           </div>
+
+          {!analyzing && current?.ocrReview?.needsManualReview && (
+            <p
+              role="status"
+              className="flex-shrink-0 text-xs text-amber-800 bg-amber-50 border-b border-amber-200 px-5 py-2"
+            >
+              <b className="font-bold">מסמך סרוק — {current.ocrReview.unreadablePages.length} עמודים לא זוהו אוטומטית</b>
+              {" "}(עמ׳ {current.ocrReview.unreadablePages.join(", ")}) — הניתוח אינו כולל אותם. יש לבדוק מול המקור.
+            </p>
+          )}
 
           {effectiveView === "document" ? (
             <div className="flex-1 flex min-h-0">

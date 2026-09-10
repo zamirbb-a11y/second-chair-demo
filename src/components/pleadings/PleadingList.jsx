@@ -97,6 +97,15 @@ export default function PleadingList({ records, onOpen, onUploadNew, onRemove })
                         {gaps} פערים
                       </span>
                     )}
+                    {r.ocrReview?.needsManualReview && (
+                      <span
+                        className="flex items-center gap-1.5 text-amber-700 font-semibold"
+                        title={`עמ׳ ${r.ocrReview.unreadablePages.join(", ")} לא זוהו אוטומטית`}
+                      >
+                        <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                        {r.ocrReview.unreadablePages.length} עמ׳ לא זוהו
+                      </span>
+                    )}
                   </div>
                 </button>
                 <RemoveButton onConfirm={() => onRemove(r.id)} />
