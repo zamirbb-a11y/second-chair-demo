@@ -29,6 +29,10 @@ import { buildPass3Prompt, PASS3_SYSTEM } from "../src/prompts/pleadingPass3.js"
 import { buildCoverageAuditPrompt, AUDIT_SYSTEM, buildCoverageRecheckPrompt } from "../src/prompts/pleadingCoverageAudit.js";
 import { buildFamilyConfirmPrompt, FAMILY_CONFIRM_SYSTEM } from "../src/prompts/pleadingClaimFamilies.js";
 import {
+  buildRelationConfirmPrompt, RELATION_CONFIRM_SYSTEM,
+  buildNotAddressedPrompt, NOT_ADDRESSED_SYSTEM,
+} from "../src/prompts/pleadingCrossDocumentRelations.js";
+import {
   validatePass1, validatePass2, verifySourceSpans,
   LIGHTWEIGHT_KINDS, EMPTY_QA,
 } from "../src/lib/pleadingValidation.js";
@@ -314,6 +318,24 @@ async function stepConfirmFamily({ members = [] }) {
 // standing up a dev server — same production code path, no HTTP layer.
 export { stepSkeleton, stepClaim, stepEmbed, stepConfirmFamily };
 
+async function stepConfirmRelation({ currentFamily, currentParty = "לא ידוע", priorParty = "לא ידוע", candidates = [] }) {
+  if (candidates.length === 0) return { relations: [] };
+  return callModel({
+    system: RELATION_CONFIRM_SYSTEM,
+    prompt: buildRelationConfirmPrompt({ currentFamily, currentParty, priorParty, candidates }),
+    model: MODEL_MINI,
+  });
+}
+
+async function stepNotAddressed({ candidates = [], currentFamiliesSummary = [] }) {
+  if (candidates.length === 0) return { results: [] };
+  return callModel({
+    system: NOT_ADDRESSED_SYSTEM,
+    prompt: buildNotAddressedPrompt({ candidates, currentFamiliesSummary }),
+    // judgment-heavy (confirming a real absence, not a mechanical pass) — full model, not mini
+  });
+}
+
 const STEPS = {
   skeleton: stepSkeleton,
   claim: stepClaim,
@@ -322,6 +344,8 @@ const STEPS = {
   references: stepReferences,
   embed: stepEmbed,
   confirmFamily: stepConfirmFamily,
+  confirmRelation: stepConfirmRelation,
+  notAddressed: stepNotAddressed,
 };
 
 export default async function handler(req, res) {

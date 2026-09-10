@@ -5,7 +5,7 @@
 // the browser and by scripts/test-analyze-pleading.mjs in node.
 //
 // Callbacks (all optional):
-//   on.stage(stage)                     "skeleton"|"claims"|"audit"|"references"|"families"
+//   on.stage(stage)                     "skeleton"|"claims"|"audit"|"references"|"families"|"relations"
 //   on.skeleton({document, theory_of_case, claims, coverage_notes})
 //   on.claim({claim_id, qa, sub_claims, source_spans})
 //   on.claimError(claimId)
@@ -13,6 +13,7 @@
 //   on.audit(warnings)
 //   on.references({authorities, evidence_refs, quotations})
 //   on.families(claimFamilies)
+//   on.relations(crossDocumentRelations)
 // Returns the fully assembled PleadingAnalysis (also passed to on.done).
 //
 // Claim Families: a derived grouping layer over `claims`, computed after
@@ -29,8 +30,10 @@
 // usable with no families layer for that run.
 
 import { buildCandidateGroups } from "./claimFamilyClustering.js";
+import { buildCrossDocumentRelations, resolveSelfReferences } from "./crossDocumentRelationMatching.js";
 
 const CLAIM_CONCURRENCY = 4;
+const PARTY_LABELS = { claimant: "התובע", defendant: "הנתבע", third_party: "צד שלישי", unknown: "לא ידוע" };
 
 async function runLimited(items, limit, worker) {
   const queue = [...items];
@@ -45,6 +48,7 @@ export async function runPleadingAnalysis({
   pleadingText,
   docType = "other",
   party = "unknown",
+  priorDocs = [], // [{analysisId, party, families}] — the pleading(s) this one was explicitly marked as responding to at upload time
   endpoint = "/api/analyze-pleading",
   signal,
   on = {},
@@ -196,12 +200,35 @@ export async function runPleadingAnalysis({
   const claimFamilies = await buildClaimFamilies(allClaims, post);
   on.families?.(claimFamilies);
 
+  // ── Cross-document relations: only runs when this document was marked,
+  // at upload, as responding to specific prior pleading(s). Additive and
+  // fail-safe — see crossDocumentRelationMatching.js.
+  const analysisId = `pa_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  on.stage?.("relations");
+  let crossDocumentRelations = [];
+  if (priorDocs.length > 0) {
+    try {
+      const raw = await buildCrossDocumentRelations(claimFamilies, priorDocs, post, {
+        currentParty: PARTY_LABELS[party] ?? party,
+        priorParty: PARTY_LABELS[priorDocs[0]?.party] ?? priorDocs[0]?.party,
+      });
+      crossDocumentRelations = resolveSelfReferences(raw, analysisId);
+    } catch (err) {
+      if (err?.name === "AbortError") throw err;
+      console.error("Cross-document relations failed (non-blocking):", err);
+      crossDocumentRelations = [];
+    }
+  }
+  on.relations?.(crossDocumentRelations);
+
   const analysis = {
-    id: `pa_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    id: analysisId,
     document: skeleton.document,
     theory_of_case: skeleton.theory_of_case,
     claims: allClaims,
     claim_families: claimFamilies,
+    cross_document_relations: crossDocumentRelations,
+    respondsTo: priorDocs.map((d) => d.analysisId),
     authorities: references.authorities ?? [],
     evidence_refs: references.evidence_refs ?? [],
     quotations: references.quotations ?? [],
