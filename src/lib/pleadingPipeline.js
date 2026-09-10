@@ -90,8 +90,16 @@ export async function runPleadingAnalysis({
       });
       claim.qa = result.qa;
       claim.source_spans = result.source_spans ?? claim.source_spans;
-      claim.child_ids = (result.sub_claims ?? []).map((s) => s.id);
-      subClaimsByParent[claim.id] = result.sub_claims ?? [];
+      // Defensive filter: the Pass 2 prompt shows one schema-example
+      // sub_claim with every field blank so the model can see the shape.
+      // When a claim is atomic the model is told to return [], but it
+      // occasionally echoes that example verbatim instead — a stub with
+      // no real text. Drop anything that isn't actually content.
+      const validSubClaims = (result.sub_claims ?? []).filter(
+        (s) => s?.id && typeof s.text === "string" && s.text.trim().length > 0
+      );
+      claim.child_ids = validSubClaims.map((s) => s.id);
+      subClaimsByParent[claim.id] = validSubClaims;
       rawAuthorities.push(...(result.authorities ?? []));
       rawEvidenceRefs.push(...(result.evidence_refs ?? []));
       rawQuotations.push(...(result.quotations ?? []));
