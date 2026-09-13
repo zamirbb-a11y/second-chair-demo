@@ -15,6 +15,7 @@ import { highSalienceRelationsForFamily, sortByAlertPriority } from "../../lib/c
 const ALERT_LABELS = {
   contradicts: { text: "סתירה אפשרית עם עמדה קודמת", tone: "text-red-700 bg-red-400" },
   not_addressed: { text: "לא אותרה התייחסות לטענה זו", tone: "text-amber-700 bg-amber-400" },
+  deemed_admission: { text: "נחשבת כמודה בה (תקנה 14(ב))", tone: "text-red-700 bg-red-400" },
   changed: { text: "שינוי עמדה אפשרי", tone: "text-amber-700 bg-amber-400" },
   responds_to_partial: { text: "מענה חלקי בלבד", tone: "text-amber-700 bg-amber-400" },
   responds_to_talks_past: { text: "מענה שאינו ממוקד בטענה עצמה", tone: "text-amber-700 bg-amber-400" },
@@ -25,7 +26,9 @@ function alertFor(family, relations, analysisId) {
   const high = highSalienceRelationsForFamily(relations, analysisId, family.id);
   if (high.length === 0) return null;
   const r = sortByAlertPriority(high)[0];
-  const key = r.type === "responds_to" ? `responds_to_${r.stance}` : r.type;
+  const key = r.type === "responds_to" ? `responds_to_${r.stance}`
+    : r.type === "not_addressed" && r.isDeemedAdmission ? "deemed_admission"
+    : r.type;
   return ALERT_LABELS[key] ?? null;
 }
 

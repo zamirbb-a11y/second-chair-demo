@@ -14,7 +14,7 @@ import { useRef, useState } from "react";
 import { runPleadingAnalysis } from "../lib/pleadingPipeline.js";
 import { uploadFileViaStorage } from "../utils/uploadViaStorage";
 import { deriveFamilies, familyContaining } from "../lib/claimFamilies.js";
-import { deriveScopeExpansionRelations } from "../lib/crossDocumentRelations.js";
+import { deriveScopeExpansionRelations, isDeemedAdmission } from "../lib/crossDocumentRelations.js";
 import CrossDocumentSummary from "../components/pleadings/CrossDocumentSummary.jsx";
 import PleadingList, { DOC_TYPE_LABELS, PARTY_LABELS } from "../components/pleadings/PleadingList.jsx";
 import PleadingUpload from "../components/pleadings/PleadingUpload.jsx";
@@ -74,13 +74,37 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
   const selectedFamily = families.find((f) => f.id === selectedFamilyId) ?? null;
   const analyzing = draft !== null;
 
+  const recordByAnalysisId = new Map(records.map((r) => [r.analysis?.id, r]));
+
+  // תקנה 14(ב) only applies to a specific pair (complaint fact, silent
+  // defense) — annotate each not_addressed relation with whether it
+  // qualifies, rather than changing what buildCrossDocumentRelations
+  // computed. isDeemedAdmission needs the two documents' types and the
+  // unanswered family's node_kind (damages amounts are carved out).
+  function annotateNotAddressed(relation) {
+    if (relation.type !== "not_addressed") return relation;
+    const subjectRecord = recordByAnalysisId.get(relation.subject.analysisId);
+    const targetRecord = recordByAnalysisId.get(relation.target.analysisId);
+    const subjectNodeKind = deriveFamilies(subjectRecord?.analysis).find((f) => f.id === relation.subject.familyId)?.node_kind;
+    return {
+      ...relation,
+      isDeemedAdmission: isDeemedAdmission(relation, {
+        subjectDocType: subjectRecord?.docType,
+        targetDocType: targetRecord?.docType,
+        subjectNodeKind,
+      }),
+    };
+  }
+
   // Case-wide pool, not just this document's own relations — a family's
   // History needs to show relations pointed at it from a LATER document
   // too (e.g. a reply's not_addressed finding about a defense claim), and
   // this is what lets History grow into a real chain later with no
   // redesign: every relation just names two (analysisId, familyId) pairs.
-  const allRelations = records.flatMap((r) => [...(r.analysis?.cross_document_relations ?? []), ...deriveScopeExpansionRelations(r)]);
-  const recordByAnalysisId = new Map(records.map((r) => [r.analysis?.id, r]));
+  const allRelations = records.flatMap((r) => [
+    ...(r.analysis?.cross_document_relations ?? []).map(annotateNotAddressed),
+    ...deriveScopeExpansionRelations(r),
+  ]);
 
   function jumpToFamily(analysisId, familyId) {
     const target = recordByAnalysisId.get(analysisId);

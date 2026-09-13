@@ -42,6 +42,28 @@ export function possibleScopeExpansion(family, relations, analysisId, docType) {
   return !(relations ?? []).some((r) => r.subject.analysisId === analysisId && r.subject.familyId === family.id);
 }
 
+// תקנה 14(ב) (as amended תשפ"א-2020, verbatim text confirmed by the
+// user — see docs/stage2-document-type-rules.md Addendum 2): the
+// defendant is deemed to admit every fact in the complaint except one
+// denied explicitly, in detail, and specifically in the defense's third
+// (detailed) part — with an express carve-out for the amount of
+// damages, which stays disputed absent an explicit admission.
+//
+// Scoped narrowly on purpose: the verbatim text names "הנתבע" and "כתב
+// התביעה" specifically, so this only applies to a not_addressed relation
+// whose unanswered fact originated in a complaint and whose silent
+// document is a defense. Not yet confirmed to generalize to any other
+// document-type pair (e.g. a reply's silence toward a defense) — every
+// other not_addressed case keeps the softer "no response identified"
+// wording.
+export function isDeemedAdmission(relation, { subjectDocType, targetDocType, subjectNodeKind } = {}) {
+  if (relation?.type !== "not_addressed") return false;
+  if (subjectDocType !== "statement_of_claim") return false;
+  if (targetDocType !== "statement_of_defense") return false;
+  if (subjectNodeKind === "damages") return false;
+  return true;
+}
+
 // Synthesizes one pseudo-relation per flagged family, in the same shape
 // every other relation uses, so it flows through relationsForFamily /
 // computeSalience / the History and alert UI with zero special-casing
