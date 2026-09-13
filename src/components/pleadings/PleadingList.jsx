@@ -27,18 +27,29 @@ export function claimGapCount(analysis) {
   ).length;
 }
 
-export default function PleadingList({ records, onOpen, onUploadNew, onRemove }) {
+export default function PleadingList({ records, onOpen, onUploadNew, onRemove, onOpenLedger }) {
   return (
     <div className="px-8 py-7 max-w-[820px]" dir="rtl">
       <div className="flex items-center justify-between mb-1">
         <h2 className="text-xl font-bold text-slate-900">כתבי טענות</h2>
-        <button
-          type="button"
-          onClick={onUploadNew}
-          className="rounded-lg bg-slate-900 text-white px-4 py-2 text-sm font-semibold hover:bg-slate-800 border-0 cursor-pointer"
-        >
-          + העלה כתב טענות
-        </button>
+        <div className="flex items-center gap-2">
+          {records.length > 0 && (
+            <button
+              type="button"
+              onClick={onOpenLedger}
+              className="rounded-lg bg-white text-slate-700 border border-slate-300 px-4 py-2 text-sm font-semibold hover:border-slate-400 cursor-pointer"
+            >
+              תמונת מצב של התיק
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onUploadNew}
+            className="rounded-lg bg-slate-900 text-white px-4 py-2 text-sm font-semibold hover:bg-slate-800 border-0 cursor-pointer"
+          >
+            + העלה כתב טענות
+          </button>
+        </div>
       </div>
       <p className="text-sm text-slate-500 mb-6">
         פירוק כתב טענות למפת טענות עם ביקורת לכל טענה: מה תומך, מה מחליש, מה חסר.

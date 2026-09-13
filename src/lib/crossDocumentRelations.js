@@ -6,6 +6,7 @@
 // later and apply to every existing analysis for free, with no re-run.
 
 import { LIGHTWEIGHT_KINDS } from "./pleadingValidation.js";
+import { deriveFamilies } from "./claimFamilies.js";
 
 export function computeSalience(relation) {
   if (!relation) return "low";
@@ -116,6 +117,37 @@ export const ALERT_PRIORITY = ["contradicts", "not_addressed", "possible_scope_e
 
 export function sortByAlertPriority(rels) {
   return [...rels].sort((a, b) => ALERT_PRIORITY.indexOf(a.type) - ALERT_PRIORITY.indexOf(b.type));
+}
+
+// Case-wide relations pool: every stored pleading's own relations,
+// annotated with isDeemedAdmission (needs the two documents' types,
+// resolved from the records list), plus the derived scope-expansion
+// pseudo-relations for reply-stage documents. The single source both
+// the interactive view (PleadingAnalysisView.jsx) and the Case Factual
+// Ledger (caseFactualLedger.js) read from, so the two can never
+// disagree about what a relation means.
+export function buildCaseRelations(records) {
+  const recordByAnalysisId = new Map(records.map((r) => [r.analysis?.id, r]));
+
+  function annotateNotAddressed(relation) {
+    if (relation.type !== "not_addressed") return relation;
+    const subjectRecord = recordByAnalysisId.get(relation.subject.analysisId);
+    const targetRecord = recordByAnalysisId.get(relation.target.analysisId);
+    const subjectNodeKind = deriveFamilies(subjectRecord?.analysis).find((f) => f.id === relation.subject.familyId)?.node_kind;
+    return {
+      ...relation,
+      isDeemedAdmission: isDeemedAdmission(relation, {
+        subjectDocType: subjectRecord?.docType,
+        targetDocType: targetRecord?.docType,
+        subjectNodeKind,
+      }),
+    };
+  }
+
+  return records.flatMap((r) => [
+    ...(r.analysis?.cross_document_relations ?? []).map(annotateNotAddressed),
+    ...deriveScopeExpansionRelations(r),
+  ]);
 }
 
 // Document-level rollup, entirely derived from this document's own

@@ -14,9 +14,10 @@ import { useRef, useState } from "react";
 import { runPleadingAnalysis } from "../lib/pleadingPipeline.js";
 import { uploadFileViaStorage } from "../utils/uploadViaStorage";
 import { deriveFamilies, familyContaining } from "../lib/claimFamilies.js";
-import { deriveScopeExpansionRelations, isDeemedAdmission } from "../lib/crossDocumentRelations.js";
+import { buildCaseRelations } from "../lib/crossDocumentRelations.js";
 import { checkPageLimit } from "../lib/formalChecks.js";
 import CrossDocumentSummary from "../components/pleadings/CrossDocumentSummary.jsx";
+import CaseFactualLedgerView from "../components/pleadings/CaseFactualLedgerView.jsx";
 import PleadingList, { DOC_TYPE_LABELS, PARTY_LABELS } from "../components/pleadings/PleadingList.jsx";
 import PleadingUpload from "../components/pleadings/PleadingUpload.jsx";
 import ClaimList from "../components/pleadings/ClaimList.jsx";
@@ -45,7 +46,7 @@ const STAGE_LABELS = {
 
 export default function PleadingAnalysisView({ caseId, accessToken }) {
   const [records, setRecords] = useState(() => loadRecords(caseId));
-  const [mode, setMode] = useState("list"); // "list" | "upload" | "analysis"
+  const [mode, setMode] = useState("list"); // "list" | "upload" | "analysis" | "ledger"
   const [viewMode, setViewMode] = useState("claims"); // "claims" | "document"
   const [currentId, setCurrentId] = useState(null);
   const [selectedFamilyId, setSelectedFamilyId] = useState(null);
@@ -77,35 +78,15 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
 
   const recordByAnalysisId = new Map(records.map((r) => [r.analysis?.id, r]));
 
-  // תקנה 14(ב) only applies to a specific pair (complaint fact, silent
-  // defense) — annotate each not_addressed relation with whether it
-  // qualifies, rather than changing what buildCrossDocumentRelations
-  // computed. isDeemedAdmission needs the two documents' types and the
-  // unanswered family's node_kind (damages amounts are carved out).
-  function annotateNotAddressed(relation) {
-    if (relation.type !== "not_addressed") return relation;
-    const subjectRecord = recordByAnalysisId.get(relation.subject.analysisId);
-    const targetRecord = recordByAnalysisId.get(relation.target.analysisId);
-    const subjectNodeKind = deriveFamilies(subjectRecord?.analysis).find((f) => f.id === relation.subject.familyId)?.node_kind;
-    return {
-      ...relation,
-      isDeemedAdmission: isDeemedAdmission(relation, {
-        subjectDocType: subjectRecord?.docType,
-        targetDocType: targetRecord?.docType,
-        subjectNodeKind,
-      }),
-    };
-  }
-
   // Case-wide pool, not just this document's own relations — a family's
   // History needs to show relations pointed at it from a LATER document
   // too (e.g. a reply's not_addressed finding about a defense claim), and
   // this is what lets History grow into a real chain later with no
   // redesign: every relation just names two (analysisId, familyId) pairs.
-  const allRelations = records.flatMap((r) => [
-    ...(r.analysis?.cross_document_relations ?? []).map(annotateNotAddressed),
-    ...deriveScopeExpansionRelations(r),
-  ]);
+  // buildCaseRelations also annotates isDeemedAdmission (תקנה 14(ב)) and
+  // derives scope-expansion pseudo-relations — shared with the Case
+  // Factual Ledger so the two never disagree about what a relation means.
+  const allRelations = buildCaseRelations(records);
 
   function jumpToFamily(analysisId, familyId) {
     const target = recordByAnalysisId.get(analysisId);
@@ -350,6 +331,17 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
     );
   }
 
+  if (mode === "ledger") {
+    return (
+      <CaseFactualLedgerView
+        records={records}
+        resolveFamilyRef={resolveFamilyRef}
+        onJumpToFamily={(analysisId, familyId) => { jumpToFamily(analysisId, familyId); setMode("analysis"); }}
+        onBack={() => setMode("list")}
+      />
+    );
+  }
+
   if (mode === "analysis" && (analyzing || current)) {
     const doc = analysis?.document;
     // The document view needs the pleading text, which only new records carry.
@@ -532,6 +524,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
         onOpen={(id) => { setCurrentId(id); setSelectedFamilyId(null); setMode("analysis"); setStatus(""); }}
         onUploadNew={() => { setUploadError(""); setMode("upload"); setStatus(""); }}
         onRemove={(id) => persist(records.filter((r) => r.id !== id))}
+        onOpenLedger={() => setMode("ledger")}
       />
     </>
   );
