@@ -116,6 +116,128 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
     persist(records.map((r) => (r.id === current.id ? { ...r, reviewed: nextReviewed } : r)));
   }
 
+  // Shared by analyze() (new upload) and reanalyze() (existing record,
+  // reusing its already-extracted text) — both need the same fairly
+  // involved streaming-callback wiring, so it's factored out instead of
+  // duplicated. On success, replacingRecordId (if given) removes the old
+  // record as the new one is added, preserving the original analysis id
+  // so any OTHER document's stored relations pointing at it stay valid.
+  //
+  // Partial-save-on-failure (keeping whatever fully streamed in rather
+  // than losing the whole run) only applies to a brand-new upload, where
+  // there's nothing to lose — a re-analysis that fails partway must never
+  // clobber a previously complete, working analysis with a worse partial
+  // one, so it just throws and leaves the original record untouched.
+  async function runPipelineAndPersist({
+    pleadingText, docType, party, priorDocs, filingDate,
+    storagePath = null, ocrReview = null, pageCount = null, fileType = null,
+    existingAnalysisId = null, replacingRecordId = null, fallbackTitle, signal,
+  }) {
+    let working = { claims: [], authorities: [], evidence_refs: [], quotations: [], claim_families: [], cross_document_relations: [] };
+    const baseRecords = replacingRecordId ? records.filter((r) => r.id !== replacingRecordId) : records;
+    try {
+      const analysis = await runPleadingAnalysis({
+        pleadingText,
+        docType,
+        party,
+        priorDocs,
+        existingAnalysisId,
+        signal,
+        on: {
+          stage: setStage,
+          skeleton: (s) => {
+            working = { ...working, document: s.document, theory_of_case: s.theory_of_case, claims: s.claims, coverage_notes: s.coverage_notes };
+            setDraft({ ...working });
+          },
+          claim: (r) => {
+            // Same defensive filter as pleadingPipeline.js's analyzeClaim:
+            // an atomic claim should yield sub_claims: [], but the model
+            // occasionally echoes the prompt's blank schema-example
+            // sub_claim instead. Only matters here for a partial record
+            // saved after an interrupted run — a completed run's on.done
+            // analysis already comes back through that filter.
+            const validSubClaims = (r.sub_claims ?? []).filter(
+              (s) => s?.id && typeof s.text === "string" && s.text.trim().length > 0
+            );
+            working.claims = working.claims.map((c) =>
+              c.id === r.claim_id
+                ? { ...c, qa: r.qa, source_spans: r.source_spans ?? c.source_spans, child_ids: validSubClaims.map((s) => s.id) }
+                : c
+            );
+            working.claims = [...working.claims, ...validSubClaims];
+            setDraft({ ...working });
+          },
+          claimsAdded: (added) => {
+            working.claims = [...working.claims, ...added];
+            setDraft({ ...working });
+          },
+          references: (refs) => {
+            working = { ...working, ...refs };
+            setDraft({ ...working });
+          },
+          families: (fams) => {
+            working = { ...working, claim_families: fams };
+            setDraft({ ...working });
+          },
+          relations: (rels) => {
+            working = { ...working, cross_document_relations: rels };
+            setDraft({ ...working });
+          },
+        },
+      });
+      const pageLimitWarning = checkPageLimit(docType, pageCount);
+      const record = {
+        id: analysis.id,
+        docType,
+        party,
+        title: analysis.document?.title || fallbackTitle,
+        createdAt: new Date().toISOString(),
+        filingDate, // ISO date (YYYY-MM-DD) as entered at upload, or null — drives History's chronological order
+        reviewed: {},
+        pleadingText, // the document view renders the pleading itself
+        storagePath,  // original file in Supabase Storage (PDF display)
+        fileType,
+        pageCount,
+        ocrReview, // {needsManualReview, unreadablePages} for scanned-PDF uploads, else null
+        analysis: pageLimitWarning
+          ? { ...analysis, coverage_notes: [analysis.coverage_notes, pageLimitWarning].filter(Boolean).join(" · ") }
+          : analysis,
+      };
+      persist([record, ...baseRecords]);
+      setCurrentId(record.id);
+      setDraft(null);
+      setStage(null);
+    } catch (pipelineErr) {
+      // Keep whatever fully arrived instead of losing the run — but only
+      // for a brand-new upload; see the note above the function.
+      if (!replacingRecordId && pipelineErr?.name !== "AbortError" && working.claims.some((c) => c.qa)) {
+        const record = {
+          id: `pa_partial_${Date.now()}`,
+          docType,
+          party,
+          title: working.document?.title || fallbackTitle,
+          createdAt: new Date().toISOString(),
+          filingDate,
+          reviewed: {},
+          pleadingText,
+          ocrReview,
+          analysis: {
+            ...working,
+            coverage_notes: [working.coverage_notes, "הניתוח נקטע לפני סיום — ייתכן שחלק מהטענות חסרות או ללא ביקורת."]
+              .filter(Boolean).join(" · "),
+          },
+        };
+        persist([record, ...baseRecords]);
+        setCurrentId(record.id);
+        setDraft(null);
+        setStage(null);
+        setStatus("הניתוח נקטע לפני סיום ונשמר באופן חלקי.");
+      } else {
+        throw pipelineErr;
+      }
+    }
+  }
+
   // ── Streaming analysis ────────────────────────────────────────────────
   async function analyze({ file, docType, party, respondsTo = [], filingDate = null }) {
     setUploadError("");
@@ -179,108 +301,13 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
         .filter(Boolean)
         .map((r) => ({ analysisId: r.analysis.id, party: r.party, families: r.analysis.claim_families ?? [] }));
 
-      // Client-orchestrated pipeline: each server call is short, so the
-      // platform's 300s function cap can never kill a run mid-analysis.
-      let working = { claims: [], authorities: [], evidence_refs: [], quotations: [], claim_families: [], cross_document_relations: [] };
-      try {
-        const analysis = await runPleadingAnalysis({
-          pleadingText,
-          docType,
-          party,
-          priorDocs,
-          signal: controller.signal,
-          on: {
-            stage: setStage,
-            skeleton: (s) => {
-              working = { ...working, document: s.document, theory_of_case: s.theory_of_case, claims: s.claims, coverage_notes: s.coverage_notes };
-              setDraft({ ...working });
-            },
-            claim: (r) => {
-              // Same defensive filter as pleadingPipeline.js's analyzeClaim:
-              // an atomic claim should yield sub_claims: [], but the model
-              // occasionally echoes the prompt's blank schema-example
-              // sub_claim instead. Only matters here for a partial record
-              // saved after an interrupted run — a completed run's on.done
-              // analysis already comes back through that filter.
-              const validSubClaims = (r.sub_claims ?? []).filter(
-                (s) => s?.id && typeof s.text === "string" && s.text.trim().length > 0
-              );
-              working.claims = working.claims.map((c) =>
-                c.id === r.claim_id
-                  ? { ...c, qa: r.qa, source_spans: r.source_spans ?? c.source_spans, child_ids: validSubClaims.map((s) => s.id) }
-                  : c
-              );
-              working.claims = [...working.claims, ...validSubClaims];
-              setDraft({ ...working });
-            },
-            claimsAdded: (added) => {
-              working.claims = [...working.claims, ...added];
-              setDraft({ ...working });
-            },
-            references: (refs) => {
-              working = { ...working, ...refs };
-              setDraft({ ...working });
-            },
-            families: (fams) => {
-              working = { ...working, claim_families: fams };
-              setDraft({ ...working });
-            },
-            relations: (rels) => {
-              working = { ...working, cross_document_relations: rels };
-              setDraft({ ...working });
-            },
-          },
-        });
-        const pageLimitWarning = checkPageLimit(docType, pageCount);
-        const record = {
-          id: analysis.id,
-          docType,
-          party,
-          title: analysis.document?.title || file.name,
-          createdAt: new Date().toISOString(),
-          filingDate, // ISO date (YYYY-MM-DD) as entered at upload, or null — drives History's chronological order
-          reviewed: {},
-          pleadingText, // the document view renders the pleading itself
-          storagePath,  // original file in Supabase Storage (PDF display)
-          fileType: (file.name.split(".").pop() ?? "").toLowerCase(),
-          pageCount,
-          ocrReview, // {needsManualReview, unreadablePages} for scanned-PDF uploads, else null
-          analysis: pageLimitWarning
-            ? { ...analysis, coverage_notes: [analysis.coverage_notes, pageLimitWarning].filter(Boolean).join(" · ") }
-            : analysis,
-        };
-        persist([record, ...records]);
-        setCurrentId(record.id);
-        setDraft(null);
-        setStage(null);
-      } catch (pipelineErr) {
-        // Keep whatever fully arrived instead of losing the run.
-        if (pipelineErr?.name !== "AbortError" && working.claims.some((c) => c.qa)) {
-          const record = {
-            id: `pa_partial_${Date.now()}`,
-            docType,
-            party,
-            title: working.document?.title || file.name,
-            createdAt: new Date().toISOString(),
-            filingDate,
-            reviewed: {},
-            pleadingText,
-            ocrReview,
-            analysis: {
-              ...working,
-              coverage_notes: [working.coverage_notes, "הניתוח נקטע לפני סיום — ייתכן שחלק מהטענות חסרות או ללא ביקורת."]
-                .filter(Boolean).join(" · "),
-            },
-          };
-          persist([record, ...records]);
-          setCurrentId(record.id);
-          setDraft(null);
-          setStage(null);
-          setStatus("הניתוח נקטע לפני סיום ונשמר באופן חלקי.");
-        } else {
-          throw pipelineErr;
-        }
-      }
+      await runPipelineAndPersist({
+        pleadingText, docType, party, priorDocs, filingDate,
+        storagePath, ocrReview, pageCount,
+        fileType: (file.name.split(".").pop() ?? "").toLowerCase(),
+        fallbackTitle: file.name,
+        signal: controller.signal,
+      });
     } catch (err) {
       setDraft(null);
       setStage(null);
@@ -300,6 +327,63 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
         );
         setMode("upload");
       }
+    } finally {
+      abortRef.current = null;
+    }
+  }
+
+  // Re-runs the pipeline on an already-uploaded document using its stored
+  // text (no re-upload, no re-OCR) — lets an existing analysis pick up
+  // fixes made to the analysis rules since it was first run. Reuses the
+  // same analysis id (runPipelineAndPersist -> existingAnalysisId) so any
+  // OTHER document's stored relations pointing at this one stay valid;
+  // does NOT cascade — a document that responds to this one keeps its
+  // own, now possibly stale, relations until it is itself re-analyzed.
+  async function reanalyze(recordId) {
+    const record = records.find((r) => r.id === recordId);
+    if (!record) return;
+    setUploadError("");
+    setStatus("");
+    setStage("reading");
+    setDraft({ claims: [], authorities: [], evidence_refs: [], quotations: [], claim_families: [], cross_document_relations: [] });
+    setMode("analysis");
+    setCurrentId(recordId);
+    setSelectedFamilyId(null);
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    const priorDocs = (record.analysis?.respondsTo ?? [])
+      .map((analysisId) => recordByAnalysisId.get(analysisId))
+      .filter(Boolean)
+      .map((r) => ({ analysisId: r.analysis.id, party: r.party, families: r.analysis.claim_families ?? [] }));
+
+    try {
+      await runPipelineAndPersist({
+        pleadingText: record.pleadingText,
+        docType: record.docType,
+        party: record.party,
+        priorDocs,
+        filingDate: record.filingDate ?? null,
+        storagePath: record.storagePath ?? null,
+        ocrReview: record.ocrReview ?? null,
+        pageCount: record.pageCount ?? null,
+        fileType: record.fileType ?? null,
+        existingAnalysisId: record.analysis?.id ?? null,
+        replacingRecordId: recordId,
+        fallbackTitle: record.title,
+        signal: controller.signal,
+      });
+    } catch (err) {
+      setDraft(null);
+      setStage(null);
+      setCurrentId(recordId); // the original record is untouched — fall back to showing it
+      setStatus(
+        err?.name === "AbortError"
+          ? "הניתוח מחדש בוטל."
+          : "הניתוח מחדש לא הושלם — הניתוח הקודם נשמר ללא שינוי."
+      );
+      if (err?.name !== "AbortError") console.error("re-analysis failed:", err);
     } finally {
       abortRef.current = null;
     }
@@ -525,6 +609,8 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
         onUploadNew={() => { setUploadError(""); setMode("upload"); setStatus(""); }}
         onRemove={(id) => persist(records.filter((r) => r.id !== id))}
         onOpenLedger={() => setMode("ledger")}
+        onReanalyze={reanalyze}
+        onEditDocType={(id, docType) => persist(records.map((r) => (r.id === id ? { ...r, docType } : r)))}
       />
     </>
   );

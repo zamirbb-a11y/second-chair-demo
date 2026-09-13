@@ -48,6 +48,7 @@ export async function runPleadingAnalysis({
   docType = "other",
   party = "unknown",
   priorDocs = [], // [{analysisId, party, families}] — the pleading(s) this one was explicitly marked as responding to at upload time
+  existingAnalysisId = null, // re-analysis: reuse the prior analysis id so other documents' stored relations pointing at it stay valid
   endpoint = "/api/analyze-pleading",
   signal,
   on = {},
@@ -211,7 +212,7 @@ export async function runPleadingAnalysis({
   // ── Cross-document relations: only runs when this document was marked,
   // at upload, as responding to specific prior pleading(s). Additive and
   // fail-safe — see crossDocumentRelationMatching.js.
-  const analysisId = `pa_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const analysisId = existingAnalysisId ?? `pa_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   on.stage?.("relations");
   let crossDocumentRelations = [];
   if (priorDocs.length > 0) {
