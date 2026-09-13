@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from "react";
 import { familyMembers, primaryClaim } from "../../lib/claimFamilies.js";
+import { relationsForFamily, highSalienceRelationsForFamily, sortByAlertPriority } from "../../lib/crossDocumentRelations.js";
 
 const KIND_LABELS = {
   main_claim: "עילה מרכזית", factual_allegation: "טענה עובדתית",
@@ -156,12 +157,166 @@ function OccurrenceStrip({ members, activeId, onSelect }) {
   );
 }
 
-export default function ClaimDetail({ family, claims, analysis, reviewed, onToggleReviewed }) {
+// Bare verb phrases — the sentence around them always supplies the object
+// ("עמדה קודמת" / "טענה זו"), so the verb itself never names one. Building
+// the full sentence by string-replacing a verb that already had an object
+// baked in produced grammatically broken duplicates ("מכחישה את הטענה
+// טענה קודמת") — keeping verbs object-free avoids that class of bug.
+const RELATION_VERBS = {
+  responds_to_admits: "מקבלת",
+  responds_to_denies: "מכחישה",
+  responds_to_partial: "עונה באופן חלקי בלבד על",
+  responds_to_talks_past: "אינה מתמודדת עם המסקנה של",
+  contradicts: "סותרת",
+  changed: "משתנה באופן מהותי לעומת",
+  repeats: "חוזרת על",
+};
+const CONFIDENCE_LABELS = { high: "גבוה", medium: "בינוני", low: "נמוך" };
+
+// One entry in a family's History: phrased from THIS family's point of
+// view regardless of which side of the relation it actually is (the
+// subject that asserted it, or the target it was asserted about) — the
+// lawyer shouldn't have to reconstruct that direction themselves.
+function HistoryEntry({ relation, analysisId, familyId, resolveFamilyRef, onJumpToFamily }) {
+  const isSubject = relation.subject.analysisId === analysisId && relation.subject.familyId === familyId;
+  const otherRef = isSubject ? relation.target : relation.subject;
+  // resolveFamilyRef handles a null familyId (not_addressed's target names
+  // only a document, never a specific family) — always call it so that
+  // case still resolves a document to jump to, just with no family.
+  // possible_scope_expansion has no "other side" at all (target is null —
+  // it's a finding about this family in isolation), so otherRef itself
+  // can be null here; guard before calling resolveFamilyRef.
+  const other = otherRef ? resolveFamilyRef(otherRef.analysisId, otherRef.familyId ?? null) : null;
+
+  let line;
+  if (relation.type === "not_addressed") {
+    // תקנה 14(ב): a complaint fact left unaddressed in a defense is a
+    // deemed admission, not just silence — but only that specific pair,
+    // and only when isDeemedAdmission actually cleared the damages-
+    // quantum carve-out and the document-type check (see
+    // src/lib/crossDocumentRelations.js). Every other not_addressed case
+    // keeps the softer, cautious wording.
+    line = relation.isDeemedAdmission
+      ? `טענה זו נחשבת כמודה בה על ידי ${other?.docTitle ?? "המסמך המשיב"} — לא אותרה הכחשה מפורשת ומפורטת בחלק הפירוט (תקנה 14(ב))`
+      : `לא אותרה התייחסות לטענה זו ב${other?.docTitle ?? "המסמך המשיב"}`;
+  } else if (relation.type === "possible_scope_expansion") {
+    line = "טענה זו אינה מתקשרת לאף טענה קודמת במסמכים שסומנו כמענה — ייתכן שמדובר בהרחבת חזית.";
+  } else {
+    const key = relation.type === "responds_to" ? `responds_to_${relation.stance}` : relation.type;
+    const verb = RELATION_VERBS[key] ?? relation.type;
+    line = isSubject
+      ? `טענה זו ${verb} עמדה קודמת${other ? ` מ${other.docTitle}` : ""}`
+      : `טענה${other ? ` מ${other.docTitle}` : ""} ${verb} טענה זו`;
+  }
+
+  return (
+    <div className="rounded-xl border border-slate-200 px-3 py-2.5 space-y-1.5">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-sm text-slate-800 leading-relaxed flex-1">{line}</p>
+        <span className="text-[10px] text-slate-400 flex-shrink-0 pt-0.5">ביטחון: {CONFIDENCE_LABELS[relation.confidence] ?? relation.confidence}</span>
+      </div>
+      {other?.family && (
+        <p className="text-xs text-slate-500 leading-relaxed border-r-2 border-slate-200 pr-2">
+          "{other.family.canonical_text}"
+        </p>
+      )}
+      <p className="text-xs text-slate-500">{relation.rationale}</p>
+      {other && (
+        <button
+          type="button"
+          onClick={() => onJumpToFamily(other.analysisId, other.family?.id ?? null)}
+          className="text-xs font-semibold text-blue-700 hover:text-blue-800 bg-transparent border-0 cursor-pointer p-0"
+        >
+          {other.family ? `עבור למקור ב${other.docTitle} ←` : `עבור אל ${other.docTitle} ←`}
+        </button>
+      )}
+    </div>
+  );
+}
+
+const ALERT_BANNER_TEXT = {
+  contradicts: "סתירה אפשרית עם עמדה קודמת",
+  changed: "שינוי עמדה אפשרי",
+  not_addressed: "טענה מהותית קודמת — לא אותרה התייחסות אליה כאן",
+  deemed_admission: "טענה מהותית קודמת נחשבת כמודה בה (תקנה 14(ב)) — לא אותרה הכחשה מפורשת ומפורטת",
+  responds_to_partial: "מענה חלקי בלבד לטענה קודמת",
+  responds_to_talks_past: "המענה כאן עשוי שלא להתמודד עם הטענה עצמה",
+  possible_scope_expansion: "ייתכן שזו הרחבת חזית — לא אותר קשר למסמכים שסומנו כמענה",
+};
+const ALERT_TONE = { contradicts: "red", changed: "amber", not_addressed: "amber", deemed_admission: "red", responds_to: "amber", possible_scope_expansion: "amber" };
+
+function AlertBanner({ relation, analysisId, family, resolveFamilyRef, onOpenHistory }) {
+  const isSubject = relation.subject.analysisId === analysisId && relation.subject.familyId === family.id;
+  const otherRef = isSubject ? relation.target : relation.subject;
+  const other = otherRef?.analysisId ? resolveFamilyRef(otherRef.analysisId, otherRef.familyId ?? null) : null;
+  const key = relation.type === "responds_to" ? `responds_to_${relation.stance}`
+    : relation.type === "not_addressed" && relation.isDeemedAdmission ? "deemed_admission"
+    : relation.type;
+  const tone = ALERT_TONE[key] ?? "amber";
+  const toneClasses = tone === "red" ? "bg-red-50 border-red-200 text-red-800" : "bg-amber-50 border-amber-200 text-amber-800";
+
+  return (
+    <div className={`rounded-xl border px-3 py-2 mb-3 text-sm leading-relaxed ${toneClasses}`}>
+      <p>
+        <b className="font-bold">{ALERT_BANNER_TEXT[key] ?? relation.type}</b>
+        {other?.family && <> — {other.docTitle} טענה/ה: "{other.family.canonical_text.slice(0, 90)}{other.family.canonical_text.length > 90 ? "…" : ""}"</>}
+        {other && !other.family && <> — {other.docTitle}</>}
+      </p>
+      <button
+        type="button"
+        onClick={onOpenHistory}
+        className="text-xs font-semibold underline bg-transparent border-0 cursor-pointer p-0 mt-0.5 opacity-80 hover:opacity-100"
+      >
+        לפרטים בהיסטוריה
+      </button>
+    </div>
+  );
+}
+
+// Chronological by the OTHER document's filing date — undated documents
+// (filing date is optional at upload) sort after every dated one rather
+// than interleaving arbitrarily, so a partial date picture still reads
+// left-to-right as "what's ordered stays ordered."
+function otherAnalysisId(relation, analysisId, familyId) {
+  const isSubject = relation.subject.analysisId === analysisId && relation.subject.familyId === familyId;
+  return isSubject ? relation.target.analysisId : relation.subject.analysisId;
+}
+
+function HistoryTab({ family, analysisId, relations, resolveFamilyRef, onJumpToFamily }) {
+  const entries = relationsForFamily(relations, analysisId, family.id);
+  if (entries.length === 0) {
+    return <p className="text-sm text-slate-500">אין עדיין היסטוריה בין-מסמכית לטענה זו.</p>;
+  }
+  const sorted = [...entries].sort((a, b) => {
+    const dateOf = (r) => resolveFamilyRef(otherAnalysisId(r, analysisId, family.id), null)?.filingDate ?? "9999-99-99";
+    return dateOf(a).localeCompare(dateOf(b));
+  });
+  return (
+    <div className="space-y-2.5">
+      {sorted.map((r) => (
+        <HistoryEntry
+          key={r.id}
+          relation={r}
+          analysisId={analysisId}
+          familyId={family.id}
+          resolveFamilyRef={resolveFamilyRef}
+          onJumpToFamily={onJumpToFamily}
+        />
+      ))}
+    </div>
+  );
+}
+
+export default function ClaimDetail({
+  family, claims, analysis, reviewed, onToggleReviewed,
+  analysisId, relations = [], resolveFamilyRef, onJumpToFamily,
+}) {
   const [tab, setTab] = useState("qa");
   const [activeMemberId, setActiveMemberId] = useState(family?.primary_member_id ?? null);
 
   useEffect(() => {
     setActiveMemberId(family?.primary_member_id ?? null);
+    setTab("qa");
   }, [family?.id]);
 
   if (!family) {
@@ -174,7 +329,12 @@ export default function ClaimDetail({ family, claims, analysis, reviewed, onTogg
 
   const members = familyMembers(family, claims);
   const activeClaim = members.find((m) => m.id === activeMemberId) ?? primaryClaim(family, claims);
-  const tabs = [["qa", "ביקורת"], ["sources", "מקורות"], ["refs", "אסמכתאות וראיות"]];
+  const familyRelations = relationsForFamily(relations, analysisId, family.id);
+  const topAlert = sortByAlertPriority(highSalienceRelationsForFamily(relations, analysisId, family.id))[0];
+  const tabs = [
+    ["qa", "ביקורת"], ["sources", "מקורות"], ["refs", "אסמכתאות וראיות"],
+    ...(familyRelations.length > 0 ? [["history", "היסטוריה"]] : []),
+  ];
 
   return (
     <div className="flex-1 overflow-y-auto px-7 py-6" dir="rtl">
@@ -217,7 +377,17 @@ export default function ClaimDetail({ family, claims, analysis, reviewed, onTogg
         <p className="text-sm text-slate-500 mb-1">מה זה מבסס: {activeClaim.what_it_establishes}</p>
       )}
       {family.rationale && members.length > 1 && (
-        <p className="text-xs text-slate-400 mb-4">למה זו אותה טענה: {family.rationale}</p>
+        <p className="text-xs text-slate-400 mb-2">למה זו אותה טענה: {family.rationale}</p>
+      )}
+
+      {topAlert && (
+        <AlertBanner
+          relation={topAlert}
+          analysisId={analysisId}
+          family={family}
+          resolveFamilyRef={resolveFamilyRef}
+          onOpenHistory={() => setTab("history")}
+        />
       )}
 
       <OccurrenceStrip members={members} activeId={activeClaim?.id} onSelect={setActiveMemberId} />
@@ -245,6 +415,15 @@ export default function ClaimDetail({ family, claims, analysis, reviewed, onTogg
       {tab === "qa" && <QaTab claim={activeClaim} />}
       {tab === "sources" && <SourcesTab family={family} />}
       {tab === "refs" && <RefsTab family={family} analysis={analysis} />}
+      {tab === "history" && (
+        <HistoryTab
+          family={family}
+          analysisId={analysisId}
+          relations={relations}
+          resolveFamilyRef={resolveFamilyRef}
+          onJumpToFamily={onJumpToFamily}
+        />
+      )}
     </div>
   );
 }

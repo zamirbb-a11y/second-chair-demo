@@ -5,7 +5,7 @@
 // the browser and by scripts/test-analyze-pleading.mjs in node.
 //
 // Callbacks (all optional):
-//   on.stage(stage)                     "skeleton"|"claims"|"audit"|"references"|"families"
+//   on.stage(stage)                     "skeleton"|"claims"|"audit"|"references"|"families"|"relations"
 //   on.skeleton({document, theory_of_case, claims, coverage_notes})
 //   on.claim({claim_id, qa, sub_claims, source_spans})
 //   on.claimError(claimId)
@@ -13,6 +13,7 @@
 //   on.audit(warnings)
 //   on.references({authorities, evidence_refs, quotations})
 //   on.families(claimFamilies)
+//   on.relations(crossDocumentRelations)
 // Returns the fully assembled PleadingAnalysis (also passed to on.done).
 //
 // Claim Families: a derived grouping layer over `claims`, computed after
@@ -28,7 +29,8 @@
 // and if it fails to compute for any reason, the raw claims stay fully
 // usable with no families layer for that run.
 
-import { buildCandidateGroups } from "./claimFamilyClustering.js";
+import { buildCandidateGroups, mergeParentChildGroups } from "./claimFamilyClustering.js";
+import { buildCrossDocumentRelations, resolveSelfReferences } from "./crossDocumentRelationMatching.js";
 
 const CLAIM_CONCURRENCY = 4;
 
@@ -45,6 +47,9 @@ export async function runPleadingAnalysis({
   pleadingText,
   docType = "other",
   party = "unknown",
+  isInterimRelief = false, // סעדים זמניים modifier on motion/response/reply_to_motion/affidavit — see documentStageProfiles.js
+  priorDocs = [], // [{analysisId, party, families}] — the pleading(s) this one was explicitly marked as responding to at upload time
+  existingAnalysisId = null, // re-analysis: reuse the prior analysis id so other documents' stored relations pointing at it stay valid
   endpoint = "/api/analyze-pleading",
   signal,
   on = {},
@@ -84,11 +89,21 @@ export async function runPleadingAnalysis({
         claim,
         otherClaims: mainClaims.filter((c) => c.id !== claim.id).map((c) => ({ id: c.id, text: c.text })),
         theoryOfCase: skeleton.theory_of_case,
+        docType,
+        isInterimRelief,
       });
       claim.qa = result.qa;
       claim.source_spans = result.source_spans ?? claim.source_spans;
-      claim.child_ids = (result.sub_claims ?? []).map((s) => s.id);
-      subClaimsByParent[claim.id] = result.sub_claims ?? [];
+      // Defensive filter: the Pass 2 prompt shows one schema-example
+      // sub_claim with every field blank so the model can see the shape.
+      // When a claim is atomic the model is told to return [], but it
+      // occasionally echoes that example verbatim instead — a stub with
+      // no real text. Drop anything that isn't actually content.
+      const validSubClaims = (result.sub_claims ?? []).filter(
+        (s) => s?.id && typeof s.text === "string" && s.text.trim().length > 0
+      );
+      claim.child_ids = validSubClaims.map((s) => s.id);
+      subClaimsByParent[claim.id] = validSubClaims;
       rawAuthorities.push(...(result.authorities ?? []));
       rawEvidenceRefs.push(...(result.evidence_refs ?? []));
       rawQuotations.push(...(result.quotations ?? []));
@@ -120,7 +135,7 @@ export async function runPleadingAnalysis({
       ...rawAuthorities.map((a, i) => ({ id: `rawA${i + 1}`, node_kind: "authority", text: a.raw_citation })),
       ...rawEvidenceRefs.map((e, i) => ({ id: `rawE${i + 1}`, node_kind: "evidence", text: e.label })),
     ];
-    const audit = await post("audit", { pleadingText, nodes: auditNodes });
+    const audit = await post("audit", { pleadingText, nodes: auditNodes, docType });
 
     const unmapped = audit.unmapped_substantive ?? [];
     if (unmapped.length > 0) {
@@ -196,12 +211,36 @@ export async function runPleadingAnalysis({
   const claimFamilies = await buildClaimFamilies(allClaims, post);
   on.families?.(claimFamilies);
 
+  // ── Cross-document relations: only runs when this document was marked,
+  // at upload, as responding to specific prior pleading(s). Additive and
+  // fail-safe — see crossDocumentRelationMatching.js.
+  const analysisId = existingAnalysisId ?? `pa_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  on.stage?.("relations");
+  let crossDocumentRelations = [];
+  if (priorDocs.length > 0) {
+    try {
+      // Raw party values ("claimant"/"defendant") flow through unmapped —
+      // the one Hebrew label mapping lives in pleadingCrossDocumentRelations.js,
+      // where each candidate can carry its own document's party rather
+      // than a single shared one (respondsTo can name more than one doc).
+      const raw = await buildCrossDocumentRelations(claimFamilies, priorDocs, post, { currentParty: party });
+      crossDocumentRelations = resolveSelfReferences(raw, analysisId);
+    } catch (err) {
+      if (err?.name === "AbortError") throw err;
+      console.error("Cross-document relations failed (non-blocking):", err);
+      crossDocumentRelations = [];
+    }
+  }
+  on.relations?.(crossDocumentRelations);
+
   const analysis = {
-    id: `pa_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    id: analysisId,
     document: skeleton.document,
     theory_of_case: skeleton.theory_of_case,
     claims: allClaims,
     claim_families: claimFamilies,
+    cross_document_relations: crossDocumentRelations,
+    respondsTo: priorDocs.map((d) => d.analysisId),
     authorities: references.authorities ?? [],
     evidence_refs: references.evidence_refs ?? [],
     quotations: references.quotations ?? [],
@@ -236,7 +275,10 @@ export async function buildClaimFamilies(allClaims, post) {
   // malformed sub-claim) still needs a family. Never let it just vanish.
   const embeddedIds = new Set(embeddings.map((e) => e.id));
   const missingSingletons = allClaims.filter((c) => !embeddedIds.has(c.id)).map((c) => [c.id]);
-  const candidateGroups = [...buildCandidateGroups(embeddings), ...missingSingletons];
+  const candidateGroups = mergeParentChildGroups(
+    [...buildCandidateGroups(embeddings), ...missingSingletons],
+    allClaims
+  );
 
   const confirmed = [];
   async function confirmGroup(ids) {

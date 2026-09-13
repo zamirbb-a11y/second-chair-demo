@@ -4,15 +4,27 @@
 import { useState } from "react";
 import { DOC_TYPE_LABELS } from "./PleadingList.jsx";
 
-export default function PleadingUpload({ onAnalyze, onCancel, error, initial, maxSizeLabel = "50MB" }) {
+export default function PleadingUpload({ onAnalyze, onCancel, error, initial, maxSizeLabel = "50MB", priorRecords = [] }) {
   // On a failed analysis the view remounts this form — restore the user's
   // previous selections so "the file wasn't lost" is actually true.
   const [file, setFile] = useState(initial?.file ?? null);
   const [docType, setDocType] = useState(initial?.docType ?? "");
   const [party, setParty] = useState(initial?.party ?? "");
   const [dragOver, setDragOver] = useState(false);
+  const [respondsTo, setRespondsTo] = useState(initial?.respondsTo ?? []);
+  const [filingDate, setFilingDate] = useState(initial?.filingDate ?? "");
+  const [isInterimRelief, setIsInterimRelief] = useState(initial?.isInterimRelief ?? false);
+  const [checkDocxFormatting, setCheckDocxFormatting] = useState(initial?.checkDocxFormatting ?? false);
+
+  const toggleRespondsTo = (id) =>
+    setRespondsTo((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
 
   const ready = file && docType && party;
+  const showInterimReliefOption = ["motion", "response", "reply_to_motion", "affidavit"].includes(docType);
+  // Opt-in, not automatic — a lawyer's own pre-filing draft, not every
+  // upload. Only meaningful for .docx: a PDF has no editable formatting
+  // to check, and a scanned PDF has none to read in the first place.
+  const isDocxFile = /\.docx$/i.test(file?.name ?? "");
 
   return (
     <div className="px-8 py-7 max-w-[640px]" dir="rtl">
@@ -98,6 +110,73 @@ export default function PleadingUpload({ onAnalyze, onCancel, error, initial, ma
         </div>
       </div>
 
+      {showInterimReliefOption && (
+        <label className="flex items-center gap-2 text-sm text-slate-700 mb-5 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={isInterimRelief}
+            onChange={(e) => setIsInterimRelief(e.target.checked)}
+            className="accent-slate-700 cursor-pointer"
+          />
+          מסמך זה עוסק בסעד זמני (משנה את מגבלת העמודים ומוסיף בדיקה מהותית — סיכויי ההליך, מאזן הנוחות)
+        </label>
+      )}
+
+      {isDocxFile && (
+        <label className="flex items-center gap-2 text-sm text-slate-700 mb-5 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={checkDocxFormatting}
+            onChange={(e) => setCheckDocxFormatting(e.target.checked)}
+            className="accent-slate-700 cursor-pointer"
+          />
+          בדיקה צורנית ועקביות לשונית (טיוטת וורד לפני הגשה — עמודים/שוליים/גופן לפי הדין, וכינויים/הפניות לא עקביים)
+        </label>
+      )}
+
+      <div className="mb-5">
+        <label htmlFor="pleading-filing-date" className="block text-xs font-semibold text-slate-600 mb-1.5">
+          תאריך הגשה (לא חובה — משמש לסידור כרונולוגי בהיסטוריה)
+        </label>
+        <input
+          id="pleading-filing-date"
+          type="date"
+          value={filingDate}
+          onChange={(e) => setFilingDate(e.target.value)}
+          className="text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white outline-none focus:border-blue-400"
+        />
+      </div>
+
+      {priorRecords.length > 0 && (
+        <div className="mb-5">
+          <span className="block text-xs font-semibold text-slate-600 mb-1.5">
+            האם מסמך זה מתייחס לכתב טענות קודם בתיק? (לא חובה)
+          </span>
+          {(docType === "reply" || docType === "reply_to_motion") && (
+            <p className="text-xs text-slate-500 mb-1.5">
+              לבדיקת הרחבת חזית מדויקת יותר, מומלץ לסמן גם את המסמך שמסמך זה משיב לו וגם את המסמך שקדם לו (למשל: גם כתב ההגנה וגם כתב התביעה המקורי).
+            </p>
+          )}
+          <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto rounded-lg border border-slate-200 p-2">
+            {priorRecords.map((r) => (
+              <label key={r.id} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer px-1.5 py-1 rounded-md hover:bg-slate-50">
+                <input
+                  type="checkbox"
+                  checked={respondsTo.includes(r.id)}
+                  onChange={() => toggleRespondsTo(r.id)}
+                  className="accent-slate-700 cursor-pointer flex-shrink-0"
+                />
+                <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 flex-shrink-0">
+                  {DOC_TYPE_LABELS[r.docType] ?? r.docType}
+                </span>
+                <span className="truncate flex-1">{r.title}</span>
+                {r.filingDate && <span className="text-xs text-slate-400 flex-shrink-0">{r.filingDate}</span>}
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
       {error && (
         <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2 mb-4">
           {error}
@@ -107,7 +186,7 @@ export default function PleadingUpload({ onAnalyze, onCancel, error, initial, ma
       <button
         type="button"
         disabled={!ready}
-        onClick={() => onAnalyze({ file, docType, party })}
+        onClick={() => onAnalyze({ file, docType, party, respondsTo, filingDate: filingDate || null, isInterimRelief: showInterimReliefOption && isInterimRelief, checkDocxFormatting: isDocxFile && checkDocxFormatting })}
         className="rounded-lg bg-slate-900 text-white px-6 py-2.5 text-sm font-semibold hover:bg-slate-800 disabled:opacity-40 border-0 cursor-pointer"
       >
         נתח מסמך

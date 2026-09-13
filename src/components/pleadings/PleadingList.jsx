@@ -8,7 +8,10 @@ export const DOC_TYPE_LABELS = {
   statement_of_defense: "כתב הגנה",
   reply:                "כתב תשובה",
   motion:               "בקשה",
-  response:             "תגובה",
+  response:             "תגובה לבקשה",
+  reply_to_motion:      "תשובה לתגובה",
+  summation:            "סיכומים",
+  affidavit:            "תצהיר",
   other:                "כתב טענות",
 };
 
@@ -25,18 +28,29 @@ export function claimGapCount(analysis) {
   ).length;
 }
 
-export default function PleadingList({ records, onOpen, onUploadNew, onRemove }) {
+export default function PleadingList({ records, onOpen, onUploadNew, onRemove, onOpenLedger, onReanalyze, onEditDocType }) {
   return (
     <div className="px-8 py-7 max-w-[820px]" dir="rtl">
       <div className="flex items-center justify-between mb-1">
         <h2 className="text-xl font-bold text-slate-900">כתבי טענות</h2>
-        <button
-          type="button"
-          onClick={onUploadNew}
-          className="rounded-lg bg-slate-900 text-white px-4 py-2 text-sm font-semibold hover:bg-slate-800 border-0 cursor-pointer"
-        >
-          + העלה כתב טענות
-        </button>
+        <div className="flex items-center gap-2">
+          {records.length > 0 && (
+            <button
+              type="button"
+              onClick={onOpenLedger}
+              className="rounded-lg bg-white text-slate-700 border border-slate-300 px-4 py-2 text-sm font-semibold hover:border-slate-400 cursor-pointer"
+            >
+              תמונת מצב של התיק
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onUploadNew}
+            className="rounded-lg bg-slate-900 text-white px-4 py-2 text-sm font-semibold hover:bg-slate-800 border-0 cursor-pointer"
+          >
+            + העלה כתב טענות
+          </button>
+        </div>
       </div>
       <p className="text-sm text-slate-500 mb-6">
         פירוק כתב טענות למפת טענות עם ביקורת לכל טענה: מה תומך, מה מחליש, מה חסר.
@@ -97,8 +111,26 @@ export default function PleadingList({ records, onOpen, onUploadNew, onRemove })
                         {gaps} פערים
                       </span>
                     )}
+                    {r.ocrReview?.needsManualReview && (
+                      <span
+                        className="flex items-center gap-1.5 text-amber-700 font-semibold"
+                        title={`עמ׳ ${r.ocrReview.unreadablePages.join(", ")} לא זוהו אוטומטית`}
+                      >
+                        <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                        {r.ocrReview.unreadablePages.length} עמ׳ לא זוהו
+                      </span>
+                    )}
                   </div>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => onReanalyze(r.id)}
+                  title="הרץ שוב את הניתוח על טקסט המסמך שכבר חולץ — ללא העלאה מחדש"
+                  className="text-xs font-semibold text-slate-500 hover:text-slate-700 bg-transparent border-0 cursor-pointer px-1 flex-shrink-0"
+                >
+                  נתח מחדש
+                </button>
+                <DocTypeEditor record={r} onEditDocType={onEditDocType} />
                 <RemoveButton onConfirm={() => onRemove(r.id)} />
               </div>
             );
@@ -106,6 +138,38 @@ export default function PleadingList({ records, onOpen, onUploadNew, onRemove })
         </div>
       )}
     </div>
+  );
+}
+
+// A wrong docType only changes the analysis rules on the NEXT run — see
+// "נתח מחדש" above — so editing it here is metadata-only and doesn't
+// retroactively rewrite an already-completed analysis.
+function DocTypeEditor({ record, onEditDocType }) {
+  const [editing, setEditing] = useState(false);
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        title="ערוך סוג מסמך"
+        className="text-xs font-semibold text-slate-400 hover:text-slate-600 bg-transparent border-0 cursor-pointer px-1 flex-shrink-0"
+      >
+        ✎
+      </button>
+    );
+  }
+  return (
+    <select
+      autoFocus
+      value={record.docType}
+      onChange={(e) => { onEditDocType(record.id, e.target.value); setEditing(false); }}
+      onBlur={() => setEditing(false)}
+      className="text-xs border border-slate-300 rounded-md px-1.5 py-1 bg-white flex-shrink-0"
+    >
+      {Object.entries(DOC_TYPE_LABELS).map(([value, label]) => (
+        <option key={value} value={value}>{label}</option>
+      ))}
+    </select>
   );
 }
 

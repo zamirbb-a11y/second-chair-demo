@@ -29,9 +29,14 @@ import { buildPass3Prompt, PASS3_SYSTEM } from "../src/prompts/pleadingPass3.js"
 import { buildCoverageAuditPrompt, AUDIT_SYSTEM, buildCoverageRecheckPrompt } from "../src/prompts/pleadingCoverageAudit.js";
 import { buildFamilyConfirmPrompt, FAMILY_CONFIRM_SYSTEM } from "../src/prompts/pleadingClaimFamilies.js";
 import {
+  buildRelationConfirmPrompt, RELATION_CONFIRM_SYSTEM,
+  buildNotAddressedPrompt, NOT_ADDRESSED_SYSTEM,
+} from "../src/prompts/pleadingCrossDocumentRelations.js";
+import {
   validatePass1, validatePass2, verifySourceSpans,
   LIGHTWEIGHT_KINDS, EMPTY_QA,
 } from "../src/lib/pleadingValidation.js";
+import { buildDocxConsistencyPrompt, DOCX_CONSISTENCY_SYSTEM } from "../src/prompts/docxConsistencyCheck.js";
 
 const MODEL = "gpt-4.1";
 // Mechanical passes (reference dedup, coverage mapping) run on mini:
@@ -196,7 +201,7 @@ async function stepSkeleton({ pleadingText, docType = "other", party = "unknown"
   };
 }
 
-async function stepClaim({ pleadingText, claim, otherClaims = [], theoryOfCase = null }) {
+async function stepClaim({ pleadingText, claim, otherClaims = [], theoryOfCase = null, docType = null, isInterimRelief = false }) {
   // Lightweight kinds (remedy, background, procedural, conclusion) are
   // listed but not QA'd — a prayer for relief must not be flagged for
   // evidence gaps like a factual allegation.
@@ -217,6 +222,8 @@ async function stepClaim({ pleadingText, claim, otherClaims = [], theoryOfCase =
       sectionText: buildSectionText(pleadingText, claim),
       otherClaimsSummary: otherClaims.map((c) => `${c.id}: ${c.text}`).join("\n") || "(אין)",
       theoryOfCase,
+      docType,
+      isInterimRelief,
     }),
     validate: (r) => validatePass2(r, claim.id),
   });
@@ -246,10 +253,10 @@ async function stepClaim({ pleadingText, claim, otherClaims = [], theoryOfCase =
   };
 }
 
-async function stepAudit({ pleadingText, nodes }) {
+async function stepAudit({ pleadingText, nodes, docType }) {
   return callModel({
     system: AUDIT_SYSTEM,
-    prompt: buildCoverageAuditPrompt({ pleadingText, nodes }),
+    prompt: buildCoverageAuditPrompt({ pleadingText, nodes, docType }),
     model: MODEL_MINI,
   });
 }
@@ -312,7 +319,37 @@ async function stepConfirmFamily({ members = [] }) {
 // Named exports (in addition to the default HTTP handler below) so step
 // logic can be invoked directly from Node test/validation scripts without
 // standing up a dev server — same production code path, no HTTP layer.
-export { stepSkeleton, stepClaim, stepEmbed, stepConfirmFamily };
+export { stepSkeleton, stepClaim, stepEmbed, stepConfirmFamily, stepConfirmRelation, stepNotAddressed, stepDocxConsistency };
+
+async function stepConfirmRelation({ currentFamily, currentParty = "unknown", candidates = [] }) {
+  if (candidates.length === 0) return { relations: [] };
+  return callModel({
+    system: RELATION_CONFIRM_SYSTEM,
+    prompt: buildRelationConfirmPrompt({ currentFamily, currentParty, candidates }),
+    model: MODEL_MINI,
+  });
+}
+
+async function stepNotAddressed({ candidates = [], currentFamiliesSummary = [] }) {
+  if (candidates.length === 0) return { results: [] };
+  return callModel({
+    system: NOT_ADDRESSED_SYSTEM,
+    prompt: buildNotAddressedPrompt({ candidates, currentFamiliesSummary }),
+    // judgment-heavy (confirming a real absence, not a mechanical pass) — full model, not mini
+  });
+}
+
+// Layer B of the opt-in .docx check (docs: pleading-review-presentation-
+// design.he.md thread) — legal-writing consistency, never grammar/style.
+// Layer A (page size, margins, fonts, line spacing, page limits) is
+// fully deterministic and runs client-side (src/lib/docxFormalChecks.js)
+// with no API call at all.
+async function stepDocxConsistency({ documentText }) {
+  return callModel({
+    system: DOCX_CONSISTENCY_SYSTEM,
+    prompt: buildDocxConsistencyPrompt({ documentText }),
+  });
+}
 
 const STEPS = {
   skeleton: stepSkeleton,
@@ -322,6 +359,9 @@ const STEPS = {
   references: stepReferences,
   embed: stepEmbed,
   confirmFamily: stepConfirmFamily,
+  confirmRelation: stepConfirmRelation,
+  notAddressed: stepNotAddressed,
+  docxConsistency: stepDocxConsistency,
 };
 
 export default async function handler(req, res) {

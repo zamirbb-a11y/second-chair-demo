@@ -70,3 +70,54 @@ export function buildCandidateGroups(embeddings, { threshold = SIMILARITY_THRESH
   }
   return result;
 }
+
+// A sub-claim's parent_id is known with certainty from Pass 2's own
+// decomposition — never something to infer from embedding similarity.
+// Without this, a compound claim split into two very different halves as
+// sub-claims can land in separate candidate groups (each half can have
+// genuinely low similarity to the OTHER half, and sometimes to the full
+// parent text too — that's exactly what happened on a real document: a
+// denial's two halves, "X did not do A" and "X did, however, do B",
+// clustered with the parent unevenly and left one half a singleton
+// family). That singleton then reads as spurious "new material" to every
+// downstream cross-document check, since it never merged into a family
+// that already has a cross-document relation via its parent/sibling.
+//
+// This only forces a shared CANDIDATE group — confirmFamily (the actual,
+// conservative merge gate) still decides whether the parent and its
+// children really are one family or genuinely distinct propositions.
+export function mergeParentChildGroups(candidateGroups, allClaims, { maxGroupSize = MAX_CANDIDATE_GROUP_SIZE } = {}) {
+  const groupIndexById = new Map();
+  candidateGroups.forEach((ids, i) => ids.forEach((id) => groupIndexById.set(id, i)));
+
+  const parent = candidateGroups.map((_, i) => i);
+  const find = (x) => (parent[x] === x ? x : (parent[x] = find(parent[x])));
+  const union = (a, b) => {
+    const ra = find(a), rb = find(b);
+    if (ra !== rb) parent[ra] = rb;
+  };
+
+  for (const claim of allClaims) {
+    if (!claim.parent_id) continue;
+    const childGroup = groupIndexById.get(claim.id);
+    const parentGroup = groupIndexById.get(claim.parent_id);
+    if (childGroup !== undefined && parentGroup !== undefined) union(childGroup, parentGroup);
+  }
+
+  const merged = new Map();
+  candidateGroups.forEach((ids, i) => {
+    const root = find(i);
+    if (!merged.has(root)) merged.set(root, []);
+    merged.get(root).push(...ids);
+  });
+
+  const result = [];
+  for (const ids of merged.values()) {
+    if (ids.length <= maxGroupSize) {
+      result.push(ids);
+      continue;
+    }
+    for (let i = 0; i < ids.length; i += maxGroupSize) result.push(ids.slice(i, i + maxGroupSize));
+  }
+  return result;
+}
