@@ -14,12 +14,17 @@ export default function PleadingUpload({ onAnalyze, onCancel, error, initial, ma
   const [respondsTo, setRespondsTo] = useState(initial?.respondsTo ?? []);
   const [filingDate, setFilingDate] = useState(initial?.filingDate ?? "");
   const [isInterimRelief, setIsInterimRelief] = useState(initial?.isInterimRelief ?? false);
+  const [checkDocxFormatting, setCheckDocxFormatting] = useState(initial?.checkDocxFormatting ?? false);
 
   const toggleRespondsTo = (id) =>
     setRespondsTo((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
 
   const ready = file && docType && party;
   const showInterimReliefOption = ["motion", "response", "reply_to_motion", "affidavit"].includes(docType);
+  // Opt-in, not automatic — a lawyer's own pre-filing draft, not every
+  // upload. Only meaningful for .docx: a PDF has no editable formatting
+  // to check, and a scanned PDF has none to read in the first place.
+  const isDocxFile = /\.docx$/i.test(file?.name ?? "");
 
   return (
     <div className="px-8 py-7 max-w-[640px]" dir="rtl">
@@ -117,6 +122,18 @@ export default function PleadingUpload({ onAnalyze, onCancel, error, initial, ma
         </label>
       )}
 
+      {isDocxFile && (
+        <label className="flex items-center gap-2 text-sm text-slate-700 mb-5 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={checkDocxFormatting}
+            onChange={(e) => setCheckDocxFormatting(e.target.checked)}
+            className="accent-slate-700 cursor-pointer"
+          />
+          בדיקה צורנית ועקביות לשונית (טיוטת וורד לפני הגשה — עמודים/שוליים/גופן לפי הדין, וכינויים/הפניות לא עקביים)
+        </label>
+      )}
+
       <div className="mb-5">
         <label htmlFor="pleading-filing-date" className="block text-xs font-semibold text-slate-600 mb-1.5">
           תאריך הגשה (לא חובה — משמש לסידור כרונולוגי בהיסטוריה)
@@ -169,7 +186,7 @@ export default function PleadingUpload({ onAnalyze, onCancel, error, initial, ma
       <button
         type="button"
         disabled={!ready}
-        onClick={() => onAnalyze({ file, docType, party, respondsTo, filingDate: filingDate || null, isInterimRelief: showInterimReliefOption && isInterimRelief })}
+        onClick={() => onAnalyze({ file, docType, party, respondsTo, filingDate: filingDate || null, isInterimRelief: showInterimReliefOption && isInterimRelief, checkDocxFormatting: isDocxFile && checkDocxFormatting })}
         className="rounded-lg bg-slate-900 text-white px-6 py-2.5 text-sm font-semibold hover:bg-slate-800 disabled:opacity-40 border-0 cursor-pointer"
       >
         נתח מסמך

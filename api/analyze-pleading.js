@@ -36,6 +36,7 @@ import {
   validatePass1, validatePass2, verifySourceSpans,
   LIGHTWEIGHT_KINDS, EMPTY_QA,
 } from "../src/lib/pleadingValidation.js";
+import { buildDocxConsistencyPrompt, DOCX_CONSISTENCY_SYSTEM } from "../src/prompts/docxConsistencyCheck.js";
 
 const MODEL = "gpt-4.1";
 // Mechanical passes (reference dedup, coverage mapping) run on mini:
@@ -318,7 +319,7 @@ async function stepConfirmFamily({ members = [] }) {
 // Named exports (in addition to the default HTTP handler below) so step
 // logic can be invoked directly from Node test/validation scripts without
 // standing up a dev server — same production code path, no HTTP layer.
-export { stepSkeleton, stepClaim, stepEmbed, stepConfirmFamily, stepConfirmRelation, stepNotAddressed };
+export { stepSkeleton, stepClaim, stepEmbed, stepConfirmFamily, stepConfirmRelation, stepNotAddressed, stepDocxConsistency };
 
 async function stepConfirmRelation({ currentFamily, currentParty = "unknown", candidates = [] }) {
   if (candidates.length === 0) return { relations: [] };
@@ -338,6 +339,18 @@ async function stepNotAddressed({ candidates = [], currentFamiliesSummary = [] }
   });
 }
 
+// Layer B of the opt-in .docx check (docs: pleading-review-presentation-
+// design.he.md thread) — legal-writing consistency, never grammar/style.
+// Layer A (page size, margins, fonts, line spacing, page limits) is
+// fully deterministic and runs client-side (src/lib/docxFormalChecks.js)
+// with no API call at all.
+async function stepDocxConsistency({ documentText }) {
+  return callModel({
+    system: DOCX_CONSISTENCY_SYSTEM,
+    prompt: buildDocxConsistencyPrompt({ documentText }),
+  });
+}
+
 const STEPS = {
   skeleton: stepSkeleton,
   claim: stepClaim,
@@ -348,6 +361,7 @@ const STEPS = {
   confirmFamily: stepConfirmFamily,
   confirmRelation: stepConfirmRelation,
   notAddressed: stepNotAddressed,
+  docxConsistency: stepDocxConsistency,
 };
 
 export default async function handler(req, res) {

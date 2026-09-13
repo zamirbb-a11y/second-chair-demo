@@ -16,7 +16,9 @@ import { uploadFileViaStorage } from "../utils/uploadViaStorage";
 import { deriveFamilies, familyContaining } from "../lib/claimFamilies.js";
 import { buildCaseRelations } from "../lib/crossDocumentRelations.js";
 import { checkPageLimit } from "../lib/formalChecks.js";
+import { readDocxFormat, checkDocxFormat } from "../lib/docxFormalChecks.js";
 import CrossDocumentSummary from "../components/pleadings/CrossDocumentSummary.jsx";
+import DocxCheckPanel from "../components/pleadings/DocxCheckPanel.jsx";
 import CaseFactualLedgerView from "../components/pleadings/CaseFactualLedgerView.jsx";
 import PleadingList, { DOC_TYPE_LABELS, PARTY_LABELS } from "../components/pleadings/PleadingList.jsx";
 import PleadingUpload from "../components/pleadings/PleadingUpload.jsx";
@@ -25,6 +27,37 @@ import ClaimDetail from "../components/pleadings/ClaimDetail.jsx";
 import PleadingDocument from "../components/pleadings/PleadingDocument.jsx";
 
 const storageKey = (caseId) => `pleadingAnalyses:${caseId ?? "no-case"}`;
+
+// Opt-in .docx check — two independent layers, either can fail without
+// the other or without the main analysis (this is a side-check, not the
+// point of the upload). Layer A (format) runs entirely in the browser —
+// no AI, no network — reading the .docx's own XML directly. Layer B
+// (consistency) reuses the text already extracted for the main analysis
+// rather than re-extracting it.
+async function runDocxCheck(file, docType, isInterimRelief, documentText) {
+  let formatFindings = [];
+  try {
+    const buffer = await file.arrayBuffer();
+    const props = await readDocxFormat(buffer);
+    formatFindings = checkDocxFormat(props, docType, isInterimRelief);
+  } catch (err) {
+    console.error("docx format check failed (non-blocking):", err);
+  }
+
+  let consistencyFindings = null;
+  try {
+    const res = await fetch("/api/analyze-pleading", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ step: "docxConsistency", documentText }),
+    });
+    if (res.ok) consistencyFindings = await res.json();
+  } catch (err) {
+    console.error("docx consistency check failed (non-blocking):", err);
+  }
+
+  return { formatFindings, consistencyFindings };
+}
 
 function loadRecords(caseId) {
   try {
@@ -130,7 +163,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
   // one, so it just throws and leaves the original record untouched.
   async function runPipelineAndPersist({
     pleadingText, docType, party, priorDocs, filingDate,
-    storagePath = null, ocrReview = null, pageCount = null, fileType = null, isInterimRelief = false,
+    storagePath = null, ocrReview = null, pageCount = null, fileType = null, isInterimRelief = false, docxCheck = null,
     existingAnalysisId = null, replacingRecordId = null, fallbackTitle, signal,
   }) {
     let working = { claims: [], authorities: [], evidence_refs: [], quotations: [], claim_families: [], cross_document_relations: [] };
@@ -200,6 +233,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
         fileType,
         pageCount,
         isInterimRelief,
+        docxCheck, // {formatFindings, consistencyFindings} — only set for an opt-in .docx check, else null
         ocrReview, // {needsManualReview, unreadablePages} for scanned-PDF uploads, else null
         analysis: pageLimitWarning
           ? { ...analysis, coverage_notes: [analysis.coverage_notes, pageLimitWarning].filter(Boolean).join(" · ") }
@@ -241,9 +275,9 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
   }
 
   // ── Streaming analysis ────────────────────────────────────────────────
-  async function analyze({ file, docType, party, respondsTo = [], filingDate = null, isInterimRelief = false }) {
+  async function analyze({ file, docType, party, respondsTo = [], filingDate = null, isInterimRelief = false, checkDocxFormatting = false }) {
     setUploadError("");
-    setLastAttempt({ file, docType, party, respondsTo, filingDate, isInterimRelief });
+    setLastAttempt({ file, docType, party, respondsTo, filingDate, isInterimRelief, checkDocxFormatting });
     setStatus("");
     setStage("reading");
     setDraft({ claims: [], authorities: [], evidence_refs: [], quotations: [], claim_families: [], cross_document_relations: [] });
@@ -295,6 +329,11 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
       }
       if (pleadingText.trim().length < 200) throw new Error("extraction_failed");
 
+      // Opt-in only (checkbox, .docx only) — never blocks or fails the
+      // main analysis if it errors, since it's a side-check, not the
+      // point of the upload.
+      const docxCheck = checkDocxFormatting ? await runDocxCheck(file, docType, isInterimRelief, pleadingText) : null;
+
       // Prior pleadings this one was explicitly marked as responding to —
       // their already-computed families are what cross-document relations
       // get matched against. Never inferred, only what the user picked.
@@ -305,7 +344,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
 
       await runPipelineAndPersist({
         pleadingText, docType, party, priorDocs, filingDate, isInterimRelief,
-        storagePath, ocrReview, pageCount,
+        storagePath, ocrReview, pageCount, docxCheck,
         fileType: (file.name.split(".").pop() ?? "").toLowerCase(),
         fallbackTitle: file.name,
         signal: controller.signal,
@@ -371,6 +410,11 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
         ocrReview: record.ocrReview ?? null,
         pageCount: record.pageCount ?? null,
         isInterimRelief: record.isInterimRelief ?? false,
+        // Re-analysis only has the stored extracted text, not the
+        // original file bytes — Layer A (format) needs the raw .docx,
+        // so it can't be re-run here; carry the prior result forward
+        // unchanged rather than silently dropping it.
+        docxCheck: record.docxCheck ?? null,
         fileType: record.fileType ?? null,
         existingAnalysisId: record.analysis?.id ?? null,
         replacingRecordId: recordId,
@@ -578,6 +622,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
                   priorTitles={(analysis.respondsTo ?? []).map((id) => recordByAnalysisId.get(id)?.title).filter(Boolean)}
                 />
               )}
+              <DocxCheckPanel docxCheck={current?.docxCheck} />
             </div>
           )}
 
