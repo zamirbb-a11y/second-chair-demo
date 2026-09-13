@@ -15,6 +15,7 @@ import { runPleadingAnalysis } from "../lib/pleadingPipeline.js";
 import { uploadFileViaStorage } from "../utils/uploadViaStorage";
 import { deriveFamilies, familyContaining } from "../lib/claimFamilies.js";
 import { deriveScopeExpansionRelations, isDeemedAdmission } from "../lib/crossDocumentRelations.js";
+import { checkPageLimit } from "../lib/formalChecks.js";
 import CrossDocumentSummary from "../components/pleadings/CrossDocumentSummary.jsx";
 import PleadingList, { DOC_TYPE_LABELS, PARTY_LABELS } from "../components/pleadings/PleadingList.jsx";
 import PleadingUpload from "../components/pleadings/PleadingUpload.jsx";
@@ -156,11 +157,13 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
       let pleadingText = null;
       let storagePath = null; // kept for original-document display
       let ocrReview = null; // {needsManualReview, unreadablePages} — only set for scanned PDFs
+      let pageCount = null; // real PDF page count, for mechanical page-limit checks (formalChecks.js)
       if (accessToken) {
         try {
           const processed = await uploadFileViaStorage(file, accessToken);
           pleadingText = processed?.text ?? "";
           storagePath = processed?.storagePath ?? null;
+          pageCount = processed?.pageCount ?? null;
           if (processed?.needsManualReview) {
             ocrReview = { needsManualReview: true, unreadablePages: (processed.ocrPages ?? []).filter((p) => p.status === "unreadable").map((p) => p.page) };
           }
@@ -180,6 +183,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
         const upData = await up.json();
         const uploaded = upData.files?.[0];
         pleadingText = (upData.files ?? []).map((f) => f?.text ?? "").join("\n\n");
+        pageCount = uploaded?.pageCount ?? null;
         if (uploaded?.needsManualReview) {
           ocrReview = { needsManualReview: true, unreadablePages: (uploaded.ocrPages ?? []).filter((p) => p.status === "unreadable").map((p) => p.page) };
         }
@@ -246,6 +250,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
             },
           },
         });
+        const pageLimitWarning = checkPageLimit(docType, pageCount);
         const record = {
           id: analysis.id,
           docType,
@@ -257,8 +262,11 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
           pleadingText, // the document view renders the pleading itself
           storagePath,  // original file in Supabase Storage (PDF display)
           fileType: (file.name.split(".").pop() ?? "").toLowerCase(),
+          pageCount,
           ocrReview, // {needsManualReview, unreadablePages} for scanned-PDF uploads, else null
-          analysis,
+          analysis: pageLimitWarning
+            ? { ...analysis, coverage_notes: [analysis.coverage_notes, pageLimitWarning].filter(Boolean).join(" · ") }
+            : analysis,
         };
         persist([record, ...records]);
         setCurrentId(record.id);

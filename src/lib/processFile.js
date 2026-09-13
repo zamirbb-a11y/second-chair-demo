@@ -92,13 +92,15 @@ export async function processFileBuffer(buffer, filename) {
   let needsOcr = false;
   let ocrPages = null; // page-level OCR detail, only set on the scanned-PDF path — traceability source of truth
   let needsManualReview = false;
+  let pageCount = null; // real PDF page count (pdfjs), independent of extraction path — used for mechanical page-limit checks
 
   if (extension === "docx") {
     const result = await mammoth.extractRawText({ buffer });
     extractedText = result.value || "";
     extractionMethod = "mammoth";
   } else if (extension === "pdf") {
-    const { isScanned } = await hasNoTextLayer(buffer).catch(() => ({ isScanned: false }));
+    const { isScanned, numPages } = await hasNoTextLayer(buffer).catch(() => ({ isScanned: false, numPages: null }));
+    pageCount = numPages ?? null;
     if (isScanned) {
       // No embedded text layer at all: this is a scan, not a digital PDF.
       // Route to deterministic, page-by-page OCR rather than asking a
@@ -175,6 +177,7 @@ ${parsed.text || ""}
     // is the traceability detail behind it; null for every other path.
     needsManualReview,
     ocrPages,
+    pageCount,
     text: cleanText,
     textLength: cleanText.length,
     preview: cleanText.slice(0, 700),
