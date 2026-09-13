@@ -29,7 +29,7 @@
 // and if it fails to compute for any reason, the raw claims stay fully
 // usable with no families layer for that run.
 
-import { buildCandidateGroups } from "./claimFamilyClustering.js";
+import { buildCandidateGroups, mergeParentChildGroups } from "./claimFamilyClustering.js";
 import { buildCrossDocumentRelations, resolveSelfReferences } from "./crossDocumentRelationMatching.js";
 
 const CLAIM_CONCURRENCY = 4;
@@ -272,7 +272,10 @@ export async function buildClaimFamilies(allClaims, post) {
   // malformed sub-claim) still needs a family. Never let it just vanish.
   const embeddedIds = new Set(embeddings.map((e) => e.id));
   const missingSingletons = allClaims.filter((c) => !embeddedIds.has(c.id)).map((c) => [c.id]);
-  const candidateGroups = [...buildCandidateGroups(embeddings), ...missingSingletons];
+  const candidateGroups = mergeParentChildGroups(
+    [...buildCandidateGroups(embeddings), ...missingSingletons],
+    allClaims
+  );
 
   const confirmed = [];
   async function confirmGroup(ids) {
