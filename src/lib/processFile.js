@@ -1,7 +1,14 @@
 import mammoth from "mammoth";
 import pdfParse from "pdf-parse";
 import { simpleParser } from "mailparser";
-import { hasNoTextLayer, ocrScannedPdf } from "./scannedPdfOcr.mjs";
+
+// Dynamic import, not static: on Vercel this module is require()'d as a
+// raw CJS file (its native deps — @napi-rs/canvas, tesseract.js — can't
+// be bundled), but it's genuine ESM (needs import.meta.url). A static
+// import here would force a synchronous require() of an ES module, which
+// Node rejects outright (ERR_REQUIRE_ESM); dynamic import() works from a
+// CJS caller. Also means non-PDF uploads never pay to load it.
+const scannedPdfOcr = () => import("./scannedPdfOcr.mjs");
 
 // pdf-parse extracts Hebrew PDFs in visual order (reversed/scrambled RTL),
 // which both breaks display and degrades the AI analysis. When an API key
@@ -99,12 +106,13 @@ export async function processFileBuffer(buffer, filename) {
     extractedText = result.value || "";
     extractionMethod = "mammoth";
   } else if (extension === "pdf") {
+    const { hasNoTextLayer, ocrScannedPdf } = await scannedPdfOcr();
     const { isScanned, numPages } = await hasNoTextLayer(buffer).catch(() => ({ isScanned: false, numPages: null }));
     pageCount = numPages ?? null;
     if (isScanned) {
       // No embedded text layer at all: this is a scan, not a digital PDF.
       // Route to deterministic, page-by-page OCR rather than asking a
-      // vision-LLM to "transcribe" it — see scannedPdfOcr.js for why that
+      // vision-LLM to "transcribe" it — see scannedPdfOcr.mjs for why that
       // path can fabricate content on degraded scans instead of failing.
       const ocrResult = await ocrScannedPdf(buffer);
       extractedText = ocrResult.text;
