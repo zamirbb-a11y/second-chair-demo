@@ -1,11 +1,34 @@
 // Internal coverage audit — verifies the claim-based output did not miss
 // substantive material. Not a UI feature: the mapping table is logged,
 // only warnings surface via coverage_notes.
+//
+// Also the one place in the pipeline that reads the document as a WHOLE
+// rather than one claim at a time (Pass 2 never sees more than the
+// section around one claim) — so it's the natural place for structural
+// checks the research memo flagged as whole-document, not per-claim:
+// missing jurisdictional facts, a remedy with no factual basis anywhere
+// in the body (or vice versa), and inconsistency between the summary and
+// detailed sections. Scoped to complaint/defense (pleading-stage docs) —
+// the underlying rules (תקנה 11, the tripartite structure) are specific
+// to that stage; see docs/stage2-document-type-rules.md §1-2.
 
-export function buildCoverageAuditPrompt({ pleadingText, nodes }) {
+const STRUCTURAL_CHECK_DOC_TYPES = new Set(["statement_of_claim", "statement_of_defense", "reply"]);
+
+function buildStructuralCheckBlock(docType) {
+  const isOriginatingComplaint = docType === "statement_of_claim";
+  return `
+**בדיקה מבנית נוספת (בנוסף למיפוי הכיסוי):**
+${isOriginatingComplaint ? `1. עובדות סמכות שיפוט (עניינית/מקומית) — האם המסמך מציין עובדות המבססות את סמכות בית המשפט? אם לא — ציין זאת ב-warnings.\n` : ""}2. התאמת סעדים לתשתית עובדתית — עבור כל טענה מסוג remedy (סעד מבוקש), האם קיימת בגוף המסמך טענה עובדתית התומכת בו? האם יש טענה עובדתית המצביעה על סעד שלא נמנה כלל? ציין אי-התאמות ב-warnings.
+3. עקביות פנימית — האם קיימת סתירה של ממש בין חלקים שונים של המסמך (עובדות או ציר זמן שונים המתוארים באופן לא עקבי)? ציין רק סתירות ממשיות, לא ניסוחים שונים של אותו דבר.
+**אל תציין מספר תקנה בניסוח האזהרה** — תאר את הפער במילים בלבד; ציטוט מספר תקנה שגוי גרוע יותר מאי-ציון מספר כלל.
+`;
+}
+
+export function buildCoverageAuditPrompt({ pleadingText, nodes, docType }) {
   const nodeIndex = nodes
     .map((n) => `${n.id} [${n.node_kind ?? n.kind ?? "?"}] ${n.text?.slice(0, 100) ?? n.label ?? ""}`)
     .join("\n");
+  const structuralBlock = STRUCTURAL_CHECK_DOC_TYPES.has(docType) ? buildStructuralCheckBlock(docType) : "";
 
   return `
 בוצע פירוק של כתב הטענות הבא למפת טענות ואסמכתאות. תפקידך: ביקורת כיסוי — לוודא שלא נשמט חומר מהותי.
@@ -23,7 +46,7 @@ ${nodeIndex}
 2. לכל מקטע — קבע לאילו צמתים הוא ממופה (לפי תוכן, לא רק לפי ציטוט).
 3. אתר מקטעים עם חומר מהותי שלא שויך לאף צומת (טענה, אסמכתא או ראיה).
 4. בדוק אם צומת שסווג כ-background או remedy מכיל בפועל טענה מהותית שראויה לצומת נפרד.
-
+${structuralBlock}
 כללים:
 - "חומר מהותי" = טענה, עובדה נטענת, אסמכתא, ראיה או כימות שיש להם משמעות משפטית. כותרות, פרטי צדדים ונוסחאות סיום אינם מהותיים.
 - אל תמציא: אם המסמך מכוסה היטב — החזר מערכים ריקים.

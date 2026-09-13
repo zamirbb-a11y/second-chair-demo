@@ -132,7 +132,7 @@ export async function runPleadingAnalysis({
       ...rawAuthorities.map((a, i) => ({ id: `rawA${i + 1}`, node_kind: "authority", text: a.raw_citation })),
       ...rawEvidenceRefs.map((e, i) => ({ id: `rawE${i + 1}`, node_kind: "evidence", text: e.label })),
     ];
-    const audit = await post("audit", { pleadingText, nodes: auditNodes });
+    const audit = await post("audit", { pleadingText, nodes: auditNodes, docType });
 
     const unmapped = audit.unmapped_substantive ?? [];
     if (unmapped.length > 0) {

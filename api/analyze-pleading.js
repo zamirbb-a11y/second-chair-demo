@@ -251,10 +251,10 @@ async function stepClaim({ pleadingText, claim, otherClaims = [], theoryOfCase =
   };
 }
 
-async function stepAudit({ pleadingText, nodes }) {
+async function stepAudit({ pleadingText, nodes, docType }) {
   return callModel({
     system: AUDIT_SYSTEM,
-    prompt: buildCoverageAuditPrompt({ pleadingText, nodes }),
+    prompt: buildCoverageAuditPrompt({ pleadingText, nodes, docType }),
     model: MODEL_MINI,
   });
 }
