@@ -130,7 +130,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
   // one, so it just throws and leaves the original record untouched.
   async function runPipelineAndPersist({
     pleadingText, docType, party, priorDocs, filingDate,
-    storagePath = null, ocrReview = null, pageCount = null, fileType = null,
+    storagePath = null, ocrReview = null, pageCount = null, fileType = null, isInterimRelief = false,
     existingAnalysisId = null, replacingRecordId = null, fallbackTitle, signal,
   }) {
     let working = { claims: [], authorities: [], evidence_refs: [], quotations: [], claim_families: [], cross_document_relations: [] };
@@ -140,6 +140,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
         pleadingText,
         docType,
         party,
+        isInterimRelief,
         priorDocs,
         existingAnalysisId,
         signal,
@@ -185,7 +186,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
           },
         },
       });
-      const pageLimitWarning = checkPageLimit(docType, pageCount);
+      const pageLimitWarning = checkPageLimit(docType, pageCount, isInterimRelief);
       const record = {
         id: analysis.id,
         docType,
@@ -198,6 +199,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
         storagePath,  // original file in Supabase Storage (PDF display)
         fileType,
         pageCount,
+        isInterimRelief,
         ocrReview, // {needsManualReview, unreadablePages} for scanned-PDF uploads, else null
         analysis: pageLimitWarning
           ? { ...analysis, coverage_notes: [analysis.coverage_notes, pageLimitWarning].filter(Boolean).join(" · ") }
@@ -239,9 +241,9 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
   }
 
   // ── Streaming analysis ────────────────────────────────────────────────
-  async function analyze({ file, docType, party, respondsTo = [], filingDate = null }) {
+  async function analyze({ file, docType, party, respondsTo = [], filingDate = null, isInterimRelief = false }) {
     setUploadError("");
-    setLastAttempt({ file, docType, party, respondsTo, filingDate });
+    setLastAttempt({ file, docType, party, respondsTo, filingDate, isInterimRelief });
     setStatus("");
     setStage("reading");
     setDraft({ claims: [], authorities: [], evidence_refs: [], quotations: [], claim_families: [], cross_document_relations: [] });
@@ -302,7 +304,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
         .map((r) => ({ analysisId: r.analysis.id, party: r.party, families: r.analysis.claim_families ?? [] }));
 
       await runPipelineAndPersist({
-        pleadingText, docType, party, priorDocs, filingDate,
+        pleadingText, docType, party, priorDocs, filingDate, isInterimRelief,
         storagePath, ocrReview, pageCount,
         fileType: (file.name.split(".").pop() ?? "").toLowerCase(),
         fallbackTitle: file.name,
@@ -368,6 +370,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
         storagePath: record.storagePath ?? null,
         ocrReview: record.ocrReview ?? null,
         pageCount: record.pageCount ?? null,
+        isInterimRelief: record.isInterimRelief ?? false,
         fileType: record.fileType ?? null,
         existingAnalysisId: record.analysis?.id ?? null,
         replacingRecordId: recordId,

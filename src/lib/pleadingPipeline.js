@@ -47,6 +47,7 @@ export async function runPleadingAnalysis({
   pleadingText,
   docType = "other",
   party = "unknown",
+  isInterimRelief = false, // סעדים זמניים modifier on motion/response/reply_to_motion/affidavit — see documentStageProfiles.js
   priorDocs = [], // [{analysisId, party, families}] — the pleading(s) this one was explicitly marked as responding to at upload time
   existingAnalysisId = null, // re-analysis: reuse the prior analysis id so other documents' stored relations pointing at it stay valid
   endpoint = "/api/analyze-pleading",
@@ -89,6 +90,7 @@ export async function runPleadingAnalysis({
         otherClaims: mainClaims.filter((c) => c.id !== claim.id).map((c) => ({ id: c.id, text: c.text })),
         theoryOfCase: skeleton.theory_of_case,
         docType,
+        isInterimRelief,
       });
       claim.qa = result.qa;
       claim.source_spans = result.source_spans ?? claim.source_spans;

@@ -35,7 +35,13 @@ export function computeSalience(relation) {
 // reply marked as responding to just the defense (not also the
 // complaint) can't tell "genuinely new" apart from "repeats the
 // complaint in different words" — see PleadingUpload's respondsTo hint.
-const SCOPE_CHECKED_DOC_TYPES = new Set(["reply", "reply_to_motion"]);
+//
+// Also covers "affidavit": the analogous risk there isn't scope-creep
+// against a defense/response, it's testifying to facts never raised in
+// the pleading(s) it supports (הרחבת חזית from testimony) — same
+// negative-signal mechanism, checked against whatever the affidavit was
+// marked as supporting.
+const SCOPE_CHECKED_DOC_TYPES = new Set(["reply", "reply_to_motion", "affidavit"]);
 
 export function possibleScopeExpansion(family, relations, analysisId, docType) {
   if (!SCOPE_CHECKED_DOC_TYPES.has(docType)) return false;
@@ -72,11 +78,17 @@ export function isDeemedAdmission(relation, { subjectDocType, targetDocType, sub
 // not_addressed. Computed fresh at render time from already-stored
 // data — never persisted onto analysis.cross_document_relations, and
 // never a new AI call.
+const SCOPE_EXPANSION_RATIONALE = {
+  affidavit: "טענה עובדתית זו בתצהיר אינה מתקשרת לאף טענה במסמכים שסומנו כנתמכים על ידו — ייתכן שמדובר בהעדת עובדה שלא נטענה בכתבי הטענות (הרחבת חזית מעדות).",
+  default: "טענה זו אינה מתקשרת לאף טענה קודמת במסמכים שסומנו כמענה — ייתכן שמדובר בחומר חדש שאינו מותר בשלב זה (תקנה 18(א)).",
+};
+
 export function deriveScopeExpansionRelations(record) {
   const analysis = record?.analysis;
   if (!analysis || !SCOPE_CHECKED_DOC_TYPES.has(record.docType)) return [];
   const relations = analysis.cross_document_relations ?? [];
   const families = analysis.claim_families ?? [];
+  const rationale = SCOPE_EXPANSION_RATIONALE[record.docType] ?? SCOPE_EXPANSION_RATIONALE.default;
   return families
     .filter((f) => possibleScopeExpansion(f, relations, analysis.id, record.docType))
     .map((f) => ({
@@ -86,7 +98,7 @@ export function deriveScopeExpansionRelations(record) {
       target: null,
       stance: null,
       confidence: "low",
-      rationale: "טענה זו אינה מתקשרת לאף טענה קודמת במסמכים שסומנו כמענה — ייתכן שמדובר בחומר חדש שאינו מותר בשלב זה (תקנה 18(א)).",
+      rationale,
     }));
 }
 

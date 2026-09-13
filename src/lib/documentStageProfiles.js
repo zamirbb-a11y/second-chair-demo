@@ -21,9 +21,10 @@
 // only decides which paragraph of Pass 2 prompt guidance applies.
 
 export const STAGE = {
-  PLEADING: "pleading",   // complaint, defense, reply to defense
-  MOTION: "motion",       // motion, response to motion, reply to response
-  SUMMATION: "summation", // written summations
+  PLEADING: "pleading",     // complaint, defense, reply to defense
+  MOTION: "motion",         // motion, response to motion, reply to response
+  SUMMATION: "summation",   // written summations
+  AFFIDAVIT: "affidavit",   // affidavit (תצהיר) — the evidence itself, not a pleading about evidence
   UNKNOWN: "unknown",
 };
 
@@ -39,7 +40,18 @@ const DOC_TYPE_TO_STAGE = {
   response: STAGE.MOTION,
   reply_to_motion: STAGE.MOTION,
   summation: STAGE.SUMMATION,
+  affidavit: STAGE.AFFIDAVIT,
 };
+
+// Interim relief (סעדים זמניים) is a MODIFIER on motion/response/
+// reply_to_motion/affidavit, not a separate document type — the
+// substantive test (below) and the page-limit bump (formalChecks.js)
+// apply on top of whichever of those four this document already is.
+// [PRODUCT JUDGMENT — well-established Israeli interim-relief doctrine
+// (likelihood of success, balance of convenience, clean hands,
+// irreparable harm), corroborated by multiple secondary sources, but no
+// specific regulation number was verified tonight — do not cite one].
+export const INTERIM_RELIEF_APPLICABLE_STAGES = new Set([STAGE.MOTION, STAGE.AFFIDAVIT]);
 
 export function stageForDocType(docType) {
   return DOC_TYPE_TO_STAGE[docType] ?? STAGE.UNKNOWN;
@@ -77,6 +89,18 @@ export const STAGE_PROFILES = {
     // factual proposition with nothing in the evidentiary record behind
     // it (no exhibit, no testimony, no admission) is a real weakness
     // here, the mirror image of the pleading-stage rule.
+  },
+  [STAGE.AFFIDAVIT]: {
+    label: "תצהיר",
+    evidentiaryStandard: "is_foundational_evidence",
+    // An affidavit IS the evidentiary basis, not something that cites
+    // evidence — the not_required/affidavit_required/record_required
+    // axis doesn't apply to it at all. Its own central risk is the
+    // mirror image: testifying to facts never raised in the pleadings
+    // (הרחבת חזית from testimony) — handled separately via the same
+    // scope-expansion mechanism built for a reply
+    // (crossDocumentRelations.js), checked against whatever pleading(s)
+    // this affidavit is marked as supporting.
   },
   [STAGE.UNKNOWN]: {
     label: "מסמך לא מסווג",

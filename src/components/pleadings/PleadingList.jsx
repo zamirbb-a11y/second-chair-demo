@@ -11,6 +11,7 @@ export const DOC_TYPE_LABELS = {
   response:             "תגובה לבקשה",
   reply_to_motion:      "תשובה לתגובה",
   summation:            "סיכומים",
+  affidavit:            "תצהיר",
   other:                "כתב טענות",
 };
 

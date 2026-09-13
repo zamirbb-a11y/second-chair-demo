@@ -2,7 +2,7 @@
 // raw authority/evidence/quotation extraction. One call per main claim,
 // run in parallel by the API handler.
 
-import { STAGE_PROFILES, stageProfileForDocType } from "../lib/documentStageProfiles.js";
+import { STAGE_PROFILES, stageProfileForDocType, stageForDocType, INTERIM_RELIEF_APPLICABLE_STAGES } from "../lib/documentStageProfiles.js";
 
 // Same claim, three different verdicts depending on what stage the
 // document analyzed is at — this is the fix for the reported bug where
@@ -26,14 +26,32 @@ const EVIDENTIARY_STANDARD_BLOCKS = {
   record_required: `
 **רמת הציפייה הראייתית בשלב זה: סיכומים — נדרשת עגינה בתיק הראיות.**
 בשלב הסיכומים ההליך הראייתי כבר ננעל. טענה עובדתית מרכזית שאין לה כל עיגון בתיק הראיות (לא עדות, לא מוצג, לא הודאה) היא חולשה אמיתית — לא מפני שהצד לא ניסח אותה כראוי, אלא מפני שההזדמנות הראייתית חלפה. ציין זאת כ-weakness וכ-missing לפי ההקשר.`,
+  is_foundational_evidence: `
+**רמת הציפייה הראייתית בשלב זה: תצהיר — המסמך עצמו הוא הראיה.**
+בניגוד לכל שאר סוגי המסמכים, תצהיר אינו טוען עובדות שצריכות ביסוס חיצוני — הוא *עצמו* הביסוס. לכן:
+- אסור לרשום "אין ביסוס ראייתי חיצוני" כ-weakness — זה לא רלוונטי לתצהיר.
+- במקום זאת, הבדיקה המרכזית: האם מקור הידיעה של המצהיר ברור (ידיעה אישית, לעומת שמועה/ידיעת-זולת ללא ציון מקור)? טענה עובדתית בתצהיר ללא ציון מקור ידיעה ברור — זו חולשה אמיתית.
+- קביעה משפטית או מסקנה המנוסחת כעובדה (למשל "הנתבע פעל בזדון") ולא כתיאור עובדתי ישיר שהמצהיר יכול להעיד עליו מידיעה אישית — זו חולשה, יש לסמן זאת.
+- evidence_gap: true כאשר טענה עובדתית מהותית בתצהיר נטענת ללא ציון מקור ידיעה.`,
 };
 
-export function buildPass2Prompt({ claim, sectionText, otherClaimsSummary, theoryOfCase, docType }) {
+// [PRODUCT JUDGMENT — well-established Israeli interim-relief doctrine,
+// not a specific verified regulation — see documentStageProfiles.js].
+// Appended, not swapped in: an interim-relief motion/affidavit still
+// gets its base evidentiary-standard block above, plus this.
+const INTERIM_RELIEF_BLOCK = `
+**בקשה/תצהיר לסעד זמני — בדיקה מהותית נוספת:**
+בקשות לסעד זמני נבחנות (לפי הדין הישראלי המבוסס, לא תקנה ספציפית) גם לפי: (א) סיכויי ההליך העיקרי — האם קיימת זכות לכאורה; (ב) מאזן הנוחות — הנזק היחסי לכל צד אם הסעד יינתן/יידחה; (ג) תום לב/ניקיון כפיים של המבקש; (ד) דחיפות ונזק בלתי הפיך אם לא יינתן הסעד. אם הטענה הנבחנת אמורה לשאת חלק מהתשתית לאחד המרכיבים האלה אך אינה עושה זאת בפועל (למשל, טוענת דחיפות בלי לבסס אותה, או מתעלמת ממאזן הנוחות) — ציין זאת כ-weakness. אל תמציא רכיב שאינו רלוונטי לטענה הנבחנת.
+`;
+
+export function buildPass2Prompt({ claim, sectionText, otherClaimsSummary, theoryOfCase, docType, isInterimRelief = false }) {
   const stageProfile = stageProfileForDocType(docType) ?? STAGE_PROFILES.unknown;
   const evidentiaryBlock = EVIDENTIARY_STANDARD_BLOCKS[stageProfile.evidentiaryStandard] ?? EVIDENTIARY_STANDARD_BLOCKS.not_required;
+  const interimReliefBlock = isInterimRelief && INTERIM_RELIEF_APPLICABLE_STAGES.has(stageForDocType(docType)) ? INTERIM_RELIEF_BLOCK : "";
   return `
 סוג המסמך הנבחן: ${stageProfile.label}
 ${evidentiaryBlock}
+${interimReliefBlock}
 
 אתה מבצע ביקורת עומק על טענה אחת מתוך כתב טענות.
 
