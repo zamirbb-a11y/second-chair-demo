@@ -1,7 +1,7 @@
 import mammoth from "mammoth";
 import pdfParse from "pdf-parse";
 import { simpleParser } from "mailparser";
-import { hasNoTextLayer, ocrScannedPdf } from "./scannedPdfOcr.js";
+import { hasNoTextLayer, ocrScannedPdf } from "./scannedPdfOcr.mjs";
 
 // pdf-parse extracts Hebrew PDFs in visual order (reversed/scrambled RTL),
 // which both breaks display and degrades the AI analysis. When an API key
