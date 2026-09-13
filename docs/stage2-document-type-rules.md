@@ -12,13 +12,31 @@ Primary sources used: the consolidated regulation text hosted at nevo.co.il (`ht
 
 ---
 
-## Addendum — independent follow-up verification (same night, separate pass)
+## Addendum 1 — independent follow-up verification (same night, separate pass)
 
 Before building anything on this memo, I (the orchestrating session, not the research subagent) ran a second, independent WebSearch/WebFetch pass against the Wikisource consolidated text specifically to cross-check the highest-stakes claims (§1 and §3) before writing product code against them. Two results:
 
 1. **Numbering for תקנה 9–15 and 18 is now corroborated by a second independent fetch**, closely matching this memo's account — reasonable confidence for the numbering itself, though still not a verbatim primary-source read.
 
-2. **A discrepancy worth flagging prominently, NOT yet resolved — needs your confirmation before any product rule relies on it.** The follow-up fetch returned this for תקנה 14: *"הנתבע ייחשב מודה בכל העובדות הכלולות בכתב התביעה אלא אם הכחיש במפורש"* — "the defendant will be deemed to admit all facts included in the complaint unless expressly denied." That is a **specific deemed-admission rule**, materially stronger than this memo's §2 treatment ("silence on a factual allegation is not automatically an admission the way it can be in some other systems"). If accurate, it would upgrade "complaint allegation the defense never addresses" from a soft, PRODUCT-JUDGMENT-level flag ("worth surfacing as a gap") to something with real, citable legal consequence — a much stronger and more useful signal, but also one that would be a serious product error to assert if wrong (telling a lawyer "the other side is now deemed to have admitted this" carries real weight). **This came from one AI-summarized fetch, same caveat this memo applies everywhere else — I have not implemented anything tonight that assumes it's true, and the Stage 2 implementation only uses the well-corroborated, lower-stakes rules (evidentiary-standard-by-stage).** Flagged in the final open-questions list below and in the morning report.
+2. A discrepancy was flagged here as unresolved — a follow-up fetch suggested תקנה 14 might contain a deemed-admission rule, materially stronger than this memo's original §2 treatment. **See Addendum 2 — now resolved with verbatim text supplied directly by the user.**
+
+---
+
+## Addendum 2 — תקנה 14 resolved, verbatim text supplied by the user (2026-09-13)
+
+The user (a practicing Israeli litigator) supplied the actual regulation text directly, closing the open question from Addendum 1. **[VERIFIED — primary text, user-supplied]:**
+
+> **חלקו השלישי של כתב הטענות** (תק' תשפ"א-2020)
+> **14.(א)** חלקו השלישי של כתב הטענות יכלול את פירוט העובדות המשמשות יסוד לכתב הטענות וכל מידע נוסף, שתכליתו לסייע בהבהרת המחלוקת ובמיקוד הפלוגתות שבין בעלי הדין.
+> **(ב)** הנתבע ייחשב מודה בכל העובדות הכלולות בכתב התביעה, זולת אלה שהכחיש באופן מפורש ומפורט בחלקו השלישי של כתב ההגנה, ואולם לעניין שיעור דמי הנזק יראו אותו כשנוי במחלוקת זולת אם הנתבע הודה בו במפורש.
+
+Both of the two conflicting research passes in Addendum 1 turn out to have been partially right, describing two different subsections of the same regulation: (א) is the "material facts" content this memo's §1/§2 already described; (ב) — added by the תשפ"א-2020 amendment — is the deemed-admission clause. This **replaces** the OPEN QUESTION status of this item everywhere below (§2, §8.1, §9(c)) with **VERIFIED**, subject to three details the verbatim text makes precise and that a looser paraphrase would have missed:
+
+1. **The deemed-admission rule is specifically complaint → defense.** The text names "הנתבע" and "כתב התביעה" — this is not yet confirmed to generalize to other document pairs (e.g., a reply's silence toward the defense) by anything found or supplied so far. Treat it as scoped to that one pair unless/until a further source confirms otherwise.
+2. **Damages quantum is explicitly carved out.** שיעור דמי הנזק is treated as disputed regardless of silence — only an express admission moves it out of dispute. A "no response to a damages-amount allegation" finding must NOT be treated as an admission the way other unaddressed facts now can be.
+3. **The denial must be explicit, detailed, and in the correct location** — "באופן מפורש ומפורט בחלקו השלישי של כתב ההגנה." A vague denial, or one that appears only in the defense's summary section rather than its detailed (third) part, does not satisfy the requirement — meaning even a defense that appears to "respond somewhere" may still leave the complaint's fact deemed admitted if that response isn't explicit, detailed, and correctly placed.
+
+**Product implication (proposed, not yet implemented):** the existing `not_addressed` cross-document relation type — currently worded cautiously as "no response identified," specifically because this legal question was unresolved — can now be upgraded to a real, citable deemed-admission flag, but *only* for complaint→defense pairs and *only* for non-damages-quantum facts; every other `not_addressed` case (other document-type pairs, or a damages-amount fact) should keep the current soft wording. This wasn't implemented as part of this addendum — see the conversation log / next steps for the proposal put to the user.
 
 ---
 
@@ -69,8 +87,8 @@ Before building anything on this memo, I (the orchestrating session, not the res
 
 **Explicitly NOT required:** same evidentiary point as the complaint — the defense states its factual position; it does not need to prove it there.
 
-**Genuine weaknesses to flag [PRODUCT JUDGMENT]:**
-- **A complaint allegation that is nowhere addressed** — this is the single highest-value cross-document check for a defense (see §8). Under general pleading principle (long pre-dating 2018, continued under the new regulations), silence on a factual allegation is not automatically an admission the way it can be in some other systems, but a competent defense conventionally denies or admits each material allegation; a defense that structurally omits an entire cause of action deserves a flag.
+**Genuine weaknesses to flag [UPDATED — now VERIFIED, see Addendum 2]:**
+- **A complaint allegation that is nowhere addressed** — this is the single highest-value cross-document check for a defense (see §8), and it is stronger than a mere weakness: **תקנה 14(ב)** (as amended תשפ"א-2020, verbatim text in Addendum 2) provides that the defendant is deemed to admit every fact in the complaint except one denied explicitly, in detail, and specifically in the defense's third (detailed) part — with an express carve-out for the amount of damages, which stays disputed absent an explicit admission. So an unaddressed complaint allegation in a defense is not just "worth flagging as a gap" — subject to the damages-quantum exception, it may be a deemed admission with real legal consequence.
 - Preliminary objections raised without any corresponding factual basis for them elsewhere in the pleading.
 - A defense whose "summary" section (תקנה 13) does not track the complaint's causes of action in the order the regulation requires — this is a structural, checkable defect, not a stylistic one.
 
@@ -188,7 +206,7 @@ There is no separate provision guaranteeing a movant an automatic further reply 
 
 These are the checks that only make sense comparing two or more documents over time — the section your spec calls out as most important.
 
-1. **Complaint → Defense: unaddressed allegation.** A material factual allegation in the complaint that the defense's summary section (תקנה 13, which must track the complaint's causes of action) does not address at all, and that is not otherwise deniable-by-omission under general pleading practice, is worth flagging as a gap in the defense. **[PRODUCT JUDGMENT, grounded in the תקנה 13 structural requirement]**
+1. **Complaint → Defense: unaddressed allegation.** A material factual allegation in the complaint with no explicit, detailed denial in the defense's third (detailed) part is, per **תקנה 14(ב)** (Addendum 2), a deemed admission — except for the amount of damages, which stays disputed absent an express admission. **[VERIFIED — see Addendum 2 for verbatim text and the three scoping details: complaint→defense specifically, damages-quantum carve-out, and the explicit/detailed/correctly-placed requirement for a denial to count]**
 
 2. **Defense → Reply: new-ground check.** A reply (כתב תשובה) containing a cause-of-action theory, remedy, or factual position **not present in the original complaint** is a direct violation of תקנה 18(א)'s "no new ground, no inconsistency" restriction. **[VERIFIED regulatory basis]** — high-confidence, mechanically checkable (diff the reply's assertions against the complaint's).
 
@@ -218,6 +236,7 @@ These are the checks that only make sense comparing two or more documents over t
 - Counterclaim mechanics mirror the complaint/defense/reply structure "with necessary modifications" — confirmed via direct quotation.
 - Motion affidavit requirement, response affidavit requirement, and length caps — **תקנה 50** (cross-confirmed twice, consistent detail on both occasions).
 - Reply-to-response scope-limitation doctrine ("no new factual/legal element without leave") — confirmed via case-law-derived language, though specifically situated in the class-action certification-motion line of authority.
+- **Deemed-admission rule for unaddressed complaint facts** — **תקנה 14(ב)** (as amended תשפ"א-2020), verbatim text supplied directly by the user; see Addendum 2. Scoped to complaint→defense, with an explicit damages-quantum carve-out and an explicit/detailed/correctly-placed requirement for a denial to count.
 
 ### (b) Reasonable product/design judgment, not an independently verified legal requirement
 - Treating "material document referenced but not attached" as a flaggable weakness at the pleading stage (the underlying attachment duty is verified; treating a violation of it as a "weakness" worth surfacing to the user is a product design choice, though a well-grounded one).
@@ -227,8 +246,7 @@ These are the checks that only make sense comparing two or more documents over t
 - Extending the reply-to-response scope doctrine from its class-action-certification origin to ordinary civil motions generally.
 
 ### (c) Open questions for a human lawyer to confirm before these become hard product rules
-- **[HIGHEST PRIORITY — added in the follow-up verification addendum above] Does תקנה 14 impose a deemed-admission rule** (unaddressed complaint facts are deemed admitted absent express denial)? If confirmed, this should replace the current soft "worth flagging as a gap" treatment of unaddressed complaint allegations in a defense (§2, §8.1) with a much stronger, legally-grounded flag — but nothing should change until this is confirmed against a verbatim source, given the cost of being wrong here.
-- **Verbatim text of תקנה 14** (complaint's detailed/third section) — I could not retrieve or quote it directly; its exact wording matters for calibrating what counts as a "missing material fact" versus an over-eager flag.
+- ~~Does תקנה 14 impose a deemed-admission rule?~~ **RESOLVED — see Addendum 2.** Verbatim text supplied by the user 2026-09-13.
 - **Exact response/reply day-counts and the pleadings-closed motion-timing restriction (תקנה 49)** — sourced from only one AI-summarized fetch each; please verify against the authoritative Nevo text or the official Reshumot publication before encoding specific day-counts.
 - **Whether any regulation (as opposed to practice norm) expressly requires summations to cite the evidentiary record** — I found none; worth a direct check with a litigator or a search of appellate case law on summation adequacy.
 - **Whether the reply-to-response scope doctrine (§6) has a reported decision in an ordinary (non-class-action) motion context** — would strengthen the citation for that rule.
