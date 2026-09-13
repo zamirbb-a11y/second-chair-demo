@@ -317,7 +317,7 @@ async function stepConfirmFamily({ members = [] }) {
 // Named exports (in addition to the default HTTP handler below) so step
 // logic can be invoked directly from Node test/validation scripts without
 // standing up a dev server — same production code path, no HTTP layer.
-export { stepSkeleton, stepClaim, stepEmbed, stepConfirmFamily };
+export { stepSkeleton, stepClaim, stepEmbed, stepConfirmFamily, stepConfirmRelation, stepNotAddressed };
 
 async function stepConfirmRelation({ currentFamily, currentParty = "unknown", candidates = [] }) {
   if (candidates.length === 0) return { relations: [] };

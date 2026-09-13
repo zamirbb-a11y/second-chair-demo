@@ -121,6 +121,11 @@ export default function PleadingUpload({ onAnalyze, onCancel, error, initial, ma
           <span className="block text-xs font-semibold text-slate-600 mb-1.5">
             האם מסמך זה מתייחס לכתב טענות קודם בתיק? (לא חובה)
           </span>
+          {(docType === "reply" || docType === "reply_to_motion") && (
+            <p className="text-xs text-slate-500 mb-1.5">
+              לבדיקת הרחבת חזית מדויקת יותר, מומלץ לסמן גם את המסמך שמסמך זה משיב לו וגם את המסמך שקדם לו (למשל: גם כתב ההגנה וגם כתב התביעה המקורי).
+            </p>
+          )}
           <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto rounded-lg border border-slate-200 p-2">
             {priorRecords.map((r) => (
               <label key={r.id} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer px-1.5 py-1 rounded-md hover:bg-slate-50">

@@ -18,6 +18,7 @@ const ALERT_LABELS = {
   changed: { text: "שינוי עמדה אפשרי", tone: "text-amber-700 bg-amber-400" },
   responds_to_partial: { text: "מענה חלקי בלבד", tone: "text-amber-700 bg-amber-400" },
   responds_to_talks_past: { text: "מענה שאינו ממוקד בטענה עצמה", tone: "text-amber-700 bg-amber-400" },
+  possible_scope_expansion: { text: "ייתכן שזו הרחבת חזית", tone: "text-amber-700 bg-amber-400" },
 };
 
 function alertFor(family, relations, analysisId) {

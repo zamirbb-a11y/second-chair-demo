@@ -183,11 +183,16 @@ function HistoryEntry({ relation, analysisId, familyId, resolveFamilyRef, onJump
   // resolveFamilyRef handles a null familyId (not_addressed's target names
   // only a document, never a specific family) — always call it so that
   // case still resolves a document to jump to, just with no family.
-  const other = resolveFamilyRef(otherRef.analysisId, otherRef.familyId ?? null);
+  // possible_scope_expansion has no "other side" at all (target is null —
+  // it's a finding about this family in isolation), so otherRef itself
+  // can be null here; guard before calling resolveFamilyRef.
+  const other = otherRef ? resolveFamilyRef(otherRef.analysisId, otherRef.familyId ?? null) : null;
 
   let line;
   if (relation.type === "not_addressed") {
     line = `לא אותרה התייחסות לטענה זו ב${other?.docTitle ?? "המסמך המשיב"}`;
+  } else if (relation.type === "possible_scope_expansion") {
+    line = "טענה זו אינה מתקשרת לאף טענה קודמת במסמכים שסומנו כמענה — ייתכן שמדובר בהרחבת חזית.";
   } else {
     const key = relation.type === "responds_to" ? `responds_to_${relation.stance}` : relation.type;
     const verb = RELATION_VERBS[key] ?? relation.type;
@@ -227,13 +232,14 @@ const ALERT_BANNER_TEXT = {
   not_addressed: "טענה מהותית קודמת — לא אותרה התייחסות אליה כאן",
   responds_to_partial: "מענה חלקי בלבד לטענה קודמת",
   responds_to_talks_past: "המענה כאן עשוי שלא להתמודד עם הטענה עצמה",
+  possible_scope_expansion: "ייתכן שזו הרחבת חזית — לא אותר קשר למסמכים שסומנו כמענה",
 };
-const ALERT_TONE = { contradicts: "red", changed: "amber", not_addressed: "amber", responds_to: "amber" };
+const ALERT_TONE = { contradicts: "red", changed: "amber", not_addressed: "amber", responds_to: "amber", possible_scope_expansion: "amber" };
 
 function AlertBanner({ relation, analysisId, family, resolveFamilyRef, onOpenHistory }) {
   const isSubject = relation.subject.analysisId === analysisId && relation.subject.familyId === family.id;
   const otherRef = isSubject ? relation.target : relation.subject;
-  const other = otherRef.analysisId ? resolveFamilyRef(otherRef.analysisId, otherRef.familyId ?? null) : null;
+  const other = otherRef?.analysisId ? resolveFamilyRef(otherRef.analysisId, otherRef.familyId ?? null) : null;
   const key = relation.type === "responds_to" ? `responds_to_${relation.stance}` : relation.type;
   const tone = ALERT_TONE[relation.type] ?? "amber";
   const toneClasses = tone === "red" ? "bg-red-50 border-red-200 text-red-800" : "bg-amber-50 border-amber-200 text-amber-800";

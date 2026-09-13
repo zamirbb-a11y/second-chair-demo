@@ -5,13 +5,66 @@
 // the model should decide, and a pure function means the policy can change
 // later and apply to every existing analysis for free, with no re-run.
 
+import { LIGHTWEIGHT_KINDS } from "./pleadingValidation.js";
+
 export function computeSalience(relation) {
-  if (!relation || relation.confidence === "low") return "low";
+  if (!relation) return "low";
+  if (relation.type === "possible_scope_expansion") return "high";
+  if (relation.confidence === "low") return "low";
   if (relation.type === "contradicts") return "high";
   if (relation.type === "changed") return "high";
   if (relation.type === "not_addressed") return "high";
   if (relation.type === "responds_to" && (relation.stance === "partial" || relation.stance === "talks_past")) return "high";
   return "low";
+}
+
+// A reply (כתב תשובה) or reply-in-support-of-motion (תשובה לתגובה) may not
+// raise a new cause-of-action ground or content inconsistent with the
+// party's prior contentions — תקנה 18(א). The only signal available
+// without a new AI call is a NEGATIVE one: this family has no confirmed
+// relation at all to anything in the document(s) it was marked as
+// responding to. That's a necessary but not sufficient sign of improper
+// new material (a real match can be missed by recall, or the reply may
+// simply rebut something in the response/defense that was never itself
+// matched back to the original pleading) — hence "possible", never
+// asserted as a finding, and salience "high" with confidence "low" kept
+// deliberately visible in the UI rather than hidden.
+//
+// This only reliably covers what it was actually checked against: a
+// reply marked as responding to just the defense (not also the
+// complaint) can't tell "genuinely new" apart from "repeats the
+// complaint in different words" — see PleadingUpload's respondsTo hint.
+const SCOPE_CHECKED_DOC_TYPES = new Set(["reply", "reply_to_motion"]);
+
+export function possibleScopeExpansion(family, relations, analysisId, docType) {
+  if (!SCOPE_CHECKED_DOC_TYPES.has(docType)) return false;
+  if (LIGHTWEIGHT_KINDS.has(family.node_kind)) return false;
+  return !(relations ?? []).some((r) => r.subject.analysisId === analysisId && r.subject.familyId === family.id);
+}
+
+// Synthesizes one pseudo-relation per flagged family, in the same shape
+// every other relation uses, so it flows through relationsForFamily /
+// computeSalience / the History and alert UI with zero special-casing
+// beyond the couple of null-target guards those already needed for
+// not_addressed. Computed fresh at render time from already-stored
+// data — never persisted onto analysis.cross_document_relations, and
+// never a new AI call.
+export function deriveScopeExpansionRelations(record) {
+  const analysis = record?.analysis;
+  if (!analysis || !SCOPE_CHECKED_DOC_TYPES.has(record.docType)) return [];
+  const relations = analysis.cross_document_relations ?? [];
+  const families = analysis.claim_families ?? [];
+  return families
+    .filter((f) => possibleScopeExpansion(f, relations, analysis.id, record.docType))
+    .map((f) => ({
+      id: `scope-expansion-${analysis.id}-${f.id}`,
+      type: "possible_scope_expansion",
+      subject: { analysisId: analysis.id, familyId: f.id },
+      target: null,
+      stance: null,
+      confidence: "low",
+      rationale: "טענה זו אינה מתקשרת לאף טענה קודמת במסמכים שסומנו כמענה — ייתכן שמדובר בחומר חדש שאינו מותר בשלב זה (תקנה 18(א)).",
+    }));
 }
 
 // Relations touching this family, from either side — a family can be the
@@ -26,7 +79,7 @@ export function relationsForFamily(relations, analysisId, familyId) {
   return (relations ?? []).filter(
     (r) =>
       (r.subject.analysisId === analysisId && r.subject.familyId === familyId) ||
-      (r.target.analysisId === analysisId && r.target.familyId === familyId)
+      (r.target?.analysisId === analysisId && r.target?.familyId === familyId)
   );
 }
 
@@ -37,7 +90,7 @@ export function highSalienceRelationsForFamily(relations, analysisId, familyId) 
 // Worst-first ordering when only one alert can be shown at a time (the
 // compact list-row signal) — a family with several high-salience
 // relations still surfaces just the most important one there.
-export const ALERT_PRIORITY = ["contradicts", "not_addressed", "changed", "responds_to"];
+export const ALERT_PRIORITY = ["contradicts", "not_addressed", "possible_scope_expansion", "changed", "responds_to"];
 
 export function sortByAlertPriority(rels) {
   return [...rels].sort((a, b) => ALERT_PRIORITY.indexOf(a.type) - ALERT_PRIORITY.indexOf(b.type));

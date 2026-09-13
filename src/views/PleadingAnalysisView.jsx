@@ -14,6 +14,7 @@ import { useRef, useState } from "react";
 import { runPleadingAnalysis } from "../lib/pleadingPipeline.js";
 import { uploadFileViaStorage } from "../utils/uploadViaStorage";
 import { deriveFamilies, familyContaining } from "../lib/claimFamilies.js";
+import { deriveScopeExpansionRelations } from "../lib/crossDocumentRelations.js";
 import CrossDocumentSummary from "../components/pleadings/CrossDocumentSummary.jsx";
 import PleadingList, { DOC_TYPE_LABELS, PARTY_LABELS } from "../components/pleadings/PleadingList.jsx";
 import PleadingUpload from "../components/pleadings/PleadingUpload.jsx";
@@ -78,7 +79,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
   // too (e.g. a reply's not_addressed finding about a defense claim), and
   // this is what lets History grow into a real chain later with no
   // redesign: every relation just names two (analysisId, familyId) pairs.
-  const allRelations = records.flatMap((r) => r.analysis?.cross_document_relations ?? []);
+  const allRelations = records.flatMap((r) => [...(r.analysis?.cross_document_relations ?? []), ...deriveScopeExpansionRelations(r)]);
   const recordByAnalysisId = new Map(records.map((r) => [r.analysis?.id, r]));
 
   function jumpToFamily(analysisId, familyId) {
