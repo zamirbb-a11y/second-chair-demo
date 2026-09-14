@@ -17,11 +17,13 @@ import { deriveFamilies, familyContaining } from "../lib/claimFamilies.js";
 import { buildCaseRelations } from "../lib/crossDocumentRelations.js";
 import { checkPageLimit } from "../lib/formalChecks.js";
 import { readDocxFormat, checkDocxFormat } from "../lib/docxFormalChecks.js";
+import { buildPleadingSummary } from "../lib/pleadingSummary.js";
 import CrossDocumentSummary from "../components/pleadings/CrossDocumentSummary.jsx";
 import DocxCheckPanel from "../components/pleadings/DocxCheckPanel.jsx";
 import CaseFactualLedgerView from "../components/pleadings/CaseFactualLedgerView.jsx";
 import PleadingList, { DOC_TYPE_LABELS, PARTY_LABELS } from "../components/pleadings/PleadingList.jsx";
 import PleadingUpload from "../components/pleadings/PleadingUpload.jsx";
+import PleadingSummary from "../components/pleadings/PleadingSummary.jsx";
 import ClaimList from "../components/pleadings/ClaimList.jsx";
 import ClaimDetail from "../components/pleadings/ClaimDetail.jsx";
 import PleadingDocument from "../components/pleadings/PleadingDocument.jsx";
@@ -123,7 +125,7 @@ const STAGE_LABELS = {
 export default function PleadingAnalysisView({ caseId, accessToken, onRunStatusChange }) {
   const [records, setRecords] = useState(() => loadRecords(caseId));
   const [mode, setMode] = useState("list"); // "list" | "upload" | "analysis" | "ledger"
-  const [viewMode, setViewMode] = useState("claims"); // "claims" | "document"
+  const [viewMode, setViewMode] = useState("summary"); // "summary" | "claims" | "document"
   const [currentId, setCurrentId] = useState(null);
   const [selectedFamilyId, setSelectedFamilyId] = useState(null);
   const [uploadError, setUploadError] = useState("");
@@ -286,6 +288,10 @@ export default function PleadingAnalysisView({ caseId, accessToken, onRunStatusC
       setCurrentId(record.id);
       setDraft(null);
       setStage(null);
+      // Every completed run lands on the summary, not wherever viewMode
+      // happened to be left from browsing a previous document — a fresh
+      // pile of findings should always show the digest first.
+      setViewMode("summary");
     } catch (pipelineErr) {
       // Keep whatever fully arrived instead of losing the run — but only
       // for a brand-new upload; see the note above the function.
@@ -569,7 +575,13 @@ export default function PleadingAnalysisView({ caseId, accessToken, onRunStatusC
     const doc = analysis?.document;
     // The document view needs the pleading text, which only new records carry.
     const documentAvailable = !analyzing && !!current?.pleadingText;
-    const effectiveView = viewMode === "document" && documentAvailable ? "document" : "claims";
+    const effectiveView =
+      viewMode === "document" && documentAvailable ? "document" :
+      viewMode === "summary" && !analyzing ? "summary" :
+      "claims";
+    // Never a new AI call — see src/lib/pleadingSummary.js. Cheap enough
+    // to recompute on every render; no memoization needed.
+    const summary = effectiveView === "summary" ? buildPleadingSummary({ record: current, allRelations }) : null;
     return (
       <div className="flex h-full min-h-0" dir="rtl">
         {effectiveView === "claims" && (
@@ -610,7 +622,7 @@ export default function PleadingAnalysisView({ caseId, accessToken, onRunStatusC
             <span className="flex-1" />
             {!analyzing && (
               <span className="flex rounded-lg border border-slate-200 overflow-hidden flex-shrink-0" role="group" aria-label="תצוגה">
-                {[["claims", "טענות"], ["document", "מסמך"]].map(([value, label]) => (
+                {[["summary", "תקציר"], ["claims", "טענות"], ["document", "מסמך"]].map(([value, label]) => (
                   <button
                     key={value}
                     type="button"
@@ -666,7 +678,14 @@ export default function PleadingAnalysisView({ caseId, accessToken, onRunStatusC
             </p>
           )}
 
-          {effectiveView === "document" ? (
+          {effectiveView === "summary" ? (
+            <PleadingSummary
+              summary={summary}
+              respondsTo={analysis?.respondsTo ?? []}
+              onSelectFamily={(familyId) => { setSelectedFamilyId(familyId); setViewMode("claims"); }}
+              onViewClaims={() => setViewMode("claims")}
+            />
+          ) : effectiveView === "document" ? (
             <div className="flex-1 flex min-h-0">
               <PleadingDocument
                 pleadingText={current.pleadingText}

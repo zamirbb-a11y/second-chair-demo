@@ -131,6 +131,32 @@ export function sortByAlertPriority(rels) {
   return [...rels].sort((a, b) => ALERT_PRIORITY.indexOf(a.type) - ALERT_PRIORITY.indexOf(b.type));
 }
 
+// A relation's type plus (for the two cases that fork on more than type
+// alone) its stance/isDeemedAdmission — the single key both the per-family
+// alert banner (ClaimDetail) and the case-wide summary (pleadingSummary)
+// look up display text and tone for. Kept here, not duplicated in either
+// consumer, so the two can never describe the same relation differently.
+export function alertKeyForRelation(relation, analysisId, familyId) {
+  if (relation.type === "not_addressed" && relation.isDeemedAdmission) return "deemed_admission";
+  if (relation.type === "responds_to") return `responds_to_${relation.stance}`;
+  return relation.type;
+}
+
+// Only relation outcomes worth interrupting the lawyer for get an entry
+// here — a plain repeats/admits/denies is the expected, unremarkable case
+// and intentionally has no banner text, so callers filtering on
+// ALERT_BANNER_TEXT[key] naturally exclude it.
+export const ALERT_BANNER_TEXT = {
+  contradicts: "סתירה אפשרית עם עמדה קודמת",
+  changed: "שינוי עמדה אפשרי",
+  not_addressed: "טענה מהותית קודמת — לא אותרה התייחסות אליה כאן",
+  deemed_admission: "טענה מהותית קודמת נחשבת כמודה בה (תקנה 14(ב)) — לא אותרה הכחשה מפורשת ומפורטת",
+  responds_to_partial: "מענה חלקי בלבד לטענה קודמת",
+  responds_to_talks_past: "המענה כאן עשוי שלא להתמודד עם הטענה עצמה",
+  possible_scope_expansion: "ייתכן שזו הרחבת חזית — לא אותר קשר למסמכים שסומנו כמענה",
+};
+export const ALERT_TONE = { contradicts: "red", changed: "amber", not_addressed: "amber", deemed_admission: "red", responds_to: "amber", possible_scope_expansion: "amber" };
+
 // Case-wide relations pool: every stored pleading's own relations,
 // annotated with isDeemedAdmission (needs the two documents' types,
 // resolved from the records list), plus the derived scope-expansion

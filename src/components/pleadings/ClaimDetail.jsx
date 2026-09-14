@@ -6,7 +6,7 @@
 
 import { useEffect, useState } from "react";
 import { familyMembers, primaryClaim } from "../../lib/claimFamilies.js";
-import { relationsForFamily, highSalienceRelationsForFamily, sortByAlertPriority } from "../../lib/crossDocumentRelations.js";
+import { relationsForFamily, highSalienceRelationsForFamily, sortByAlertPriority, alertKeyForRelation, ALERT_BANNER_TEXT, ALERT_TONE } from "../../lib/crossDocumentRelations.js";
 
 const KIND_LABELS = {
   main_claim: "עילה מרכזית", factual_allegation: "טענה עובדתית",
@@ -234,24 +234,11 @@ function HistoryEntry({ relation, analysisId, familyId, resolveFamilyRef, onJump
   );
 }
 
-const ALERT_BANNER_TEXT = {
-  contradicts: "סתירה אפשרית עם עמדה קודמת",
-  changed: "שינוי עמדה אפשרי",
-  not_addressed: "טענה מהותית קודמת — לא אותרה התייחסות אליה כאן",
-  deemed_admission: "טענה מהותית קודמת נחשבת כמודה בה (תקנה 14(ב)) — לא אותרה הכחשה מפורשת ומפורטת",
-  responds_to_partial: "מענה חלקי בלבד לטענה קודמת",
-  responds_to_talks_past: "המענה כאן עשוי שלא להתמודד עם הטענה עצמה",
-  possible_scope_expansion: "ייתכן שזו הרחבת חזית — לא אותר קשר למסמכים שסומנו כמענה",
-};
-const ALERT_TONE = { contradicts: "red", changed: "amber", not_addressed: "amber", deemed_admission: "red", responds_to: "amber", possible_scope_expansion: "amber" };
-
 function AlertBanner({ relation, analysisId, family, resolveFamilyRef, onOpenHistory }) {
   const isSubject = relation.subject.analysisId === analysisId && relation.subject.familyId === family.id;
   const otherRef = isSubject ? relation.target : relation.subject;
   const other = otherRef?.analysisId ? resolveFamilyRef(otherRef.analysisId, otherRef.familyId ?? null) : null;
-  const key = relation.type === "responds_to" ? `responds_to_${relation.stance}`
-    : relation.type === "not_addressed" && relation.isDeemedAdmission ? "deemed_admission"
-    : relation.type;
+  const key = alertKeyForRelation(relation, analysisId, family.id);
   const tone = ALERT_TONE[key] ?? "amber";
   const toneClasses = tone === "red" ? "bg-red-50 border-red-200 text-red-800" : "bg-amber-50 border-amber-200 text-amber-800";
 
