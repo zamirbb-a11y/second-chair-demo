@@ -98,6 +98,11 @@ export default function PleadingList({ records, onOpen, onUploadNew, onRemove, o
                       <span className="text-xs text-slate-500">
                         {new Date(r.createdAt).toLocaleDateString("he-IL")}
                       </span>
+                      {!r.analysis && (
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
+                          לא נותח
+                        </span>
+                      )}
                     </div>
                     <div className="text-sm font-semibold text-slate-800 group-hover:text-blue-700 transition-colors truncate">
                       {r.title}
@@ -125,10 +130,10 @@ export default function PleadingList({ records, onOpen, onUploadNew, onRemove, o
                 <button
                   type="button"
                   onClick={() => onReanalyze(r.id)}
-                  title="הרץ שוב את הניתוח על טקסט המסמך שכבר חולץ — ללא העלאה מחדש"
+                  title={r.analysis ? "הרץ שוב את הניתוח על טקסט המסמך שכבר חולץ — ללא העלאה מחדש" : "הרץ ניתוח על המסמך שהועלה"}
                   className="text-xs font-semibold text-slate-500 hover:text-slate-700 bg-transparent border-0 cursor-pointer px-1 flex-shrink-0"
                 >
-                  נתח מחדש
+                  {r.analysis ? "נתח מחדש" : "נתח"}
                 </button>
                 <DocTypeEditor record={r} onEditDocType={onEditDocType} />
                 <RemoveButton onConfirm={() => onRemove(r.id)} />

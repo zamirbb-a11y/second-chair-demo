@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import AnalysisLoadingOverlay from "./components/AnalysisLoadingOverlay";
 import UpdateStatusPill from "./components/UpdateStatusPill";
+import PleadingRunPill from "./components/PleadingRunPill";
 import CaseIntake from "./components/CaseIntake";
 import CollapsedCaseHeader from "./components/CollapsedCaseHeader";
 
@@ -259,6 +260,13 @@ export default function App() {
   const [loadingMode, setLoadingMode] = useState("initial"); // "initial" | "update"
   const [updating, setUpdating] = useState(false); // incremental update in flight (non-modal)
   const updateAbortRef = useRef(null);
+  // Pleading analysis run status, reported by the always-mounted
+  // PleadingAnalysisView instance (see renderWorkspaceView) — lets a
+  // global pill show progress + cancel from any screen, not just while
+  // actually looking at the pleadings tab. Cleared on case switch: a run
+  // still finishes and saves in the background even then, but tracking it
+  // across a full case switch (not just a view switch) is out of scope.
+  const [pleadingRunStatus, setPleadingRunStatus] = useState(null); // {isRunning, label, cancel} | null
   const [adversarialLoading, setAdversarialLoading] = useState(new Set());
   const [preIntakeLoading, setPreIntakeLoading] = useState(false);
   const [preIntakeQuestions, setPreIntakeQuestions] = useState([]);
@@ -276,6 +284,7 @@ export default function App() {
   const [savedCases, setSavedCases] = useState([]);
   const [showWizard, setShowWizard] = useState(false);
   const [currentCaseId, setCurrentCaseId] = useState(null);
+  useEffect(() => { setPleadingRunStatus(null); }, [currentCaseId]);
   const [authModal, setAuthModal] = useState(null); // null | "login" | "signup"
   const [switchUserModal, setSwitchUserModal] = useState(false);
   const [syncStatus, setSyncStatus] = useState(getSyncStatus);
@@ -2089,8 +2098,9 @@ function removeAcceptedWorkItem(itemId) {
 
   function renderWorkspaceView() {
     switch (activeView) {
-      case "legal-briefs":
-        return <PleadingAnalysisView key={currentCaseId ?? "no-case"} caseId={currentCaseId} accessToken={session?.access_token} />;
+      // "legal-briefs" is NOT handled here — PleadingAnalysisView is
+      // rendered separately, always mounted (see the JSX below), so an
+      // in-flight analysis survives switching to any other view.
 
       case "pleadings":
         return (
@@ -2161,6 +2171,13 @@ default:
     <div dir="rtl" className="h-screen bg-[#eef0f4] text-slate-900 flex flex-col overflow-hidden">
       {loading && <AnalysisLoadingOverlay mode={loadingMode} caseName={caseName} clientName={clientName} />}
       {updating && !loading && <UpdateStatusPill onCancel={cancelIncrementalUpdate} />}
+      {pleadingRunStatus?.isRunning && !loading && (
+        <PleadingRunPill
+          label={pleadingRunStatus.label}
+          onCancel={pleadingRunStatus.cancel}
+          onOpen={() => setActiveView("legal-briefs")}
+        />
+      )}
       {!!analysis && !session && window.location.hostname !== "localhost" && <AuthScreen isModal paywallMode initialMode="login" />}
       {switchUserModal && <AuthScreen isModal initialMode="login" onDone={() => setSwitchUserModal(false)} />}
 
@@ -2337,7 +2354,27 @@ default:
 
           {/* Scrollable content */}
           <div className="flex-1 overflow-y-auto">
-            {!analysis ? (
+            {/* Pleadings view — always mounted once a case has an analysis,
+                hidden via CSS (not unmounted) when it isn't the active
+                screen. Its own local state (live streaming progress, the
+                in-flight AbortController) otherwise lived inside a
+                component the old activeView switch tore down on every
+                screen change, resetting an in-progress analysis back to
+                the plain list the moment you looked away. See
+                PleadingRunPill (rendered at the app root) for the
+                cross-screen progress indicator this makes possible. */}
+            {analysis && (
+              <div className={activeView === "legal-briefs" ? "h-full" : "hidden"}>
+                <PleadingAnalysisView
+                  key={currentCaseId ?? "no-case"}
+                  caseId={currentCaseId}
+                  accessToken={session?.access_token}
+                  onRunStatusChange={setPleadingRunStatus}
+                />
+              </div>
+            )}
+            {!(analysis && activeView === "legal-briefs") && (
+            !analysis ? (
               <div className="p-6">
                 <CaseIntake
                   caseText={caseText}
@@ -2399,14 +2436,11 @@ default:
                   onOpenChat={openChatForIssue}
                 />
               )
-            ) : activeView === "legal-briefs" ? (
-              <div className="h-full">
-                {renderWorkspaceView()}
-              </div>
             ) : (
               <div className="p-6">
                 {renderWorkspaceView()}
               </div>
+            )
             )}
           </div>
 

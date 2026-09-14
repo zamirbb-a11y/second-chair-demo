@@ -59,6 +59,49 @@ async function runDocxCheck(file, docType, isInterimRelief, documentText) {
   return { formatFindings, consistencyFindings };
 }
 
+// Shared by analyze() and uploadOnly() — both need the file turned into
+// extracted text before anything else happens; only analyze() goes on to
+// run the pipeline. Preferred: direct-to-Supabase-Storage upload (50MB),
+// bypassing Vercel's ~4.5MB request-body platform limit. Falls back to the
+// legacy multipart path (4MB cap) when there's no session OR the storage
+// leg fails (e.g. bucket not provisioned) — small files work either way.
+async function extractPleadingText(file, accessToken, signal) {
+  let pleadingText = null;
+  let storagePath = null; // kept for original-document display
+  let ocrReview = null; // {needsManualReview, unreadablePages} — only set for scanned PDFs
+  let pageCount = null; // real PDF page count, for mechanical page-limit checks (formalChecks.js)
+  if (accessToken) {
+    try {
+      const processed = await uploadFileViaStorage(file, accessToken);
+      pleadingText = processed?.text ?? "";
+      storagePath = processed?.storagePath ?? null;
+      pageCount = processed?.pageCount ?? null;
+      if (processed?.needsManualReview) {
+        ocrReview = { needsManualReview: true, unreadablePages: (processed.ocrPages ?? []).filter((p) => p.status === "unreadable").map((p) => p.page) };
+      }
+    } catch (storageErr) {
+      console.error("storage upload failed, falling back to /api/upload:", storageErr);
+    }
+    if (signal?.aborted) throw Object.assign(new Error("aborted"), { name: "AbortError" });
+  }
+  if (pleadingText === null) {
+    if (file.size > 4 * 1024 * 1024) throw new Error("too_large_local");
+    const form = new FormData();
+    form.append("files", file);
+    const up = await fetch("/api/upload", { method: "POST", body: form, signal });
+    if (!up.ok) throw new Error("upload_failed");
+    const upData = await up.json();
+    const uploaded = upData.files?.[0];
+    pleadingText = (upData.files ?? []).map((f) => f?.text ?? "").join("\n\n");
+    pageCount = uploaded?.pageCount ?? null;
+    if (uploaded?.needsManualReview) {
+      ocrReview = { needsManualReview: true, unreadablePages: (uploaded.ocrPages ?? []).filter((p) => p.status === "unreadable").map((p) => p.page) };
+    }
+  }
+  if (pleadingText.trim().length < 200) throw new Error("extraction_failed");
+  return { pleadingText, storagePath, ocrReview, pageCount };
+}
+
 function loadRecords(caseId) {
   try {
     return JSON.parse(localStorage.getItem(storageKey(caseId))) ?? [];
@@ -77,7 +120,7 @@ const STAGE_LABELS = {
   relations:  "משווה לכתב הטענות הקודם…",
 };
 
-export default function PleadingAnalysisView({ caseId, accessToken }) {
+export default function PleadingAnalysisView({ caseId, accessToken, onRunStatusChange }) {
   const [records, setRecords] = useState(() => loadRecords(caseId));
   const [mode, setMode] = useState("list"); // "list" | "upload" | "analysis" | "ledger"
   const [viewMode, setViewMode] = useState("claims"); // "claims" | "document"
@@ -287,47 +330,11 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
 
     const controller = new AbortController();
     abortRef.current = controller;
+    onRunStatusChange?.({ isRunning: true, label: file.name, cancel: () => controller.abort() });
 
     try {
-      // Preferred: direct-to-Supabase-Storage upload (50MB), bypassing
-      // Vercel's ~4.5MB request-body platform limit. Falls back to the legacy
-      // multipart path (4MB cap) when there's no session OR the storage leg
-      // fails (e.g. bucket not provisioned) — small files work either way.
-      let pleadingText = null;
-      let storagePath = null; // kept for original-document display
-      let ocrReview = null; // {needsManualReview, unreadablePages} — only set for scanned PDFs
-      let pageCount = null; // real PDF page count, for mechanical page-limit checks (formalChecks.js)
-      if (accessToken) {
-        try {
-          const processed = await uploadFileViaStorage(file, accessToken);
-          pleadingText = processed?.text ?? "";
-          storagePath = processed?.storagePath ?? null;
-          pageCount = processed?.pageCount ?? null;
-          if (processed?.needsManualReview) {
-            ocrReview = { needsManualReview: true, unreadablePages: (processed.ocrPages ?? []).filter((p) => p.status === "unreadable").map((p) => p.page) };
-          }
-        } catch (storageErr) {
-          console.error("storage upload failed, falling back to /api/upload:", storageErr);
-        }
-        if (controller.signal.aborted) {
-          throw Object.assign(new Error("aborted"), { name: "AbortError" });
-        }
-      }
-      if (pleadingText === null) {
-        if (file.size > 4 * 1024 * 1024) throw new Error("too_large_local");
-        const form = new FormData();
-        form.append("files", file);
-        const up = await fetch("/api/upload", { method: "POST", body: form, signal: controller.signal });
-        if (!up.ok) throw new Error("upload_failed");
-        const upData = await up.json();
-        const uploaded = upData.files?.[0];
-        pleadingText = (upData.files ?? []).map((f) => f?.text ?? "").join("\n\n");
-        pageCount = uploaded?.pageCount ?? null;
-        if (uploaded?.needsManualReview) {
-          ocrReview = { needsManualReview: true, unreadablePages: (uploaded.ocrPages ?? []).filter((p) => p.status === "unreadable").map((p) => p.page) };
-        }
-      }
-      if (pleadingText.trim().length < 200) throw new Error("extraction_failed");
+      const { pleadingText, storagePath, ocrReview, pageCount } =
+        await extractPleadingText(file, accessToken, controller.signal);
 
       // Opt-in only (checkbox, .docx only) — never blocks or fails the
       // main analysis if it errors, since it's a side-check, not the
@@ -337,9 +344,13 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
       // Prior pleadings this one was explicitly marked as responding to —
       // their already-computed families are what cross-document relations
       // get matched against. Never inferred, only what the user picked.
+      // A prior doc that was uploaded without analysis (no .analysis yet)
+      // is a valid choice in the UI but has no families to match against —
+      // skip it here rather than crash; the user can re-mark it once it's
+      // actually been analyzed.
       const priorDocs = respondsTo
         .map((id) => records.find((r) => r.id === id))
-        .filter(Boolean)
+        .filter((r) => r?.analysis)
         .map((r) => ({ analysisId: r.analysis.id, party: r.party, families: r.analysis.claim_families ?? [] }));
 
       await runPipelineAndPersist({
@@ -370,6 +381,53 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
       }
     } finally {
       abortRef.current = null;
+      onRunStatusChange?.({ isRunning: false });
+    }
+  }
+
+  // Uploads a file and extracts its text without running the (expensive,
+  // multi-stage) analysis pipeline — for a document that's only needed as
+  // a reference (e.g. the other side's pleading, marked as "responds to"
+  // on a document that IS being analyzed) rather than one you need a full
+  // claim-by-claim breakdown of right now. Appears in the list as "לא
+  // נותח"; "נתח"/"נתח מחדש" both route through reanalyze(), which already
+  // tolerates a record with no .analysis yet.
+  async function uploadOnly({ file, docType, party, filingDate = null }) {
+    setUploadError("");
+    setStatus("מעלה מסמך…");
+    try {
+      const { pleadingText, storagePath, ocrReview, pageCount } =
+        await extractPleadingText(file, accessToken);
+
+      const record = {
+        id: `pa_uploaded_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        docType,
+        party,
+        title: file.name,
+        createdAt: new Date().toISOString(),
+        filingDate,
+        reviewed: {},
+        pleadingText,
+        storagePath,
+        fileType: (file.name.split(".").pop() ?? "").toLowerCase(),
+        pageCount,
+        isInterimRelief: false,
+        docxCheck: null,
+        ocrReview,
+        analysis: null, // not analyzed — usable as a "responds to" reference; run "נתח" to analyze later
+      };
+      persist([record, ...records]);
+      setMode("list");
+      setStatus("הקובץ הועלה. אפשר לנתח אותו בהמשך.");
+    } catch (err) {
+      console.error("upload-only failed:", err);
+      setUploadError(
+        err.message === "extraction_failed"
+          ? "לא הצלחתי לחלץ טקסט מהקובץ — נסה קובץ אחר או פורמט אחר."
+          : err.message === "too_large_local"
+          ? "ללא התחברות (סביבת פיתוח מקומית) ניתן להעלות קבצים עד 4MB."
+          : "ההעלאה לא הושלמה — נסה שוב."
+      );
     }
   }
 
@@ -393,6 +451,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
 
     const controller = new AbortController();
     abortRef.current = controller;
+    onRunStatusChange?.({ isRunning: true, label: record.title, cancel: () => controller.abort() });
 
     const priorDocs = (record.analysis?.respondsTo ?? [])
       .map((analysisId) => recordByAnalysisId.get(analysisId))
@@ -425,14 +484,18 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
       setDraft(null);
       setStage(null);
       setCurrentId(recordId); // the original record is untouched — fall back to showing it
+      const hadPriorAnalysis = !!record.analysis;
       setStatus(
         err?.name === "AbortError"
-          ? "הניתוח מחדש בוטל."
-          : "הניתוח מחדש לא הושלם — הניתוח הקודם נשמר ללא שינוי."
+          ? "הניתוח בוטל."
+          : hadPriorAnalysis
+          ? "הניתוח מחדש לא הושלם — הניתוח הקודם נשמר ללא שינוי."
+          : "הניתוח לא הושלם — המסמך שמור ברשימה לניסיון נוסף."
       );
       if (err?.name !== "AbortError") console.error("re-analysis failed:", err);
     } finally {
       abortRef.current = null;
+      onRunStatusChange?.({ isRunning: false });
     }
   }
 
@@ -453,6 +516,7 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
     return (
       <PleadingUpload
         onAnalyze={analyze}
+        onUploadOnly={uploadOnly}
         onCancel={() => { setUploadError(""); setMode("list"); }}
         error={uploadError}
         initial={lastAttempt}
@@ -470,6 +534,34 @@ export default function PleadingAnalysisView({ caseId, accessToken }) {
         onJumpToFamily={(analysisId, familyId) => { jumpToFamily(analysisId, familyId); setMode("analysis"); }}
         onBack={() => setMode("list")}
       />
+    );
+  }
+
+  // Uploaded via "העלה בלי ניתוח" and not yet analyzed — no claims/families
+  // to show, just an entry point into reanalyze() (which already tolerates
+  // a record with no .analysis, so it doubles as "run the first analysis").
+  if (mode === "analysis" && current && !current.analysis && !analyzing) {
+    return (
+      <div className="px-8 py-7 max-w-[640px]" dir="rtl">
+        <button
+          type="button"
+          onClick={() => { setMode("list"); setCurrentId(null); }}
+          className="text-sm text-slate-500 hover:text-slate-700 bg-transparent border-0 cursor-pointer p-0 mb-4"
+        >
+          → כל כתבי הטענות
+        </button>
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center">
+          <p className="text-sm font-semibold text-slate-800 mb-1">{current.title}</p>
+          <p className="text-sm text-slate-500 mb-5">המסמך הועלה אך טרם נותח.</p>
+          <button
+            type="button"
+            onClick={() => reanalyze(current.id)}
+            className="rounded-lg bg-slate-900 text-white px-6 py-2.5 text-sm font-semibold hover:bg-slate-800 border-0 cursor-pointer"
+          >
+            נתח מסמך
+          </button>
+        </div>
+      </div>
     );
   }
 

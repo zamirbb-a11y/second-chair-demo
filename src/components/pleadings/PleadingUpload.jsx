@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { DOC_TYPE_LABELS } from "./PleadingList.jsx";
 
-export default function PleadingUpload({ onAnalyze, onCancel, error, initial, maxSizeLabel = "50MB", priorRecords = [] }) {
+export default function PleadingUpload({ onAnalyze, onUploadOnly, onCancel, error, initial, maxSizeLabel = "50MB", priorRecords = [] }) {
   // On a failed analysis the view remounts this form — restore the user's
   // previous selections so "the file wasn't lost" is actually true.
   const [file, setFile] = useState(initial?.file ?? null);
@@ -183,14 +183,27 @@ export default function PleadingUpload({ onAnalyze, onCancel, error, initial, ma
         </p>
       )}
 
-      <button
-        type="button"
-        disabled={!ready}
-        onClick={() => onAnalyze({ file, docType, party, respondsTo, filingDate: filingDate || null, isInterimRelief: showInterimReliefOption && isInterimRelief, checkDocxFormatting: isDocxFile && checkDocxFormatting })}
-        className="rounded-lg bg-slate-900 text-white px-6 py-2.5 text-sm font-semibold hover:bg-slate-800 disabled:opacity-40 border-0 cursor-pointer"
-      >
-        נתח מסמך
-      </button>
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          disabled={!ready}
+          onClick={() => onAnalyze({ file, docType, party, respondsTo, filingDate: filingDate || null, isInterimRelief: showInterimReliefOption && isInterimRelief, checkDocxFormatting: isDocxFile && checkDocxFormatting })}
+          className="rounded-lg bg-slate-900 text-white px-6 py-2.5 text-sm font-semibold hover:bg-slate-800 disabled:opacity-40 border-0 cursor-pointer"
+        >
+          נתח מסמך
+        </button>
+        {onUploadOnly && (
+          <button
+            type="button"
+            disabled={!ready}
+            title="שמור את המסמך בתיק לצורך עיון והפניה, ללא הרצת הניתוח — אפשר לנתח אותו בהמשך"
+            onClick={() => onUploadOnly({ file, docType, party, filingDate: filingDate || null })}
+            className="rounded-lg bg-white text-slate-700 border border-slate-300 px-4 py-2.5 text-sm font-semibold hover:border-slate-400 disabled:opacity-40 cursor-pointer"
+          >
+            העלה בלי ניתוח
+          </button>
+        )}
+      </div>
     </div>
   );
 }
