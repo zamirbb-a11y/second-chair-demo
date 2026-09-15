@@ -83,15 +83,57 @@ export default function PleadingDocument({
   selectedFamilyId, onSelectFamily,
   original,
 }) {
-  if (original?.storagePath && original?.fileType === "pdf" && original?.accessToken) {
+  const originalAvailable = !!(original?.storagePath && original?.fileType === "pdf" && original?.accessToken);
+  // Defaults to the real PDF when there is one — richer (real layout,
+  // real formatting) — but some filed PDFs place Hebrew glyphs in
+  // left-to-right visual order on the page itself (a source-document
+  // authoring bug, not an extraction one — see OriginalPdfView's own
+  // note). The page then renders exactly that scrambled layout even
+  // though text extraction's own bidi-aware reconstruction reads it
+  // correctly, so the reconstructed view stays one click away for
+  // exactly that case.
+  const [viewSource, setViewSource] = useState("original");
+  const showOriginal = originalAvailable && viewSource === "original";
+
+  const sourceToggle = originalAvailable && (
+    <div className="flex-shrink-0 bg-slate-100 border-b border-slate-200 px-3 py-1.5 flex items-center gap-2" dir="rtl">
+      <span className="text-xs text-slate-500">תצוגת מסמך:</span>
+      <span className="flex rounded-lg border border-slate-200 overflow-hidden bg-white" role="group" aria-label="מקור התצוגה">
+        {[["original", "המסמך המקורי"], ["reconstructed", "טקסט משוחזר"]].map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setViewSource(value)}
+            aria-pressed={viewSource === value}
+            className={[
+              "text-xs font-semibold px-2.5 py-1 cursor-pointer transition-colors",
+              viewSource === value ? "bg-slate-900 text-white" : "bg-white text-slate-600 hover:bg-slate-50",
+            ].join(" ")}
+          >
+            {label}
+          </button>
+        ))}
+      </span>
+      {viewSource === "reconstructed" && (
+        <span className="text-xs text-slate-400">
+          טקסט שחולץ מהקובץ — לשימוש כשעימוד המסמך המקורי אינו קריא
+        </span>
+      )}
+    </div>
+  );
+
+  if (showOriginal) {
     return (
-      <OriginalPdfView
-        storagePath={original.storagePath}
-        accessToken={original.accessToken}
-        families={families ?? []}
-        selectedFamilyId={selectedFamilyId}
-        onSelectFamily={onSelectFamily}
-      />
+      <div className="flex-1 flex flex-col min-h-0">
+        {sourceToggle}
+        <OriginalPdfView
+          storagePath={original.storagePath}
+          accessToken={original.accessToken}
+          families={families ?? []}
+          selectedFamilyId={selectedFamilyId}
+          onSelectFamily={onSelectFamily}
+        />
+      </div>
     );
   }
   const claims = analysis?.claims ?? [];
@@ -114,61 +156,64 @@ export default function PleadingDocument({
   const unanchoredClaims = unanchored.map(claimById).filter(Boolean);
 
   return (
-    <div className="flex-1 overflow-y-auto" dir="rtl">
-      <div className="max-w-[760px] mx-auto px-8 py-8">
-        {/* Notes strip: document-level observations + unanchorable notes */}
-        {(analysis?.coverage_notes || unanchoredClaims.length > 0) && (
-          <div className="mb-6 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-600 space-y-2">
-            {analysis?.coverage_notes && <p>{analysis.coverage_notes}</p>}
-            {unanchoredClaims.length > 0 && (
-              <p className="flex items-center gap-2 flex-wrap">
-                <span>הערות שלא אותר להן מיקום במסמך:</span>
-                {unanchoredClaims.map((c) => (
-                  <ClaimChip key={c.id} claim={c} selected={selectedClaimId === c.id} onSelect={onSelectClaim} />
-                ))}
-              </p>
-            )}
-          </div>
-        )}
+    <div className="flex-1 flex flex-col min-h-0">
+      {sourceToggle}
+      <div className="flex-1 overflow-y-auto" dir="rtl">
+        <div className="max-w-[760px] mx-auto px-8 py-8">
+          {/* Notes strip: document-level observations + unanchorable notes */}
+          {(analysis?.coverage_notes || unanchoredClaims.length > 0) && (
+            <div className="mb-6 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-600 space-y-2">
+              {analysis?.coverage_notes && <p>{analysis.coverage_notes}</p>}
+              {unanchoredClaims.length > 0 && (
+                <p className="flex items-center gap-2 flex-wrap">
+                  <span>הערות שלא אותר להן מיקום במסמך:</span>
+                  {unanchoredClaims.map((c) => (
+                    <ClaimChip key={c.id} claim={c} selected={selectedClaimId === c.id} onSelect={onSelectClaim} />
+                  ))}
+                </p>
+              )}
+            </div>
+          )}
 
-        {/* The document */}
-        <div className="bg-white border border-slate-200 rounded-2xl px-8 py-7 shadow-sm">
-          {paragraphs.map((p) => {
-            const claimIds = byParagraph.get(p.index) ?? [];
-            const paraClaims = claimIds.map(claimById).filter(Boolean);
-            const hasNotes = paraClaims.some((c) => claimMarkers(c).length > 0);
-            const isSelected = selectedParas.has(p.index);
-            return (
-              <div
-                key={p.index}
-                className={[
-                  "flex gap-3 rounded-lg px-2 -mx-2 py-1.5 transition-colors",
-                  isSelected ? "bg-blue-50 ring-1 ring-blue-200"
-                    : hasNotes ? "bg-amber-50/50"
-                    : "",
-                ].join(" ")}
-              >
-                <span className="w-8 flex-shrink-0 text-xs text-slate-400 font-semibold text-left pt-1 select-none">
-                  {p.number ?? ""}
-                </span>
-                <p
+          {/* The document */}
+          <div className="bg-white border border-slate-200 rounded-2xl px-8 py-7 shadow-sm">
+            {paragraphs.map((p) => {
+              const claimIds = byParagraph.get(p.index) ?? [];
+              const paraClaims = claimIds.map(claimById).filter(Boolean);
+              const hasNotes = paraClaims.some((c) => claimMarkers(c).length > 0);
+              const isSelected = selectedParas.has(p.index);
+              return (
+                <div
+                  key={p.index}
                   className={[
-                    "flex-1 min-w-0 text-sm leading-[1.9] text-slate-800 whitespace-pre-line",
-                    p.number === null ? "font-bold" : "",
+                    "flex gap-3 rounded-lg px-2 -mx-2 py-1.5 transition-colors",
+                    isSelected ? "bg-blue-50 ring-1 ring-blue-200"
+                      : hasNotes ? "bg-amber-50/50"
+                      : "",
                   ].join(" ")}
                 >
-                  {p.text}
-                </p>
-                {paraClaims.length > 0 && (
-                  <span className="flex-shrink-0 flex flex-col items-start gap-1 pt-1">
-                    {paraClaims.map((c) => (
-                      <ClaimChip key={c.id} claim={c} selected={selectedClaimId === c.id} onSelect={onSelectClaim} />
-                    ))}
+                  <span className="w-8 flex-shrink-0 text-xs text-slate-400 font-semibold text-left pt-1 select-none">
+                    {p.number ?? ""}
                   </span>
-                )}
-              </div>
-            );
-          })}
+                  <p
+                    className={[
+                      "flex-1 min-w-0 text-sm leading-[1.9] text-slate-800 whitespace-pre-line",
+                      p.number === null ? "font-bold" : "",
+                    ].join(" ")}
+                  >
+                    {p.text}
+                  </p>
+                  {paraClaims.length > 0 && (
+                    <span className="flex-shrink-0 flex flex-col items-start gap-1 pt-1">
+                      {paraClaims.map((c) => (
+                        <ClaimChip key={c.id} claim={c} selected={selectedClaimId === c.id} onSelect={onSelectClaim} />
+                      ))}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
