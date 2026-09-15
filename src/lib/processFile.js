@@ -516,8 +516,29 @@ function buildChunks(text, fileId) {
   return chunks;
 }
 
+// Confirmed as a real, reproducible transcription artifact: GPT-4.1
+// vision-transcribing a Hebrew RTL PDF page flips bidi-neutral punctuation
+// (parens, hyphens, commas) that sits immediately next to a number to the
+// wrong side — e.g. "פלוני )להלן: אלמוני(" instead of "פלוני (להלן:
+// אלמוני)", verified directly against a real filed document.
+//
+// Scoped deliberately narrow, to just the "להלן:" (hereinafter) idiom —
+// standard, near-universal in Israeli legal drafting for introducing a
+// defined term, and its parenthetical always immediately follows the term
+// being defined. A broader "any )content(" pattern was tried and rejected:
+// it also matches two separate, correctly-formed parenthetical groups with
+// ordinary text between them (e.g. an enumerated "(א) (ב) (ג)" list, or
+// "(א) ולא (ב)"), and reversing THOSE corrupts valid text. This narrower
+// match has no such legitimate alternative reading, so it's safe to
+// auto-correct with no false-positive risk.
+function fixReversedParentheticals(text) {
+  return text.replace(/\)(\s*להלן:[^()\n]{1,150})\(/g, (_, inner) => `(${inner})`);
+}
+
 export function normalizeText(text = "") {
-  return text.replace(/\r/g, "").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
+  return fixReversedParentheticals(
+    text.replace(/\r/g, "").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim()
+  );
 }
 
 export function getExtension(name = "") {
