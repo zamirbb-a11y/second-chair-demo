@@ -60,6 +60,16 @@ export function stageForDocType(docType) {
 // evidentiaryStandard drives which instruction paragraph Pass 2 gets
 // (see buildEvidentiaryStandardBlock in pleadingPass2.js) — never a
 // separate AI call, just a choice of prompt text.
+// authorityStandard is a second, independent axis from evidentiaryStandard
+// — a factual claim's evidentiary backing and a legal proposition's
+// citation to authority are two different obligations, and the Israeli
+// pleading/motion split falls on the SAME stage boundary for both:
+// [PRODUCT JUDGMENT — well-understood litigation practice, no single
+// regulation requires citing authority in a pleading, but none requires
+// it be withheld either] a complaint/defense/reply and an affidavit state
+// or evidence facts and are not the vehicle for legal argument backed by
+// citation — that argument is made, with authority, once the matter
+// reaches a motion/response/reply-to-response or written summations.
 export const STAGE_PROFILES = {
   [STAGE.PLEADING]: {
     label: "כתב טענות (תביעה / הגנה / תשובה)",
@@ -71,6 +81,7 @@ export const STAGE_PROFILES = {
     // sued on) — a distinct, narrower rule from "cite evidence for every
     // factual claim," and the only evidentiary-shaped item worth flagging
     // at this stage.
+    authorityStandard: "not_required",
   },
   [STAGE.MOTION]: {
     label: "בקשה / תגובה לבקשה / תשובה לתגובה",
@@ -79,6 +90,7 @@ export const STAGE_PROFILES = {
     // response are expected to be verified by an accompanying תצהיר —
     // the mirror image of the pleading-stage rule above: here, an
     // unsupported factual assertion IS a legitimate flag.
+    authorityStandard: "required",
   },
   [STAGE.SUMMATION]: {
     label: "סיכומים",
@@ -89,6 +101,7 @@ export const STAGE_PROFILES = {
     // factual proposition with nothing in the evidentiary record behind
     // it (no exhibit, no testimony, no admission) is a real weakness
     // here, the mirror image of the pleading-stage rule.
+    authorityStandard: "required",
   },
   [STAGE.AFFIDAVIT]: {
     label: "תצהיר",
@@ -101,6 +114,7 @@ export const STAGE_PROFILES = {
     // scope-expansion mechanism built for a reply
     // (crossDocumentRelations.js), checked against whatever pleading(s)
     // this affidavit is marked as supporting.
+    authorityStandard: "not_required",
   },
   [STAGE.UNKNOWN]: {
     label: "מסמך לא מסווג",
@@ -108,6 +122,7 @@ export const STAGE_PROFILES = {
     // should never trigger a rule more eagerly than the stage it was
     // modeled on would.
     evidentiaryStandard: "not_required",
+    authorityStandard: "not_required",
   },
 };
 

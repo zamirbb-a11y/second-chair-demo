@@ -15,7 +15,7 @@ const EVIDENTIARY_STANDARD_BLOCKS = {
 בשלב זה הצד טוען עובדות; אינו נדרש להוכיח אותן בגוף כתב הטענות עצמו. לכן:
 - אסור לרשום "הטענה נשענת על הצהרת הטוען בלבד" או ניסוח דומה כ-weakness. זהו המצב התקין והצפוי בכתב טענות, לא חולשה.
 - אסור לרשום היעדר ראיה, עדות, חוות דעת או אסמכתא חיצונית כ-missing, אלא אם המסמך עצמו מפנה לראיה או נספח קונקרטי וזה חסר מההקשר שסופק.
-- evidence_gap ו-authority_gap יישארו false כברירת מחדל בשלב זה, גם כאשר הטענה איננה מגובה בשום ראיה — זהו שלב הטענות, לא שלב ההוכחה.
+- evidence_gap יישאר false כברירת מחדל בשלב זה, גם כאשר הטענה איננה מגובה בשום ראיה — זהו שלב הטענות, לא שלב ההוכחה. (authority_gap נדון בנפרד למטה, תחת "דרישת אסמכתאות משפטיות".)
 - יוצא מן הכלל היחיד: אם הטענה מסתמכת על "מסמך מהותי" (חוזה, פוליסה, ערבות, נסח טאבו וכיו"ב) שהמסמך עצמו מזכיר אך אינו מצרף ואינו מסביר מדוע — זו חולשה אמיתית וספציפית (חובת צירוף מסמכים מהותיים), לא היעדר ראייתי כללי.
   **אל תציין מספר תקנה ספציפי (למשל "תקנה 15" או כל מספר אחר) בניסוח החולשה — תאר את החובה במילים בלבד, בלי לצטט מספור שלא סופק לך כאן. ציטוט מספר תקנה שגוי גרוע יותר מאי-ציון מספר כלל.**`,
   affidavit_required: `
@@ -44,13 +44,31 @@ const INTERIM_RELIEF_BLOCK = `
 בקשות לסעד זמני נבחנות (לפי הדין הישראלי המבוסס, לא תקנה ספציפית) גם לפי: (א) סיכויי ההליך העיקרי — האם קיימת זכות לכאורה; (ב) מאזן הנוחות — הנזק היחסי לכל צד אם הסעד יינתן/יידחה; (ג) תום לב/ניקיון כפיים של המבקש; (ד) דחיפות ונזק בלתי הפיך אם לא יינתן הסעד. אם הטענה הנבחנת אמורה לשאת חלק מהתשתית לאחד המרכיבים האלה אך אינה עושה זאת בפועל (למשל, טוענת דחיפות בלי לבסס אותה, או מתעלמת ממאזן הנוחות) — ציין זאת כ-weakness. אל תמציא רכיב שאינו רלוונטי לטענה הנבחנת.
 `;
 
+// Independent of the evidentiary-standard axis above — see
+// documentStageProfiles.js's authorityStandard comment. A complaint,
+// defense, reply, or affidavit states facts and is not where legal
+// argument backed by citation happens; a motion/response/reply-to-
+// response or summations is.
+const AUTHORITY_STANDARD_BLOCKS = {
+  not_required: `
+**דרישת אסמכתאות משפטיות בשלב זה: אינה נדרשת.**
+בכתב תביעה/הגנה/תשובה, וכן בתצהיר, אין חובה לתמוך קביעה משפטית באסמכתא (פסיקה, חקיקה או עיקרון משפטי). לכן:
+- authority_gap יישאר false כברירת מחדל בשלב זה, גם כאשר מופיעה קביעה משפטית ללא אסמכתא.
+- אסור לרשום "הקביעה המשפטית אינה נתמכת באסמכתא" כ-weakness או כ-missing — זהו המצב התקין והצפוי בשלב זה, לא חולשה.`,
+  required: `
+**דרישת אסמכתאות משפטיות בשלב זה: נדרשת.**
+בבקשה/תגובה/תשובה לתגובה, וכן בסיכומים, קביעה משפטית מהותית ללא כל אסמכתא (פסיקה, חקיקה או עיקרון משפטי מבוסס) מהווה חולשה אמיתית. authority_gap: true כאשר קביעה משפטית מהותית מופיעה ללא אסמכתא.`,
+};
+
 export function buildPass2Prompt({ claim, sectionText, otherClaimsSummary, theoryOfCase, docType, isInterimRelief = false }) {
   const stageProfile = stageProfileForDocType(docType) ?? STAGE_PROFILES.unknown;
   const evidentiaryBlock = EVIDENTIARY_STANDARD_BLOCKS[stageProfile.evidentiaryStandard] ?? EVIDENTIARY_STANDARD_BLOCKS.not_required;
+  const authorityBlock = AUTHORITY_STANDARD_BLOCKS[stageProfile.authorityStandard] ?? AUTHORITY_STANDARD_BLOCKS.not_required;
   const interimReliefBlock = isInterimRelief && INTERIM_RELIEF_APPLICABLE_STAGES.has(stageForDocType(docType)) ? INTERIM_RELIEF_BLOCK : "";
   return `
 סוג המסמך הנבחן: ${stageProfile.label}
 ${evidentiaryBlock}
+${authorityBlock}
 ${interimReliefBlock}
 
 אתה מבצע ביקורת עומק על טענה אחת מתוך כתב טענות.
@@ -107,7 +125,7 @@ ${otherClaimsSummary}
 כללים נוספים:
 - בדיקת כיסוי: עבור על כל פסקה בקטעים שסופקו וודא שכל תת-טענה מהותית נקלטה.
 - התייחס לכל טענה עובדתית כנטענת, לא כמוכחת. אם עובדה נטענת ללא ביסוס — זו weakness.
-- authority_gap: true אם קביעה משפטית ללא אסמכתא.
+- authority_gap: ראה "דרישת אסמכתאות משפטיות בשלב זה" למעלה — תלוי לגמרי בסוג המסמך הנוכחי.
 - excerpt ב-source_spans: טקסט מדויק מהמסמך, עד 300 תווים.
 - אסמכתאות: raw_citation בדיוק כפי שמופיע במסמך.
 
