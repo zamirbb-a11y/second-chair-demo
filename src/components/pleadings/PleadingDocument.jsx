@@ -122,20 +122,12 @@ export default function PleadingDocument({
     </div>
   );
 
-  if (showOriginal) {
-    return (
-      <div className="flex-1 flex flex-col min-h-0">
-        {sourceToggle}
-        <OriginalPdfView
-          storagePath={original.storagePath}
-          accessToken={original.accessToken}
-          families={families ?? []}
-          selectedFamilyId={selectedFamilyId}
-          onSelectFamily={onSelectFamily}
-        />
-      </div>
-    );
-  }
+  // Hooks must run unconditionally on every render regardless of which
+  // view is showing — computed here, before the early return below, even
+  // though showOriginal ignores them entirely. Branching on showOriginal
+  // to skip these (as an early return above them) previously changed the
+  // hook count between the two views and crashed the component the
+  // instant someone toggled to the reconstructed view.
   const claims = analysis?.claims ?? [];
   const { paragraphs, byParagraph, unanchored } = useMemo(() => {
     const paragraphs = splitParagraphs(pleadingText ?? "");
@@ -154,6 +146,21 @@ export default function PleadingDocument({
   }, [byParagraph, selectedClaimId]);
 
   const unanchoredClaims = unanchored.map(claimById).filter(Boolean);
+
+  if (showOriginal) {
+    return (
+      <div className="flex-1 flex flex-col min-h-0">
+        {sourceToggle}
+        <OriginalPdfView
+          storagePath={original.storagePath}
+          accessToken={original.accessToken}
+          families={families ?? []}
+          selectedFamilyId={selectedFamilyId}
+          onSelectFamily={onSelectFamily}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
