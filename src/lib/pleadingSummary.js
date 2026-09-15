@@ -14,6 +14,7 @@ import { relationsForFamily, alertKeyForRelation, ALERT_BANNER_TEXT, ALERT_TONE 
 import { pageLimitFor, checkPageLimit } from "./formalChecks.js";
 
 const MAIN_CLAIMS_CAP = 3;
+const REMEDIES_CAP = 3;
 const TOP_ISSUES_CAP = 5;
 const WEAKNESS_CAP = 8;
 const GAP_CAP = 8;
@@ -85,6 +86,16 @@ export function buildPleadingSummary({ record, allRelations }) {
     .slice(0, MAIN_CLAIMS_CAP)
     .map((f) => ({ id: f.id, text: f.canonical_text }));
 
+  // "remedy" nodes are lightweight (no deep QA — see isMainFamily above),
+  // so there's no QA-derived importance score to rank them by; document
+  // order is the proxy — the relief clause a pleading leads with is
+  // ordinarily its primary ask, with alternates and lesser reliefs
+  // trailing it.
+  const remedies = families
+    .filter((f) => f.node_kind === "remedy")
+    .slice(0, REMEDIES_CAP)
+    .map((f) => ({ id: f.id, text: f.canonical_text }));
+
   const structural = structuralChecks(record);
   const alerts = collectAlerts(families, allRelations ?? [], analysis.id);
   const familiesWithAlert = new Set(alerts.map((a) => a.family.id));
@@ -136,6 +147,7 @@ export function buildPleadingSummary({ record, allRelations }) {
 
   return {
     mainClaims,
+    remedies,
     topIssues,
     structural,
     alerts,

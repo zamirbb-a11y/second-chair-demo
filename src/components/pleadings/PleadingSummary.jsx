@@ -76,6 +76,20 @@ export default function PleadingSummary({ summary, respondsTo = [], onSelectFami
         </div>
       )}
 
+      {summary.remedies.length > 0 && (
+        <div className="mb-6">
+          <SectionLabel>הסעדים העיקריים המבוקשים</SectionLabel>
+          <div className="space-y-1.5">
+            {summary.remedies.map((r, i) => (
+              <div key={r.id} className="flex items-start gap-2.5 rounded-xl bg-blue-50 px-3 py-2.5">
+                <span className="text-xs font-bold text-blue-700 flex-shrink-0 mt-0.5">{i + 1}</span>
+                <p className="text-sm text-blue-900 leading-relaxed">{r.text}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="mb-6">
         <SectionLabel>מה חשוב לדעת</SectionLabel>
         {summary.topIssues.length === 0 ? (
