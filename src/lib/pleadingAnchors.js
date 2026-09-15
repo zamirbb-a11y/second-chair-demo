@@ -42,7 +42,17 @@ export function splitParagraphs(pleadingText) {
       flush();
       continue;
     }
-    if (current) current.text += "\n" + line.trim();
+    // Joined with a space, not a hard newline: pdf-parse's line breaks are
+    // the ORIGINAL PDF's own page-width wrap points, not real paragraph
+    // structure — preserving them as hard breaks forces every paragraph
+    // to re-break at those same points inside our narrower column
+    // (visually choppy, mid-sentence "cut" lines), and a hard break is
+    // also its own bidi paragraph separator, so a parenthetical or other
+    // punctuation pair that happened to straddle a PDF line-wrap got
+    // bidi-reordered as two unrelated fragments instead of one run.
+    // Joining with a space lets the paragraph reflow naturally to the
+    // container's actual width, the same as any other prose text.
+    if (current) current.text += (/[\s-]$/.test(current.text) ? "" : " ") + line.trim();
     else current = { number: null, text: line.trim() };
   }
   flush();
