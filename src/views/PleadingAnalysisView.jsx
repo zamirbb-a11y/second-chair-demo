@@ -686,19 +686,9 @@ export default function PleadingAnalysisView({ caseId, accessToken, onRunStatusC
               onViewClaims={() => setViewMode("claims")}
             />
           ) : effectiveView === "document" ? (
-            <div className="flex-1 flex min-h-0">
-              <PleadingDocument
-                pleadingText={current.pleadingText}
-                analysis={analysis}
-                families={families}
-                selectedFamilyId={selectedFamilyId}
-                onSelectFamily={setSelectedFamilyId}
-                selectedClaimId={selectedFamily?.primary_member_id ?? null}
-                onSelectClaim={selectFamilyForClaim}
-                original={{ storagePath: current.storagePath, fileType: current.fileType, accessToken }}
-              />
+            <div className="flex-1 flex min-h-0" dir="rtl">
               {selectedFamily && (
-                <aside className="w-[400px] flex-shrink-0 flex flex-col border-r border-slate-200 bg-white min-h-0">
+                <aside className="w-[400px] flex-shrink-0 flex flex-col border-l border-slate-200 bg-white min-h-0">
                   <ClaimDetail
                     family={selectedFamily}
                     claims={claims}
@@ -712,6 +702,37 @@ export default function PleadingAnalysisView({ caseId, accessToken, onRunStatusC
                   />
                 </aside>
               )}
+              <PleadingDocument
+                pleadingText={current.pleadingText}
+                analysis={analysis}
+                families={families}
+                selectedFamilyId={selectedFamilyId}
+                onSelectFamily={setSelectedFamilyId}
+                selectedClaimId={selectedFamily?.primary_member_id ?? null}
+                onSelectClaim={selectFamilyForClaim}
+                original={{ storagePath: current.storagePath, fileType: current.fileType, accessToken }}
+              />
+              {/* Claims navigation rail, left-anchored by default in the
+                  document view (distinct from the "טענות" tab's own
+                  right-anchored ClaimList) — lets the document itself
+                  stay the visually centered focus, with a way to jump
+                  between claims without leaving this view. Wrapped
+                  (rather than restyled) so ClaimList's own border, built
+                  for its right-anchored usage in the "טענות" tab, doesn't
+                  end up on the wrong edge here. */}
+              <div className="border-r border-slate-200 flex-shrink-0 h-full">
+                <ClaimList
+                  families={families}
+                  claims={claims}
+                  selectedFamilyId={selectedFamilyId}
+                  onSelectFamily={setSelectedFamilyId}
+                  reviewed={reviewed}
+                  onToggleReviewed={toggleReviewed}
+                  analyzing={analyzing}
+                  analysisId={analysis?.id}
+                  relations={allRelations}
+                />
+              </div>
             </div>
           ) : (
           <>
