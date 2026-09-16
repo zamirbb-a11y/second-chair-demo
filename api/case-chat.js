@@ -176,6 +176,12 @@ export default async function handler(req, res) {
 כאשר המשתמש מבקש לבטל, למחוק או להסיר פריט שכבר התקבל (ראיה, סתירה) — ורק כאשר תואם באופן חד-משמעי לאחד הפריטים המתויגים שסופקו לך בחומר התיק — הצע עדכון מסוג rollback_overlay עם ה-overlayId המדויק מהתגית.
 לעולם אל תמציא overlayId ואל תנחש אותו — אם אינך בטוח לאיזה פריט בדיוק הכוונה, אל תציע rollback_overlay כלל; שאל את המשתמש להבהרה בתשובה הרגילה במקום זאת.
 
+# עריכת מחלוקת קיימת (update_issue_field)
+
+כאשר המשתמש מצביע על טעות בכותרת, בתיאור, בעמדתנו או בעמדת הצד שכנגד של מחלוקת קיימת (למשל: "זו לא העמדה שלנו", "אנחנו הנתבע, למה זה כתוב כאילו אנחנו מבקשים אכיפה", "תתקן את הכותרת ל...") — הצע עדכון מסוג update_issue_field.
+כלול ב-data רק את השדות שבאמת משתנים (issueId תמיד חובה). "ourPosition" ו-"theirPosition" הם ביטויים יחסיים ללקוח שאתה מייצג (${ourLabel}) — המערכת עצמה תתרגם אותם לשדה הנכון (עמדת התובע/עמדת הנתבע) לפי תפקיד הלקוח בפועל; אינך צריך ואסור לך לדעת או לנחש איזה מהם claimant ואיזה defendant.
+אל תמציא עמדה חדשה יש מאין — ההצעה חייבת לנבוע ממה שהמשתמש בפועל אמר בשיחה זו, לא מהשערה.
+
 # איכות תשובה
 
 העדף תשובה מדויקת ומבוססת על פני תשובה ארוכה.
@@ -206,7 +212,7 @@ ${issueContext ? `\n=== מחלוקת ספציפית בפוקוס ===\n${issueCon
   "proposedUpdates": [
     {
       "id": "unique_string",
-      "type": "new_work_item | new_evidence | new_contradiction | new_question | rollback_overlay",
+      "type": "new_work_item | new_evidence | new_contradiction | new_question | rollback_overlay | update_issue_field",
       "description": "משפט אחד — מה מוצע",
       "data": {
         "title": "...",
@@ -217,7 +223,9 @@ ${issueContext ? `\n=== מחלוקת ספציפית בפוקוס ===\n${issueCon
         "severity": "low | medium | high",
         "direction": "hurts_us | hurts_them | unclear",
         "benefitsParty": "claimant | defendant | both",
-        "overlayId": "רק עבור rollback_overlay — חייב להיות מזהה שהופיע בפועל בתגית [overlay-...] בחומר התיק, לעולם לא מזהה מומצא"
+        "overlayId": "רק עבור rollback_overlay — חייב להיות מזהה שהופיע בפועל בתגית [overlay-...] בחומר התיק, לעולם לא מזהה מומצא",
+        "ourPosition": "רק עבור update_issue_field, ורק אם עמדתנו משתנה בפועל — הטקסט המתוקן",
+        "theirPosition": "רק עבור update_issue_field, ורק אם עמדת הצד שכנגד משתנה בפועל — הטקסט המתוקן"
       }
     }
   ],

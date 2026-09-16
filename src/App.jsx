@@ -625,8 +625,15 @@ export default function App() {
       if (issue.effectiveLegal?.summary) {
         lines.push(`  ${issue.effectiveLegal.summary.slice(0, 130)}`);
       }
-      if (issue.partyPositions?.claimant) {
-        lines.push(`  עמדתנו: ${issue.partyPositions.claimant.slice(0, 100)}`);
+      // partyPositions.claimant/.defendant name actual courtroom roles
+      // (see IssueCard.jsx's "עמדת התובע"/"עמדת הנתבע" — the ground truth
+      // for this field), NOT "us" vs "them". This was previously hardcoded
+      // to read .claimant as "our" position regardless of clientRole —
+      // exactly backwards whenever the client is the defendant, which is
+      // the real bug the user found through the chat.
+      const ourPosition = clientRole === "defendant" ? issue.partyPositions?.defendant : issue.partyPositions?.claimant;
+      if (ourPosition) {
+        lines.push(`  עמדתנו: ${ourPosition.slice(0, 100)}`);
       }
       // [overlay-id] prefix on each accepted item lets the chat propose a
       // rollback_overlay update against a real id it was actually given,
@@ -666,8 +673,13 @@ export default function App() {
     if (issue.description) lines.push(`תיאור: ${issue.description}`);
     lines.push(`חוזק: ${issue.effectiveLegal?.strength || "לא ידוע"}`);
     if (issue.effectiveLegal?.summary) lines.push(`ניתוח: ${issue.effectiveLegal.summary}`);
-    if (issue.partyPositions?.claimant) lines.push(`עמדתנו: ${issue.partyPositions.claimant}`);
-    if (issue.partyPositions?.defendant) lines.push(`עמדת הצד שכנגד: ${issue.partyPositions.defendant}`);
+    // See buildChatContext's identical note — claimant/defendant are
+    // actual courtroom roles, not "us"/"them"; which one is "ours"
+    // depends on clientRole.
+    const ourPosition = clientRole === "defendant" ? issue.partyPositions?.defendant : issue.partyPositions?.claimant;
+    const theirPosition = clientRole === "defendant" ? issue.partyPositions?.claimant : issue.partyPositions?.defendant;
+    if (ourPosition) lines.push(`עמדתנו: ${ourPosition}`);
+    if (theirPosition) lines.push(`עמדת הצד שכנגד: ${theirPosition}`);
     const linkedEvidence = (issue.linkedEvidence ?? []).map((e) => (typeof e === "string" ? e : e.title)).filter(Boolean);
     if (linkedEvidence.length) lines.push(`ראיות מקושרות: ${linkedEvidence.join(", ")}`);
     // [overlay-id] on each — see buildChatContext's identical note; needed
@@ -797,6 +809,33 @@ export default function App() {
     if (update.type === "rollback_overlay") {
       const overlayId = update.data?.overlayId;
       if (overlayId) rollbackOverlay(overlayId);
+      setCaseChatHistory(prev => prev.map(msg =>
+        msg.proposedUpdates?.length
+          ? { ...msg, proposedUpdates: msg.proposedUpdates.filter(u => u.id !== update.id) }
+          : msg
+      ));
+      return;
+    }
+
+    if (update.type === "update_issue_field") {
+      const issueId = update.data?.issueId;
+      const targetIssue = liveCaseState?.issues?.find(i => i.id === issueId);
+      if (targetIssue) {
+        const patch = { id: issueId };
+        if (update.data?.title !== undefined) patch.title = update.data.title;
+        if (update.data?.description !== undefined) patch.description = update.data.description;
+        // ourPosition/theirPosition are relative to the client we
+        // represent (see the prompt's note) — the model never names
+        // claimant/defendant directly, so the mapping happens here, the
+        // same fix as buildChatContext/buildIssueContext above.
+        const { ourPosition, theirPosition } = update.data ?? {};
+        if (ourPosition !== undefined || theirPosition !== undefined) {
+          patch.partyPositions = clientRole === "defendant"
+            ? { ...(ourPosition !== undefined ? { defendant: ourPosition } : {}), ...(theirPosition !== undefined ? { claimant: theirPosition } : {}) }
+            : { ...(ourPosition !== undefined ? { claimant: ourPosition } : {}), ...(theirPosition !== undefined ? { defendant: theirPosition } : {}) };
+        }
+        updateIssue(patch);
+      }
       setCaseChatHistory(prev => prev.map(msg =>
         msg.proposedUpdates?.length
           ? { ...msg, proposedUpdates: msg.proposedUpdates.filter(u => u.id !== update.id) }
@@ -2004,6 +2043,7 @@ function removeAcceptedWorkItem(itemId) {
     if (updatedIssue.title !== undefined) changedFields.push("title");
     if (updatedIssue.description !== undefined) changedFields.push("description");
     if (updatedIssue.importance !== undefined) changedFields.push("importance");
+    if (updatedIssue.partyPositions !== undefined) changedFields.push("partyPositions");
 
     const overlay = {
       id: `overlay-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -2015,16 +2055,25 @@ function removeAcceptedWorkItem(itemId) {
         title: updatedIssue.title,
         description: updatedIssue.description,
         importance: updatedIssue.importance,
+        // buildLiveCaseState already merges this field-by-field when
+        // present — updateIssue just never passed it through before, even
+        // though this is exactly the "our position" field the chat needs
+        // to edit.
+        partyPositions: updatedIssue.partyPositions,
       },
     };
 
+    // Falls back to the issue's current title (not necessarily part of
+    // *this* update — e.g. a position-only edit) so the event log never
+    // reads "User updated issue: undefined".
+    const currentTitle = updatedIssue.title ?? liveCaseState?.issues?.find(i => i.id === updatedIssue.id)?.title ?? "";
     const event = createEvent(
       "issue_updated",
       "user",
       { issueId: updatedIssue.id },
       { op: "replace", path: "issues", value: { id: updatedIssue.id } },
       {
-        summary: `User updated issue: ${updatedIssue.title}`,
+        summary: `User updated issue: ${currentTitle}`,
         changed: changedFields.join(", "),
         reason: "עריכה ידנית על ידי עורך הדין",
         groundedIn: [],
