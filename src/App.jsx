@@ -628,8 +628,17 @@ export default function App() {
       if (issue.partyPositions?.claimant) {
         lines.push(`  עמדתנו: ${issue.partyPositions.claimant.slice(0, 100)}`);
       }
-      const evidenceCount = (issue.overlays?.evidence ?? []).length;
-      if (evidenceCount > 0) lines.push(`  ראיות מצורפות: ${evidenceCount}`);
+      // [overlay-id] prefix on each accepted item lets the chat propose a
+      // rollback_overlay update against a real id it was actually given,
+      // rather than guessing one — see handleAcceptChatUpdate. Capped per
+      // issue, same reasoning as the precedents/work-items caps below:
+      // targeted context, not the full case.
+      for (const ov of (issue.overlays?.evidence ?? []).slice(-6)) {
+        lines.push(`  ראיה [${ov.id}]: ${ov.patch?.title || ""}`);
+      }
+      for (const ov of (issue.overlays?.contradictions ?? []).slice(-6)) {
+        lines.push(`  סתירה [${ov.id}]: ${ov.patch?.title || ""}`);
+      }
     });
     const precedents = analysis?.retrievedPrecedents;
     if (precedents?.length) {
@@ -659,13 +668,16 @@ export default function App() {
     if (issue.effectiveLegal?.summary) lines.push(`ניתוח: ${issue.effectiveLegal.summary}`);
     if (issue.partyPositions?.claimant) lines.push(`עמדתנו: ${issue.partyPositions.claimant}`);
     if (issue.partyPositions?.defendant) lines.push(`עמדת הצד שכנגד: ${issue.partyPositions.defendant}`);
-    const evidence = [
-      ...(issue.linkedEvidence ?? []).map((e) => (typeof e === "string" ? e : e.title)).filter(Boolean),
-      ...(issue.overlays?.evidence ?? []).map((e) => e.patch?.title || "").filter(Boolean),
-    ];
-    if (evidence.length) lines.push(`ראיות: ${evidence.join(", ")}`);
-    const contradictions = (issue.overlays?.contradictions ?? []).map((c) => c.patch?.title || "").filter(Boolean);
-    if (contradictions.length) lines.push(`סתירות: ${contradictions.join(", ")}`);
+    const linkedEvidence = (issue.linkedEvidence ?? []).map((e) => (typeof e === "string" ? e : e.title)).filter(Boolean);
+    if (linkedEvidence.length) lines.push(`ראיות מקושרות: ${linkedEvidence.join(", ")}`);
+    // [overlay-id] on each — see buildChatContext's identical note; needed
+    // so the chat can propose a rollback_overlay against a real id.
+    for (const ov of issue.overlays?.evidence ?? []) {
+      lines.push(`ראיה [${ov.id}]: ${ov.patch?.title || ""}`);
+    }
+    for (const ov of issue.overlays?.contradictions ?? []) {
+      lines.push(`סתירה [${ov.id}]: ${ov.patch?.title || ""}`);
+    }
     return lines.join("\n");
   }
 
@@ -777,6 +789,22 @@ export default function App() {
   }
 
   async function handleAcceptChatUpdate(update) {
+    // Direct mutations — operate on something that already exists (an
+    // overlay id the model was actually given in context, never guessed),
+    // so they skip resolveTargetIssue/check-relevance entirely: there's no
+    // "which issue does this belong to" ambiguity to resolve, unlike the
+    // new-content types below.
+    if (update.type === "rollback_overlay") {
+      const overlayId = update.data?.overlayId;
+      if (overlayId) rollbackOverlay(overlayId);
+      setCaseChatHistory(prev => prev.map(msg =>
+        msg.proposedUpdates?.length
+          ? { ...msg, proposedUpdates: msg.proposedUpdates.filter(u => u.id !== update.id) }
+          : msg
+      ));
+      return;
+    }
+
     const target = resolveTargetIssue(update);
     if (!target) return;
 

@@ -170,6 +170,12 @@ export default async function handler(req, res) {
 ברוב השאלות אין צורך בהצעת עדכון.
 יש להציע עדכון רק כאשר הוא צפוי לשפר באופן ממשי את ניתוח התיק, בסיס הראיות, הבנת המחלוקת, הערכת הסיכויים, או יכולת קבלת ההחלטות.
 
+# ביטול פריט קיים (rollback_overlay)
+
+חומר התיק מסמן כל ראיה וסתירה שכבר התקבלו בתגית מזהה בסוגריים מרובעים, למשל "ראיה [overlay-1234-abcde]: ...".
+כאשר המשתמש מבקש לבטל, למחוק או להסיר פריט שכבר התקבל (ראיה, סתירה) — ורק כאשר תואם באופן חד-משמעי לאחד הפריטים המתויגים שסופקו לך בחומר התיק — הצע עדכון מסוג rollback_overlay עם ה-overlayId המדויק מהתגית.
+לעולם אל תמציא overlayId ואל תנחש אותו — אם אינך בטוח לאיזה פריט בדיוק הכוונה, אל תציע rollback_overlay כלל; שאל את המשתמש להבהרה בתשובה הרגילה במקום זאת.
+
 # איכות תשובה
 
 העדף תשובה מדויקת ומבוססת על פני תשובה ארוכה.
@@ -200,7 +206,7 @@ ${issueContext ? `\n=== מחלוקת ספציפית בפוקוס ===\n${issueCon
   "proposedUpdates": [
     {
       "id": "unique_string",
-      "type": "new_work_item | new_evidence | new_contradiction | new_question",
+      "type": "new_work_item | new_evidence | new_contradiction | new_question | rollback_overlay",
       "description": "משפט אחד — מה מוצע",
       "data": {
         "title": "...",
@@ -210,7 +216,8 @@ ${issueContext ? `\n=== מחלוקת ספציפית בפוקוס ===\n${issueCon
         "issueId": "...",
         "severity": "low | medium | high",
         "direction": "hurts_us | hurts_them | unclear",
-        "benefitsParty": "claimant | defendant | both"
+        "benefitsParty": "claimant | defendant | both",
+        "overlayId": "רק עבור rollback_overlay — חייב להיות מזהה שהופיע בפועל בתגית [overlay-...] בחומר התיק, לעולם לא מזהה מומצא"
       }
     }
   ],

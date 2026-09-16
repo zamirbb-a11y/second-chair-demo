@@ -14,6 +14,7 @@ const UPDATE_CONFIG = {
   new_evidence:      { label: "ראיה חדשה", icon: "📄", badge: "text-blue-700 bg-blue-50 border-blue-200" },
   new_contradiction: { label: "סתירה",      icon: "⚡", badge: "text-red-700 bg-red-50 border-red-200" },
   new_question:      { label: "שאלה",       icon: "❓", badge: "text-emerald-700 bg-emerald-50 border-emerald-200" },
+  rollback_overlay:  { label: "ביטול",       icon: "↩️", badge: "text-amber-700 bg-amber-50 border-amber-200" },
 };
 
 const GLOBAL_PROMPTS = [
