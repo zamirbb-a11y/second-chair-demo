@@ -2629,10 +2629,10 @@ default:
         </div>
       </div>
 
-      {/* Floating feedback button */}
+      {/* Floating feedback link */}
       <button
         onClick={() => setShowFeedback(true)}
-        className="fixed bottom-5 left-5 z-[9998] rounded-full bg-slate-800 text-white text-xs font-medium px-4 py-2 shadow-lg hover:bg-slate-700 border-0 cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
+        className="fixed bottom-5 left-5 z-[9998] text-xs text-slate-500 hover:text-slate-700 underline underline-offset-2 bg-transparent border-0 cursor-pointer"
         title="שלח פידבק או דווח על בעיה"
       >
         פידבק / בעיה
