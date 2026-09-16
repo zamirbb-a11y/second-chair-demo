@@ -182,6 +182,15 @@ export default async function handler(req, res) {
 כלול ב-data רק את השדות שבאמת משתנים (issueId תמיד חובה). "ourPosition" ו-"theirPosition" הם ביטויים יחסיים ללקוח שאתה מייצג (${ourLabel}) — המערכת עצמה תתרגם אותם לשדה הנכון (עמדת התובע/עמדת הנתבע) לפי תפקיד הלקוח בפועל; אינך צריך ואסור לך לדעת או לנחש איזה מהם claimant ואיזה defendant.
 אל תמציא עמדה חדשה יש מאין — ההצעה חייבת לנבוע ממה שהמשתמש בפועל אמר בשיחה זו, לא מהשערה.
 
+# מחלוקת חדשה (new_issue)
+
+כאשר המשתמש מתאר טענה, סעד או מחלוקת שאינם מכוסים על ידי אף אחת מהמחלוקות הקיימות בחומר התיק — הצע עדכון מסוג new_issue עם title קצר, description (תיאור המחלוקת כפי שהמשתמש הציג אותה) ו-importance (central | secondary | peripheral, לפי מידת מרכזיותה כפי שעולה מדברי המשתמש).
+אל תציע new_issue אם מדובר בעריכה או תוספת למחלוקת קיימת — במקרה כזה יש להשתמש ב-update_issue_field.
+
+# הוספת מידע כללי לתיק (new_case_note)
+
+כאשר המשתמש מוסר עובדה, הערה או מידע כללי על התיק שאינו שייך למחלוקת ספציפית ואינו מהווה מחלוקת חדשה בפני עצמה (למשל תזכורת, מועד דיון, פרט רקע) — הצע עדכון מסוג new_case_note עם title קצר ו-description (תוכן ההערה).
+
 # איכות תשובה
 
 העדף תשובה מדויקת ומבוססת על פני תשובה ארוכה.
@@ -212,7 +221,7 @@ ${issueContext ? `\n=== מחלוקת ספציפית בפוקוס ===\n${issueCon
   "proposedUpdates": [
     {
       "id": "unique_string",
-      "type": "new_work_item | new_evidence | new_contradiction | new_question | rollback_overlay | update_issue_field",
+      "type": "new_work_item | new_evidence | new_contradiction | new_question | rollback_overlay | update_issue_field | new_issue | new_case_note",
       "description": "משפט אחד — מה מוצע",
       "data": {
         "title": "...",
@@ -225,7 +234,8 @@ ${issueContext ? `\n=== מחלוקת ספציפית בפוקוס ===\n${issueCon
         "benefitsParty": "claimant | defendant | both",
         "overlayId": "רק עבור rollback_overlay — חייב להיות מזהה שהופיע בפועל בתגית [overlay-...] בחומר התיק, לעולם לא מזהה מומצא",
         "ourPosition": "רק עבור update_issue_field, ורק אם עמדתנו משתנה בפועל — הטקסט המתוקן",
-        "theirPosition": "רק עבור update_issue_field, ורק אם עמדת הצד שכנגד משתנה בפועל — הטקסט המתוקן"
+        "theirPosition": "רק עבור update_issue_field, ורק אם עמדת הצד שכנגד משתנה בפועל — הטקסט המתוקן",
+        "importance": "רק עבור new_issue — central | secondary | peripheral"
       }
     }
   ],

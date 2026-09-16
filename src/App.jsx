@@ -844,6 +844,39 @@ export default function App() {
       return;
     }
 
+    // Also skip resolveTargetIssue: these don't target an existing issue,
+    // they create new state via the same functions the manual UI buttons
+    // call (addUserIssue / handleWorkspaceUpdate), so chat behaves exactly
+    // like a lawyer clicking "+ הוסף מחלוקת" or typing a workspace note.
+    if (update.type === "new_issue") {
+      addUserIssue({
+        title: update.data?.title || update.description || "מחלוקת חדשה",
+        description: update.data?.description || "",
+        importance: update.data?.importance || "secondary",
+      });
+      setCaseChatHistory(prev => prev.map(msg =>
+        msg.proposedUpdates?.length
+          ? { ...msg, proposedUpdates: msg.proposedUpdates.filter(u => u.id !== update.id) }
+          : msg
+      ));
+      return;
+    }
+
+    if (update.type === "new_case_note") {
+      handleWorkspaceUpdate({
+        type: "general_note",
+        targetType: "case",
+        title: update.data?.title || "הערה מהצ'ט",
+        text: update.data?.description || "",
+      });
+      setCaseChatHistory(prev => prev.map(msg =>
+        msg.proposedUpdates?.length
+          ? { ...msg, proposedUpdates: msg.proposedUpdates.filter(u => u.id !== update.id) }
+          : msg
+      ));
+      return;
+    }
+
     const target = resolveTargetIssue(update);
     if (!target) return;
 
