@@ -140,8 +140,8 @@ ${additionalContext ? "קח בחשבון את המידע החדש שסופק —
     "summary": "תיאור קצר של עוצמת המחלוקת והשאלות המשפטיות המרכזיות — 2-4 משפטים",
     "strength": "סיכויי הטענה מנקודת מבט הלקוח: very_strong | strong | medium_strong | medium | medium_weak | weak | very_weak | unclear"
   },
-  "claimantPosition": "עמדת ${clientLabel} בסוגיה זו — 2-3 משפטים הכתובים בשמו/ה הישיר. החזר null אם אין מספיק מידע.",
-  "defendantPosition": "עמדת הצד שכנגד (הצד שאינו ${clientLabel}) בסוגיה זו — 2-3 משפטים הכתובים בשמו/ה הישיר. החזר null אם אין מספיק מידע.",
+  "claimantPosition": "עמדת התובע בסוגיה זו (הצד שיזם את ההליך) — 2-3 משפטים הכתובים בשמו/ה הישיר, ללא קשר לשאלה מי הלקוח שאנחנו מייצגים. החזר null אם אין מספיק מידע.",
+  "defendantPosition": "עמדת הנתבע בסוגיה זו (הצד המגיב) — 2-3 משפטים הכתובים בשמו/ה הישיר, ללא קשר לשאלה מי הלקוח שאנחנו מייצגים. החזר null אם אין מספיק מידע.",
   "evidenceUpdates": [
     { "type": "new_evidence | document_impact", "title": "", "description": "", "benefitsParty": "claimant | defendant | both" }
   ],
