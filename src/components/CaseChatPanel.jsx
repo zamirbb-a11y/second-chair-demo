@@ -18,6 +18,7 @@ const UPDATE_CONFIG = {
   update_issue_field: { label: "עריכה",      icon: "✎",  badge: "text-purple-700 bg-purple-50 border-purple-200" },
   new_issue:         { label: "מחלוקת חדשה", icon: "🆕", badge: "text-teal-700 bg-teal-50 border-teal-200" },
   new_case_note:     { label: "הערה לתיק",   icon: "📝", badge: "text-slate-700 bg-slate-50 border-slate-200" },
+  new_timeline_event: { label: "אירוע בציר זמן", icon: "🗓️", badge: "text-cyan-700 bg-cyan-50 border-cyan-200" },
 };
 
 const GLOBAL_PROMPTS = [

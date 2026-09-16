@@ -877,6 +877,24 @@ export default function App() {
       return;
     }
 
+    if (update.type === "new_timeline_event") {
+      // Pass the raw date string straight through — addTimelineEvent just
+      // spreads it into the overlay patch, and the merge path
+      // (HorizontalTimeline.jsx's resolveOverlayDates) already normalizes
+      // an un-normalized `date` field via normalizeTimelineDate at render
+      // time, the same fallback it uses for the manual form.
+      addTimelineEvent({
+        event: update.data?.event || update.description || "אירוע חדש",
+        date: update.data?.date,
+      });
+      setCaseChatHistory(prev => prev.map(msg =>
+        msg.proposedUpdates?.length
+          ? { ...msg, proposedUpdates: msg.proposedUpdates.filter(u => u.id !== update.id) }
+          : msg
+      ));
+      return;
+    }
+
     const target = resolveTargetIssue(update);
     if (!target) return;
 

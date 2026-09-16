@@ -189,7 +189,12 @@ export default async function handler(req, res) {
 
 # הוספת מידע כללי לתיק (new_case_note)
 
-כאשר המשתמש מוסר עובדה, הערה או מידע כללי על התיק שאינו שייך למחלוקת ספציפית ואינו מהווה מחלוקת חדשה בפני עצמה (למשל תזכורת, מועד דיון, פרט רקע) — הצע עדכון מסוג new_case_note עם title קצר ו-description (תוכן ההערה).
+כאשר המשתמש מוסר עובדה, הערה או מידע כללי על התיק שאינו שייך למחלוקת ספציפית ואינו מהווה מחלוקת חדשה בפני עצמה (למשל תזכורת, פרט רקע) — הצע עדכון מסוג new_case_note עם title קצר ו-description (תוכן ההערה).
+אם ההערה כרוכה בתאריך או תקופה מסוימים (מועד דיון, מועד חתימה, מועד משלוח מכתב וכו') — העדף new_timeline_event במקום, כדי שהעובדה תופיע על ציר הזמן ולא רק כהערה כללית.
+
+# אירוע חדש בציר הזמן (new_timeline_event)
+
+כאשר המשתמש מוסר עובדה או אירוע בעלי תאריך או תקופה מסוימים שאינם כבר מתועדים בציר הזמן הקיים בחומר התיק — הצע עדכון מסוג new_timeline_event עם event (תיאור קצר וברור של האירוע) ו-date (התאריך כפי שנמסר — תאריך מדויק אם צוין, למשל "5.3.2026", או תיאור תקופה אם לא, למשל "מרץ 2026" או "תחילת 2025"). אל תמציא תאריך שהמשתמש לא ציין.
 
 # איכות תשובה
 
@@ -221,7 +226,7 @@ ${issueContext ? `\n=== מחלוקת ספציפית בפוקוס ===\n${issueCon
   "proposedUpdates": [
     {
       "id": "unique_string",
-      "type": "new_work_item | new_evidence | new_contradiction | new_question | rollback_overlay | update_issue_field | new_issue | new_case_note",
+      "type": "new_work_item | new_evidence | new_contradiction | new_question | rollback_overlay | update_issue_field | new_issue | new_case_note | new_timeline_event",
       "description": "משפט אחד — מה מוצע",
       "data": {
         "title": "...",
@@ -235,7 +240,9 @@ ${issueContext ? `\n=== מחלוקת ספציפית בפוקוס ===\n${issueCon
         "overlayId": "רק עבור rollback_overlay — חייב להיות מזהה שהופיע בפועל בתגית [overlay-...] בחומר התיק, לעולם לא מזהה מומצא",
         "ourPosition": "רק עבור update_issue_field, ורק אם עמדתנו משתנה בפועל — הטקסט המתוקן",
         "theirPosition": "רק עבור update_issue_field, ורק אם עמדת הצד שכנגד משתנה בפועל — הטקסט המתוקן",
-        "importance": "רק עבור new_issue — central | secondary | peripheral"
+        "importance": "רק עבור new_issue — central | secondary | peripheral",
+        "event": "רק עבור new_timeline_event — תיאור קצר של האירוע",
+        "date": "רק עבור new_timeline_event — התאריך או התקופה כפי שנמסרו על ידי המשתמש, לעולם לא מומצא"
       }
     }
   ],
