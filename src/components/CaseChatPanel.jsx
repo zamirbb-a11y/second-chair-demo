@@ -50,6 +50,8 @@ export default function CaseChatPanel({
   onClose,
   isLoading,
   pendingPrompt = null, // { text: string, id: number } — set by parent to pre-fill input
+  onAttachFile,
+  isAttaching = false,
 }) {
   const [input, setInput]         = useState("");
   const [expanded, setExpanded]   = useState(false);
@@ -57,6 +59,7 @@ export default function CaseChatPanel({
   const [dismissedIds, setDismissedIds] = useState(new Set());
 
   const inputRef   = useRef(null);
+  const fileInputRef = useRef(null);
   const endRef     = useRef(null);
   const lastAiRef  = useRef(null);
   const resizeRef  = useRef(null); // { startY, startH }
@@ -234,6 +237,31 @@ export default function CaseChatPanel({
           <span className="shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 max-w-[140px] truncate">
             {issueContext.title}
           </span>
+        )}
+
+        {/* Attach file — routes to the focused issue if one is set, otherwise the case */}
+        {onAttachFile && (
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".docx,.txt,.pdf"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (file) onAttachFile(file);
+              }}
+            />
+            <button
+              onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+              disabled={isLoading || isAttaching}
+              className="shrink-0 w-7 h-7 flex items-center justify-center text-slate-500 hover:text-indigo-600 disabled:opacity-30 cursor-pointer bg-transparent border-0 text-base leading-none"
+              title={issueContext ? `צרף קובץ ל"${issueContext.title}"` : "צרף קובץ לתיק"}
+            >
+              {isAttaching ? "…" : "📎"}
+            </button>
+          </>
         )}
 
         {/* Input */}

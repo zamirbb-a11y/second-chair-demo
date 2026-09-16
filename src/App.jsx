@@ -1242,6 +1242,44 @@ function handleWorkspaceUpdate(update) {
   });
 }
 
+// Case-level counterpart to handleIssueFileUpload: there's no manual UI
+// entry point for this today (file attach only exists per-issue), so this
+// mirrors handleWorkspaceUpdate's queue-only behavior instead — no
+// auto-reanalysis, since that's a full pending-updates reanalysis pass
+// (see runIncrementalAnalysis) the user should trigger deliberately, not
+// something a case-level attach should spend an LLM call on by itself.
+async function handleCaseFileAttach(file) {
+  setUpdating(true);
+  setError("");
+  try {
+    const processed = await uploadFileViaStorage(file, session?.access_token);
+    if (!processed?.text?.trim()) {
+      setError("לא הצלחתי לחלץ טקסט מהקובץ.");
+      return;
+    }
+    handleWorkspaceUpdate({
+      type: "new_document",
+      targetType: "case",
+      title: `מסמך: ${processed.name}`,
+      text: processed.text,
+    });
+  } catch (err) {
+    console.error(err);
+    setError("לא הצלחתי להעלות את הקובץ.");
+  } finally {
+    setUpdating(false);
+  }
+}
+
+// Chat's single "attach" entry point — routes to whichever manual-flow
+// function matches the chat's current scope (see chatIssueContext).
+function handleChatFileAttach(file) {
+  if (chatIssueContext?.id) {
+    return handleIssueFileUpload(file, chatIssueContext.id, chatIssueContext.title);
+  }
+  return handleCaseFileAttach(file);
+}
+
 function buildCaseTextForAnalysis() {
   const updatesText = workspaceUpdates
     .map((update, index) => {
@@ -2565,6 +2603,8 @@ default:
               onClose={() => setShowCaseChat(false)}
               isLoading={chatLoading}
               pendingPrompt={chatPendingPrompt}
+              onAttachFile={handleChatFileAttach}
+              isAttaching={updating}
             />
           )}
 
