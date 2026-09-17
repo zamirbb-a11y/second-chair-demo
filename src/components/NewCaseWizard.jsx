@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { uploadFilesViaStorage } from "../utils/uploadViaStorage";
 
 const STEPS = [
   { label: "שם התיק",     sub: "זהות התיק" },
@@ -12,7 +13,7 @@ const ACTION_CFG = {
   ask_client:      { label: "שאל לקוח",  bg: "bg-amber-50",   text: "text-amber-700"  },
 };
 
-export default function NewCaseWizard({ onComplete, onCancel }) {
+export default function NewCaseWizard({ onComplete, onCancel, accessToken }) {
   const [step, setStep] = useState(0);
 
   // Step 1
@@ -62,12 +63,10 @@ export default function NewCaseWizard({ onComplete, onCancel }) {
     setUploadError("");
     setUploading(true);
     try {
-      const form = new FormData();
-      files.forEach(f => form.append("files", f));
-      const res = await fetch("/api/upload", { method: "POST", body: form });
-      if (!res.ok) throw new Error("שגיאה בהעלאת הקובץ");
-      const data = await res.json();
-      const processed = (data.files || []).filter(Boolean);
+      // Goes straight to Supabase Storage (uploadFilesViaStorage), not
+      // through /api/upload's formidable handler — that one caps files at
+      // 4MB, well under what a real scanned pleading PDF often runs.
+      const processed = (await uploadFilesViaStorage(files, accessToken)).filter(Boolean);
       setProcessedFiles(prev => [...prev, ...processed]);
       setUploadedNames(prev => [...prev, ...processed.map(f => f.name)]);
     } catch (err) {

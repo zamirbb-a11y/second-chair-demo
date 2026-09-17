@@ -1037,6 +1037,7 @@ export default function App() {
           <NewCaseWizard
             onComplete={handleWizardComplete}
             onCancel={() => setShowWizard(false)}
+            accessToken={session?.access_token}
           />
         )}
         <div className="w-full max-w-2xl rounded-3xl bg-white shadow-xl border border-slate-200 p-10 space-y-8">
@@ -2351,6 +2352,7 @@ default:
         <NewCaseWizard
           onComplete={handleWizardComplete}
           onCancel={() => setShowWizard(false)}
+          accessToken={session?.access_token}
         />
       )}
 
