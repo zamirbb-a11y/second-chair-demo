@@ -1247,6 +1247,81 @@ persistCurrentCase(analysis, {
     }
   }
 
+  // Accepting a pleadings-bridge suggestion (CaseFactualLedgerView) — the
+  // issue is already known with certainty (matched client-side before this
+  // was ever offered as a suggestion), so this skips resolveTargetIssue's
+  // ambiguity chain and the latestDelta staging step entirely and creates
+  // the overlay/work-item directly, same as the other Tier 1 direct-accept
+  // actions (rollback_overlay, update_issue_field, ...). Mirrors
+  // acceptEvidenceUpdate/acceptContradiction/acceptGeneratedWorkItem's own
+  // overlay shapes exactly, plus one additive field (pleadingSourceRef) —
+  // a pointer back to the source claim family, never a text copy.
+  function linkPleadingFindingToIssue(suggestion) {
+    const { type, issueId, issueTitle, title, description, sourceRef } = suggestion;
+    const now = new Date().toISOString();
+
+    if (type === "new_work_item") {
+      const acceptedItem = {
+        id: `work-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        type: "suggested_action",
+        title,
+        description,
+        priority: "medium",
+        relatedIssueId: issueId,
+        relatedIssueTitle: issueTitle,
+        status: "accepted",
+        acceptedAt: now,
+        pleadingSourceRef: sourceRef,
+      };
+      const nextAcceptedWorkItems = [acceptedItem, ...acceptedWorkItems];
+      const event = createEvent(
+        "work_item_created", "ai_delta", { issueId, field: null },
+        { op: "add", path: "workItems", value: title },
+        { summary: title, changed: "משימות", reason: description || "", groundedIn: [] }
+      );
+      event.status = "accepted";
+      const nextCaseEvents = [...caseEvents, event];
+      setAcceptedWorkItems(nextAcceptedWorkItems);
+      setCaseEvents(nextCaseEvents);
+      persistCurrentCase(analysis, { acceptedWorkItems: nextAcceptedWorkItems, caseEvents: nextCaseEvents });
+      return;
+    }
+
+    const isContradiction = type === "new_contradiction";
+    const overlay = {
+      id: `overlay-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      createdAt: now,
+      isNew: true,
+      type: isContradiction ? "contradiction" : "evidence",
+      patch: isContradiction
+        ? {
+            action: "add_contradiction", title, description,
+            severity: "medium", direction: "unclear",
+            relatedIssueId: issueId, relatedIssueTitle: issueTitle,
+            targetType: "claim", targetId: null,
+            pleadingSourceRef: sourceRef,
+          }
+        : {
+            action: "add_evidence_update", evidenceType: "document", title, description,
+            relatedIssueId: issueId, relatedIssueTitle: issueTitle, benefitsParty: "both",
+            pleadingSourceRef: sourceRef,
+          },
+    };
+    const nextOverlays = [...overlays, overlay];
+    const event = createEvent(
+      isContradiction ? "contradiction_noted" : "evidence_added",
+      "ai_delta",
+      { issueId, field: isContradiction ? "annotations.contradictions" : "linkedEvidence" },
+      { op: "add", path: isContradiction ? "annotations.contradictions" : "linkedEvidence", value: title },
+      { summary: title, changed: isContradiction ? "סתירות" : "ראיות", reason: description || "", groundedIn: [] }
+    );
+    event.status = "accepted";
+    const nextCaseEvents = [...caseEvents, event];
+    setOverlays(nextOverlays);
+    setCaseEvents(nextCaseEvents);
+    persistCurrentCase(analysis, { overlays: nextOverlays, caseEvents: nextCaseEvents });
+  }
+
 async function handleInfoAndReanalyze(update) {
   const enrichedUpdate = {
     id: `update-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -2598,6 +2673,8 @@ default:
                   accessToken={session?.access_token}
                   onRunStatusChange={setPleadingRunStatus}
                   onExhibitsExtracted={handlePleadingExhibitsExtracted}
+                  issues={liveCaseState?.issues ?? []}
+                  onAcceptSuggestion={linkPleadingFindingToIssue}
                 />
               </div>
             )}

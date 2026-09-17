@@ -125,7 +125,7 @@ const STAGE_LABELS = {
   relations:  "משווה לכתב הטענות הקודם…",
 };
 
-export default function PleadingAnalysisView({ caseId, accessToken, onRunStatusChange, onExhibitsExtracted }) {
+export default function PleadingAnalysisView({ caseId, accessToken, onRunStatusChange, onExhibitsExtracted, issues, onAcceptSuggestion }) {
   const [records, setRecords] = useState(() => loadRecords(caseId));
   const [mode, setMode] = useState("list"); // "list" | "upload" | "analysis" | "ledger"
   const [viewMode, setViewMode] = useState("summary"); // "summary" | "claims" | "document"
@@ -554,6 +554,8 @@ export default function PleadingAnalysisView({ caseId, accessToken, onRunStatusC
         resolveFamilyRef={resolveFamilyRef}
         onJumpToFamily={(analysisId, familyId) => { jumpToFamily(analysisId, familyId); setMode("analysis"); }}
         onBack={() => setMode("list")}
+        issues={issues ?? []}
+        onAcceptSuggestion={onAcceptSuggestion}
       />
     );
   }
