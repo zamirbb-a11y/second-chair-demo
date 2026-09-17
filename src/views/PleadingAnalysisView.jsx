@@ -72,12 +72,14 @@ async function extractPleadingText(file, accessToken, signal) {
   let storagePath = null; // kept for original-document display
   let ocrReview = null; // {needsManualReview, unreadablePages} — only set for scanned PDFs
   let pageCount = null; // real PDF page count, for mechanical page-limit checks (formalChecks.js)
+  let extractedExhibits = null; // exhibits auto-detected inside this PDF (see splitPleadingExhibits.js) — null when not a PDF or none found
   if (accessToken) {
     try {
       const processed = await uploadFileViaStorage(file, accessToken);
       pleadingText = processed?.text ?? "";
       storagePath = processed?.storagePath ?? null;
       pageCount = processed?.pageCount ?? null;
+      extractedExhibits = processed?.extractedExhibits ?? null;
       if (processed?.needsManualReview) {
         ocrReview = { needsManualReview: true, unreadablePages: (processed.ocrPages ?? []).filter((p) => p.status === "unreadable").map((p) => p.page) };
       }
@@ -96,12 +98,13 @@ async function extractPleadingText(file, accessToken, signal) {
     const uploaded = upData.files?.[0];
     pleadingText = (upData.files ?? []).map((f) => f?.text ?? "").join("\n\n");
     pageCount = uploaded?.pageCount ?? null;
+    extractedExhibits = uploaded?.extractedExhibits ?? null;
     if (uploaded?.needsManualReview) {
       ocrReview = { needsManualReview: true, unreadablePages: (uploaded.ocrPages ?? []).filter((p) => p.status === "unreadable").map((p) => p.page) };
     }
   }
   if (pleadingText.trim().length < 200) throw new Error("extraction_failed");
-  return { pleadingText, storagePath, ocrReview, pageCount };
+  return { pleadingText, storagePath, ocrReview, pageCount, extractedExhibits };
 }
 
 function loadRecords(caseId) {
@@ -122,7 +125,7 @@ const STAGE_LABELS = {
   relations:  "משווה לכתב הטענות הקודם…",
 };
 
-export default function PleadingAnalysisView({ caseId, accessToken, onRunStatusChange }) {
+export default function PleadingAnalysisView({ caseId, accessToken, onRunStatusChange, onExhibitsExtracted }) {
   const [records, setRecords] = useState(() => loadRecords(caseId));
   const [mode, setMode] = useState("list"); // "list" | "upload" | "analysis" | "ledger"
   const [viewMode, setViewMode] = useState("summary"); // "summary" | "claims" | "document"
@@ -339,8 +342,14 @@ export default function PleadingAnalysisView({ caseId, accessToken, onRunStatusC
     onRunStatusChange?.({ isRunning: true, label: file.name, cancel: () => controller.abort() });
 
     try {
-      const { pleadingText, storagePath, ocrReview, pageCount } =
+      const { pleadingText, storagePath, ocrReview, pageCount, extractedExhibits } =
         await extractPleadingText(file, accessToken, controller.signal);
+      onExhibitsExtracted?.({
+        exhibits: extractedExhibits,
+        isPdf: (file.name.split(".").pop() ?? "").toLowerCase() === "pdf",
+        sourceFileName: file.name,
+        sourceStoragePath: storagePath,
+      });
 
       // Opt-in only (checkbox, .docx only) — never blocks or fails the
       // main analysis if it errors, since it's a side-check, not the
@@ -402,8 +411,14 @@ export default function PleadingAnalysisView({ caseId, accessToken, onRunStatusC
     setUploadError("");
     setStatus("מעלה מסמך…");
     try {
-      const { pleadingText, storagePath, ocrReview, pageCount } =
+      const { pleadingText, storagePath, ocrReview, pageCount, extractedExhibits } =
         await extractPleadingText(file, accessToken);
+      onExhibitsExtracted?.({
+        exhibits: extractedExhibits,
+        isPdf: (file.name.split(".").pop() ?? "").toLowerCase() === "pdf",
+        sourceFileName: file.name,
+        sourceStoragePath: storagePath,
+      });
 
       const record = {
         id: `pa_uploaded_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,

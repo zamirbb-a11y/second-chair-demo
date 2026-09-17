@@ -222,6 +222,31 @@ function buildIssueAnalysisResult(issueId, issueTitle, result, isNew = true) {
   return { overlays, events, workItems };
 }
 
+// Shared by handleWordUpload and handlePleadingExhibitsExtracted — an
+// exhibit auto-detected inside a PDF (see processFile.js's
+// splitPleadingExhibits wiring) never becomes a separate blob, just
+// extracted text + a pointer back to the source file it came from.
+function buildExtractedExhibitFiles(exhibits, sourceFileName, sourceStoragePath) {
+  return (exhibits ?? []).map((ex) => ({
+    id: ex.id,
+    name: `נספח ${ex.number} — ${sourceFileName}`,
+    size: null,
+    status: "חולץ אוטומטית",
+    type: "pdf",
+    needsOcr: false,
+    text: ex.text,
+    textLength: ex.text.length,
+    preview: ex.text.slice(0, 700),
+    extractedFrom: {
+      fileName: sourceFileName,
+      storagePath: sourceStoragePath ?? null,
+      startPage: ex.startPage,
+      endPage: ex.endPage,
+      label: ex.label,
+    },
+  }));
+}
+
 export default function App() {
   const [caseText, setCaseText] = useState("");
   const [additionalInfoText, setAdditionalInfoText] = useState("");
@@ -1116,24 +1141,7 @@ export default function App() {
       // the file they came from — never a separate blob, just extracted
       // text + a pointer back to the source (name, storagePath, pages).
       const extractedExhibitFiles = processedFiles.flatMap((file) =>
-        (file.extractedExhibits ?? []).map((ex) => ({
-          id: ex.id,
-          name: `נספח ${ex.number} — ${file.name}`,
-          size: null,
-          status: "חולץ אוטומטית",
-          type: "pdf",
-          needsOcr: false,
-          text: ex.text,
-          textLength: ex.text.length,
-          preview: ex.text.slice(0, 700),
-          extractedFrom: {
-            fileName: file.name,
-            storagePath: file.storagePath ?? null,
-            startPage: ex.startPage,
-            endPage: ex.endPage,
-            label: ex.label,
-          },
-        }))
+        buildExtractedExhibitFiles(file.extractedExhibits, file.name, file.storagePath)
       );
 
       const nextCaseFiles = [...caseFiles, ...processedFiles, ...extractedExhibitFiles];
@@ -1219,6 +1227,23 @@ persistCurrentCase(analysis, {
       setStatus("לא הצלחתי להעלות או לקרוא את הקבצים.");
     } finally {
       event.target.value = "";
+    }
+  }
+
+  // Pleadings upload (PleadingAnalysisView) runs through its own,
+  // separate extraction path — this is the one bridge point where an
+  // exhibit it finds crosses over into caseFiles, same destination and
+  // shape as a general document upload's exhibits (buildExtractedExhibitFiles).
+  function handlePleadingExhibitsExtracted({ exhibits, isPdf, sourceFileName, sourceStoragePath }) {
+    if (!isPdf) return;
+    const extractedExhibitFiles = buildExtractedExhibitFiles(exhibits, sourceFileName, sourceStoragePath);
+    if (extractedExhibitFiles.length) {
+      const nextCaseFiles = [...caseFiles, ...extractedExhibitFiles];
+      setCaseFiles(nextCaseFiles);
+      persistCurrentCase(analysis, { caseFiles: nextCaseFiles });
+      setStatus(`חילצתי ${extractedExhibitFiles.length} נספחים מתוך "${sourceFileName}".`);
+    } else {
+      setStatus(`לא זוהו נספחים במסמך "${sourceFileName}" — ניתן להעלות אותם בנפרד.`);
     }
   }
 
@@ -2572,6 +2597,7 @@ default:
                   caseId={currentCaseId}
                   accessToken={session?.access_token}
                   onRunStatusChange={setPleadingRunStatus}
+                  onExhibitsExtracted={handlePleadingExhibitsExtracted}
                 />
               </div>
             )}
