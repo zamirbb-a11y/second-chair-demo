@@ -1111,7 +1111,32 @@ export default function App() {
     try {
       const processedFiles = await uploadFilesViaStorage(files, session?.access_token);
 
-      const nextCaseFiles = [...caseFiles, ...processedFiles];
+      // Exhibits auto-detected inside an uploaded PDF (see processFile.js's
+      // splitPleadingExhibits wiring) get filed into caseFiles alongside
+      // the file they came from — never a separate blob, just extracted
+      // text + a pointer back to the source (name, storagePath, pages).
+      const extractedExhibitFiles = processedFiles.flatMap((file) =>
+        (file.extractedExhibits ?? []).map((ex) => ({
+          id: ex.id,
+          name: `נספח ${ex.number} — ${file.name}`,
+          size: null,
+          status: "חולץ אוטומטית",
+          type: "pdf",
+          needsOcr: false,
+          text: ex.text,
+          textLength: ex.text.length,
+          preview: ex.text.slice(0, 700),
+          extractedFrom: {
+            fileName: file.name,
+            storagePath: file.storagePath ?? null,
+            startPage: ex.startPage,
+            endPage: ex.endPage,
+            label: ex.label,
+          },
+        }))
+      );
+
+      const nextCaseFiles = [...caseFiles, ...processedFiles, ...extractedExhibitFiles];
 
       const nextUploadedFiles = [
         ...uploadedFiles,
@@ -1168,10 +1193,19 @@ setWorkspaceUpdates(nextUpdates);
         (file) => file.status === "נטען"
       ).length;
 
+      const pdfFilesWithoutExhibits = processedFiles.filter(
+        (file) => file.type === "pdf" && !(file.extractedExhibits ?? []).length
+      ).length;
+      const exhibitsNote = extractedExhibitFiles.length
+        ? ` חילצתי ${extractedExhibitFiles.length} נספחים.`
+        : pdfFilesWithoutExhibits > 0
+          ? " לא זוהו נספחים במסמך — ניתן להעלות אותם בנפרד."
+          : "";
+
       if (loadedCount > 0) {
-        setStatus(`נטענו ${loadedCount} קבצים בהצלחה.`);
+        setStatus(`נטענו ${loadedCount} קבצים בהצלחה.${exhibitsNote}`);
       } else {
-        setStatus("הקבצים נוספו, אך לא חולץ מהם טקסט לניתוח.");
+        setStatus(`הקבצים נוספו, אך לא חולץ מהם טקסט לניתוח.${exhibitsNote}`);
       }
 
 persistCurrentCase(analysis, {

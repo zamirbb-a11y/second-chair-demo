@@ -1,6 +1,7 @@
 import mammoth from "mammoth";
 import pdfParse from "pdf-parse";
 import { simpleParser } from "mailparser";
+import { detectExhibitBoundaries } from "./splitPleadingExhibits.js";
 
 // Dynamic import, not static: on Vercel this module is require()'d as a
 // raw CJS file (its native deps — @napi-rs/canvas, tesseract.js — can't
@@ -9,6 +10,9 @@ import { simpleParser } from "mailparser";
 // Node rejects outright (ERR_REQUIRE_ESM); dynamic import() works from a
 // CJS caller. Also means non-PDF uploads never pay to load it.
 const scannedPdfOcr = () => import("./scannedPdfOcr.mjs");
+// Same ESM-from-CJS constraint as scannedPdfOcr.mjs above — this one just
+// reads the embedded text layer, no image rendering involved.
+const pdfPageText = () => import("./pdfPageText.mjs");
 
 // pdf-parse extracts Hebrew PDFs in visual order (reversed/scrambled RTL),
 // which both breaks display and degrades the AI analysis. When an API key
@@ -100,6 +104,7 @@ export async function processFileBuffer(buffer, filename) {
   let ocrPages = null; // page-level OCR detail, only set on the scanned-PDF path — traceability source of truth
   let needsManualReview = false;
   let pageCount = null; // real PDF page count (pdfjs), independent of extraction path — used for mechanical page-limit checks
+  let extractedExhibits = null; // exhibits auto-detected inside this PDF (see splitPleadingExhibits.js) — null when not a PDF or none found
 
   if (extension === "docx") {
     const result = await mammoth.extractRawText({ buffer });
@@ -109,6 +114,7 @@ export async function processFileBuffer(buffer, filename) {
     const { hasNoTextLayer, ocrScannedPdf } = await scannedPdfOcr();
     const { isScanned, numPages } = await hasNoTextLayer(buffer).catch(() => ({ isScanned: false, numPages: null }));
     pageCount = numPages ?? null;
+    let perPageText = null;
     if (isScanned) {
       // No embedded text layer at all: this is a scan, not a digital PDF.
       // Route to deterministic, page-by-page OCR rather than asking a
@@ -119,6 +125,7 @@ export async function processFileBuffer(buffer, filename) {
       extractionMethod = "scanned-ocr";
       ocrPages = ocrResult.pages;
       needsManualReview = ocrResult.needsManualReview;
+      perPageText = ocrResult.pages.map((p) => ({ page: p.page, text: p.text }));
       if (needsManualReview) {
         needsOcr = true;
         status = `נדרשת בדיקה ידנית — ${ocrResult.unreadablePages.length} עמודים לא זוהו`;
@@ -142,6 +149,35 @@ export async function processFileBuffer(buffer, filename) {
           needsOcr = true;
           status = "נדרש OCR";
         }
+      }
+      // Independent of whichever extraction path produced the main `text`
+      // above (vision-transcription or pdf-parse) — exhibit detection only
+      // needs the raw embedded text layer, not the higher-quality merged
+      // transcription, so this is a separate, deterministic, no-AI call.
+      try {
+        const { getDigitalPerPageText } = await pdfPageText();
+        perPageText = await getDigitalPerPageText(buffer);
+      } catch (_pageTextErr) {
+        perPageText = null;
+      }
+    }
+
+    if (perPageText && perPageText.length > 1) {
+      const { exhibits } = detectExhibitBoundaries(perPageText);
+      if (exhibits.length) {
+        extractedExhibits = exhibits.map((ex) => ({
+          id: `${createFileId(filename)}-exhibit-${ex.number}`,
+          number: ex.number,
+          label: ex.label,
+          startPage: ex.startPage,
+          endPage: ex.endPage,
+          text: normalizeText(
+            perPageText
+              .slice(ex.startPage - 1, ex.endPage)
+              .map((p) => p.text)
+              .join("\n\n")
+          ),
+        }));
       }
     }
   } else if (extension === "txt") {
@@ -186,6 +222,7 @@ ${parsed.text || ""}
     needsManualReview,
     ocrPages,
     pageCount,
+    extractedExhibits,
     text: cleanText,
     textLength: cleanText.length,
     preview: cleanText.slice(0, 700),
