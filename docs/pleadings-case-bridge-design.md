@@ -143,6 +143,10 @@ Every single line above was produced with **zero new AI calls** — it's a pure 
 ## 9. Product decisions needing your input
 
 1. **The deemed-admission legal question** (see `docs/stage2-document-type-rules.md`'s addendum): if תקנה 14 really does deem unaddressed complaint facts admitted absent express denial, "procedural gap" in the Ledger should probably be split into two different severities — a legally-grounded deemed-admission vs. a softer "no response identified." Needs your confirmation before that distinction gets built.
+   **RESOLVED 2026-09-16: not now.** Deferred — keep "procedural gap" as a single category for now, no split.
 2. **Should a Phase 2 link ever auto-update** when its underlying Ledger status changes, rather than just flagging staleness? I've proposed "never, always a flag" above as the conservative default, consistent with the append-only philosophy already in `CLAUDE.md` — but you may feel differently for high-confidence cases like a plain admission.
+   **RESOLVED 2026-09-16: yes, always just flag.** Never auto-update — confirmed the conservative default.
 3. **Should the Ledger (and eventually Phase 2) work for a case with no `analysis` yet** — i.e., can pleadings become a valid *starting point* for a case, before the big case-materials analysis has ever run? Today every case implicitly starts from that call; this wasn't tested either way.
+   **RESOLVED 2026-09-16: no — not a real scenario.** The system is built so there is always something preceding the pleadings, even if just a single line of case text. Every case has an `analysis` (however minimal) by the time a pleading could be linked. Phase 2 can assume `analysis.issues[]` always exists as the anchor; no need to design for a pleadings-only case.
 4. **Is `issueTaxonomy.js` actually a good fit for legal-elements-to-establish (Phase 3)?** I flagged it as a plausible reuse, not a decision — it was built for a different purpose and I did not evaluate it deeply enough tonight to recommend committing to it.
+   Still open — Phase 3 not started, no need to resolve yet.
